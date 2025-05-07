@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogTap Viewer</title>
+    <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="vendor/gridjs/css/mermaid.min.css" rel="stylesheet" />
+    <script src="vendor/gridjs/js/gridjs.umd.js"></script>
+    <script src="vendor/js-yaml/js-yaml.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="d-flex">
+
+    <aside class="sidebar p-3 d-flex flex-column" id="sidebar">
+        <div class="flex-shrink-0">
+            <h1 class="text-light fs-4 mb-3">LogTap Viewer</h1>
+            <button id="addTabBtn" class="btn btn-sm w-100 mb-3 btn-addtab">+</button>
+        </div>
+
+        <div class="sidebar-content nav nav-pills flex-column mb-auto" id="logTabsContainer" role="tablist" aria-orientation="vertical">
+            </div>
+
+        <div class="sidebar-footer flex-shrink-0">
+            <hr class="text-secondary my-2">
+            <div class="mb-3">
+                <label for="querySnippets" class="form-label form-label-sm">Query Snippets</label>
+                <select id="querySnippets" class="form-select form-select-sm"></select>
+            </div>
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label for="queryHistorySelect" class="form-label form-label-sm mb-0">Query History</label>
+                    <button id="clearHistoryBtn" class="btn btn-outline-danger btn-sm py-0 px-1">Clear</button>
+                </div>
+                <select id="queryHistorySelect" class="form-select form-select-sm mb-2"></select>
+            </div>
+
+            <hr class="text-secondary my-2">
+            <div class="text-center text-muted small mt-2">
+                <p class="mb-1">
+                    Made for Defenders ❤️
+                </p>
+                <p class="mb-0">
+                    <a href="https://buymeacoffee.com/ajtap" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                        Donate a Coffee ☕
+                    </a>
+                </p>
+            </div>
+            </div>
+    </aside>
+
+    <main>
+        <div class="control-panel p-3 border-bottom border-secondary">
+            <div class="row g-3 mb-3">
+                <div class="col-lg-6">
+                    <div class="p-3 bg-dark rounded border border-secondary-subtle h-100">
+                        <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Data Source</h3>
+                        <div class="mb-2">
+                            <label for="dataInput" class="form-label form-label-sm">Paste Data</label>
+                            <textarea id="dataInput" rows="3" class="form-control form-control-sm io-area" placeholder="Paste log data here..."></textarea>
+                        </div>
+                        <div>
+                            <label for="fileInput" class="form-label form-label-sm">Upload Data File</label>
+                            <input type="file" id="fileInput" class="form-control form-control-sm"/>
+                            <div id="fileNameDisplay" class="form-text form-text-sm mt-1">No file loaded for this tab.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                     <div class="p-3 bg-dark rounded border border-secondary-subtle h-100">
+                        <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Processing & Analysis</h3>
+                        <div class="row g-2 mb-2">
+                            <div class="col-sm-6">
+                                <label for="inputFormat" class="form-label form-label-sm">Input Format</label>
+                                <select id="inputFormat" class="form-select form-select-sm"></select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label for="outputFormat" class="form-label form-label-sm">Output/Export Format</label>
+                                <select id="outputFormat" class="form-select form-select-sm"></select>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="form-label-sm fw-medium mt-2 mb-1">Scanner Rules</h4>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-sm-6">
+                                    <label for="predefinedRulesSelect" class="form-label-sm">Load Predefined:</label>
+                                    <div class="input-group input-group-sm">
+                                        <select id="predefinedRulesSelect" class="form-select"></select>
+                                        <button id="loadPredefinedRuleBtn" class="btn btn-secondary" type="button">Load</button>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="scannerRuleFileInput" class="form-label-sm">Upload Custom (YAML):</label>
+                                    <input type="file" id="scannerRuleFileInput" class="form-control form-control-sm" accept=".yaml,.yml">
+                                </div>
+                            </div>
+                            <div id="scannerRuleFileNameDisplay" class="form-text form-text-sm mt-1">No scanner rules loaded.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="queryInput" class="form-label fs-6 fw-medium">Search Query (ZQ)</label>
+                <textarea id="queryInput" rows="2" class="form-control io-area shadow-sm" placeholder="e.g., 'pass | count() by field | sort field'"></textarea>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-start gap-2 pt-2 border-top border-secondary mt-2">
+                <button id="runQueryBtn" class="btn btn-primary btn-sm">Run Query</button>
+                <button id="runScannerBtn" class="btn btn-warning btn-sm">Run Scanner</button>
+                <button id="exportBtn" class="btn btn-success btn-sm" disabled>Export Results</button>
+                <div id="statusMessage" class="alert alert-info d-none flex-grow-1 ms-auto p-2 mb-0 text-sm" role="alert"></div>
+            </div>
+        </div>
+
+        <div class="results-area p-3">
+
+            <div id="scannerResultsPanel" class="p-3 border rounded border-secondary-subtle bg-dark shadow-sm mb-3 d-none">
+                <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Scanner Hits</h3>
+                <div id="scannerHitsOutput" class="font-monospace small scanner-hit-result" style="font-size: 0.8rem;">
+                    </div>
+                <p id="noScannerHitsMessage" class="text-body-secondary small mt-2 d-none">No hits found by the scanner.</p>
+            </div>
+
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="fs-6 fw-semibold">Query Results</h2>
+                    <button id="toggleViewBtn" class="btn btn-outline-secondary btn-sm d-none">View Raw</button>
+                </div>
+
+                <div id="tableResultOutputContainer" class="d-none">
+                    </div>
+
+                <div id="textResultOutput" class="raw-output-wrapper border rounded bg-dark-subtle p-2 d-none">
+                    <pre class="m-0 small"><code id="resultOutputCode" class="font-monospace" style="white-space: pre-wrap; word-break: break-all;"></code></pre>
+                </div>
+
+                <div id="noResultsMessage" class="text-center py-5 text-body-secondary d-none">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-table mb-2" viewBox="0 0 16 16">
+                         <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2h-4v3h4zm0 4h-4v3h4zm0 4h-4v3h3a1 1 0 0 0 1-1zm-5 3v-3H6v3zm-4 0v-3H2v2a1 1 0 0 0 1 1zm-3-4h3v-3H2zm0-4h3V3H2zm4 0v3h4V3zm4 0v3h4V3z"/>
+                     </svg>
+                    <h3 class="fs-6 fw-medium">No Results</h3>
+                    <p class="small">Your query returned no data or the result is not displayable.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>

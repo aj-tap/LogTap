@@ -1,0 +1,112 @@
+rules:
+  # --- IP Addresses (Covered Previously, Re-stated for Completeness) ---
+  - name: "Detect_IOC_IPv4"
+    query: "grep(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b/, this.Content)"    
+
+  - name: "Detect_IOC_IPv6"
+    query: "grep(/\\b((([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])))\\b/, this.Content)"    
+
+  # --- Autonomous System Numbers (ASNs) ---
+  - name: "Detect_IOC_ASN"
+    query: "grep(/\\b(?:[aA][sS][nN]|[aA][sS]) ?(\\d+)\\b/, this.Content)"    
+
+  # --- Bitcoin Addresses ---
+  - name: "Detect_IOC_Bitcoin_P2PKH_Address" # e.g., 1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2
+    query: "grep(/\\b[1][a-km-zA-HJ-NP-Z1-9]{25,34}\\b/, this.Content)"    
+
+  - name: "Detect_IOC_Bitcoin_P2SH_Address" # e.g., 3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy
+    query: "grep(/\\b[3][a-km-zA-HJ-NP-Z1-9]{25,34}\\b/, this.Content)"    
+
+  - name: "Detect_IOC_Bitcoin_Bech32_Address" # e.g., bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
+    query: "grep(/\\b[bB][cC]1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{11,71}\\b/, this.Content)"    
+
+  # --- CIDR Ranges (IPv4 only as per user note) ---
+  - name: "Detect_IOC_IPv4_CIDR_Range"
+    query: "grep(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\/(?:[0-9]|[12][0-9]|3[012])\\b/, this.Content)"    
+    # Note: IPv6 CIDR support is "coming soon" according to the user's list.
+
+  # --- CVEs (Covered Previously) ---
+  - name: "Detect_IOC_CVE_ID"
+    query: "grep(/\\bCVE-(?:1999|2\\d{3})-(?:0\\d{2}[1-9]|[1-9]\\d{3,})\\b/, this.Content)"    
+
+  # --- Domain Names (Covered Previously) ---
+  - name: "Detect_IOC_Domain"
+    query: "grep(/\\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,63}\\b/, this.Content)"    
+    # Note: Unicode domain name support is "coming soon" according to the user's list. This regex does not cover IDNs.
+
+  # --- Email Addresses (Revised) ---
+  - name: "Detect_IOC_Email_Address_Standard"
+    query: "grep(/\\b[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}\\b/, this.Content)"    
+
+  - name: "Detect_IOC_Email_Address_With_IPv4_Domain"
+    query: "grep(/\\b[a-zA-Z0-9._%+\\-]+@\\[(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\]\\b/, this.Content)"    
+
+  # --- File Hashes (Extended) ---
+  - name: "Detect_IOC_MD5_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{32}\\b/, this.Content)"
+  - name: "Detect_IOC_SHA1_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{40}\\b/, this.Content)"
+  - name: "Detect_IOC_SHA256_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{64}\\b/, this.Content)"
+  - name: "Detect_IOC_SHA512_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{128}\\b/, this.Content)"
+    # Note: Import hashes (imphash) and Authentihashes often resemble standard hashes (MD5, SHA1, SHA256)
+    # and would likely be caught by the rules above. Specific keywords around them would be needed for more distinct rules.
+
+  # --- File Paths (Beta - simplified, potentially noisy) ---
+  - name: "Detect_IOC_Windows_File_Path_Beta"
+    query: "grep(/\\b[a-zA-Z]:(?:\\\\[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F]+)+(?:\\\\[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F]*)?\\b|\\b\\\\\\\\(?:[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F\\\\]+)\\\\(?:[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F\\\\]+)(?:\\\\[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F]+)*\\b/, this.Content)"    
+
+  - name: "Detect_IOC_POSIX_File_Path_Beta"
+    query: "grep(/\\b(?:\\/(?:[\\w.-]+))+ সাজানো হয়েছে\\/?\\b|~(?:\\/(?:[\\w.-]+))*\\/?\\b/, this.Content)"    
+
+  # --- Google Adsense Publisher IDs ---
+  - name: "Detect_IOC_Google_Adsense_Publisher_ID"
+    query: "grep(/\\bpub-\\d{16}\\b/, this.Content)"    
+
+  # --- Google Analytics Tracker IDs ---
+  - name: "Detect_IOC_Google_Analytics_UA_ID"
+    query: "grep(/\\bUA-\\d{4,10}-\\d{1,4}\\b/, this.Content)"    
+  - name: "Detect_IOC_Google_Analytics_G_ID"
+    query: "grep(/\\bG-[A-Z0-9]{10}\\b/, this.Content)"    
+
+  # --- MAC Addresses (Beta) ---
+  - name: "Detect_IOC_MAC_Address_Beta"
+    query: "grep(/\\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\\b|\\b(?:[0-9A-Fa-f]{4}\\.){2}[0-9A-Fa-f]{4}\\b/, this.Content)"    
+
+  # --- Monero Addresses ---
+  - name: "Detect_IOC_Monero_Address"
+    query: "grep(/\\b[48][1-9A-HJ-NP-Za-km-z]{93}[1-9A-HJ-NP-Za-km-z]?\\b/, this.Content)" # Standard addresses are 95 chars. Some subaddresses can be longer.    
+
+  # --- Registry Key Paths ---
+  - name: "Detect_IOC_Windows_Registry_Key_Path"
+    query: "grep(/\\b(?:HKEY_(?:CLASSES_ROOT|CURRENT_USER|LOCAL_MACHINE|USERS|CURRENT_CONFIG)|HKCR|HKCU|HKLM|HKU)(?:\\\\[^\\\\\\/:*?\"<>|\\r\\n]+)+\\b/, this.Content)"    
+
+  # --- SSDeep Hashes (Beta) ---
+  - name: "Detect_IOC_SSDeep_Hash_Beta"
+    query: "grep(/\\b\\d{1,}:[A-Za-z0-9+\\/]{1,}:[A-Za-z0-9+\\/]{1,}\\b/, this.Content)"    
+
+  # --- URLs (Revised for "with and without schemes") ---
+  - name: "Detect_IOC_URL_With_Scheme" # Previously corrected
+    query: "grep(/\\b(?:https?|ftp|file):\\/\\/\\/[-a-zA-Z0-9+&@#\\/%?=~_!:,.;]*[-a-zA-Z0-9+&@#\\/%=~_|]/, this.Content)"    
+
+  - name: "Detect_IOC_URL_Generic_Maybe_Schemeless"
+    query: "grep(/(?:(?:[a-zA-Z]+:)?\\/\\/)?([\\w.-]+(?:\\.[a-zA-Z]{2,})+)(?:[\\/\\w?=&%#.-]*)?/, this.Content)"    
+    # This is more general and might catch more, but also be more prone to false positives than the strictly schemed one.
+
+  # --- User Agents (Beta) ---
+  - name: "Detect_IOC_User_Agent_Common_Keywords_Beta"
+    query: "grep(/\\b(?:Mozilla|Opera|Curl|Wget|Python-urllib|Java|okhttp| σύμφωνα với các kết quả đã cho|Googlebot|Bingbot|[aA][pP][aA][cC][hH][eE]-[hH][tT][tT][pP][cC][lL][iI][eE][nN][tT])(?:\\/[\\w.-]+)?(?:\\s+\\([^)]*\\))?/, this.Content)"    
+
+  # --- XMPP Addresses ---
+  - name: "Detect_IOC_XMPP_Address"
+    query: "grep(/\\b[a-zA-Z0-9._%+\\-]+@(?:[a-zA-Z0-9.\\-]*?(?:[jJ][aA][bB][bB][eE][rR]|[xX][mM][pP][pP])[a-zA-Z0-9.\\-]*?\\.[a-zA-Z]{2,})\\b/, this.Content)"    
+
+  # --- MITRE ATT&CK Identifiers ---
+  - name: "Detect_IOC_MITRE_ATTACK_ID"
+    query: "grep(/\\b(?:T\\d{4}(?:\\.\\d{3})?|TA\\d{4}|M\\d{4}|G\\d{4}|S\\d{4}|DS\\d{4}|C\\d{4})\\b/, this.Content)"    
+    # Mitigations (Mxxxx), Groups (Gxxxx), Software (Sxxxx), Data Sources (DSxxxx), Campaigns (Cxxxx).
+
+  # --- TLP Labels ---
+  - name: "Detect_IOC_TLP_Label"
+    query: "grep(/\\b[tT][lL][pP]:(?:CLEAR|GREEN|AMBER(?:\\+STRICT)?|RED|WHITE)\\b/, this.Content)" # Added WHITE, CLEAR as per common TLP versions    

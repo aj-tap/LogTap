@@ -1,0 +1,95 @@
+rules:
+  - name: "Detect_AuthFailure_Generic-1"
+    query: "grep('authentication failure', this)"
+  - name: "Detect_SSHD_AuthFailure-2"
+    query: "grep('authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=', this)"
+
+  - name: "Detect_SSHD_Accepted_Publickey"
+    query: "grep('Accepted publickey for', this)"
+  - name: "Detect_SSHD_Session_Opened"
+    query: "grep('session opened for user', this)"
+  - name: "Detect_SSHD_Accepted_Password" # Another common SSH success message
+    query: "grep('Accepted password for', this)"
+
+  - name: "Detect_Sudo_Command_Execution_Detail" # Assumes sudo logs command details in Content
+    query: "grep('USER=root ; COMMAND=', this)" # Typical sudo log format in Content
+  - name: "Detect_Sudo_AuthFailure_PAM" # Specific to PAM messages for sudo
+    query: "grep('pam_unix(sudo:auth): authentication failure', this)"
+  - name: "Detect_Sudo_Incorrect_Password_Attempts" # Another sudo failure variant
+    query: "grep('incorrect password attempts', this)" # Often preceded by user/tty info in Content
+
+  - name: "Detect_UserAdd_New_User_Detailed"
+    query: "grep('new user: name=', this)" # Common for useradd command
+  - name: "Detect_UserDel_User_Deleted"
+    query: "grep('user .* deleted', this)" # A possible pattern for userdel
+  - name: "Detect_UserDel_Delete_User"
+    query: "grep('delete user .* from /etc/passwd', this)" # Another specific userdel message
+
+  - name: "Detect_Password_Changed_For_User"
+    query: "grep('password changed for', this)" # Common in auth logs
+
+  # Kernel messages are diverse; these are examples. Specificity is key.
+  - name: "Detect_Kernel_Oops"
+    query: "grep('Oops:', this)"
+  - name: "Detect_Kernel_BUG"
+    query: "grep('BUG: unable to handle kernel', this)"
+  - name: "Detect_Kernel_Segfault"
+    query: "grep('segfault at', this)"
+  - name: "Detect_Kernel_General_Error_Prefix" # If kernel errors in Content are prefixed
+    query: "grep('kernel:.*error', this)" # Assumes 'kernel:' prefix is in Content string
+  - name: "Detect_Kernel_Call_Trace"
+    query: "grep('Call Trace:', this)"
+
+  # Systemd service failures
+  - name: "Detect_Systemd_Failed_To_Start_Unit"
+    query: "grep('Failed to start', this)" # Often followed by unit name
+  - name: "Detect_Systemd_Service_Entered_Failed_State"
+    query: "grep('service entered failed state', this)" # Generic systemd failure
+  - name: "Detect_Systemd_Job_Failed"
+    query: "grep('Job .* failed to start', this)" # Another systemd failure pattern
+
+  # Cron job errors - patterns depend on how cron daemon logs to Content
+  - name: "Detect_Cron_Error_Generic" # Very generic
+    query: "grep('CRON.*ERROR', this)" # Assumes CRON and ERROR appear in Content
+  - name: "Detect_Cron_Failed_Generic"
+    query: "grep('CRON.*FAILED', this)" # Assumes CRON and FAILED appear in Content
+  - name: "Detect_Cron_Cmd_Error" # More specific cron error
+    query: "grep('CMD.*ERROR.*running command', this)"
+
+
+  # Firewall (UFW example)
+  - name: "Detect_UFW_Block" # This is effective if '[UFW BLOCK]' is in Content
+    query: "grep('[UFW BLOCK]', this)"
+
+  # SSHD messages indicating multiple failed attempts
+  - name: "Detect_SSHD_Max_Auth_Attempts_Exceeded"
+    query: "grep('Maximum authentication attempts exceeded for', this)"
+  - name: "Detect_SSHD_Too_Many_Auth_Failures"
+    query: "grep('Too many authentication failures for', this)"
+
+  # User added to privileged group - these are highly dependent on specific log messages
+  - name: "Detect_User_Added_To_Sudo_Group_Gpasswd"
+    query: "grep('user .* added to group sudo', this)" # Example for gpasswd
+  - name: "Detect_User_Added_To_Admin_Group_Gpasswd"
+    query: "grep('user .* added to group admin', this)"
+  - name: "Detect_User_Added_To_Wheel_Group_Gpasswd"
+    query: "grep('user .* added to group wheel', this)"
+  - name: "Detect_Usermod_Add_To_Group_Sudo" # Example for usermod
+    query: "grep('usermod.*adding user.*to group sudo', this)"
+
+
+  # System shutdown or reboot
+  - name: "Detect_System_Powering_Off"
+    query: "grep('systemd-logind.*Powering Off', this)" # Assumes systemd-logind prefixes its messages in Content
+  - name: "Detect_System_Rebooting_Systemd"
+    query: "grep('systemd-logind.*Rebooting', this)" # Assumes systemd-logind prefixes
+  - name: "Detect_System_Going_Down_For_Reboot"
+    query: "grep('system is going down for reboot NOW!', this)" # Common shutdown message
+  - name: "Detect_System_Going_Down_For_Halt"
+    query: "grep('system is going down for halt NOW!', this)"
+  - name: "Detect_Shutdown_Requested_By_User" # If shutdown command logs like this to Content
+    query: "grep('shutdown:.*requested by', this)"
+
+  # Add more rules here based on specific string patterns you want to detect in this
+  # - name: "<Give-Descriptive-Name>"
+  #   query: "grep('<Your-Specific-String-Pattern-Here>', this)"
