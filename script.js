@@ -84,7 +84,7 @@ const config = {
     predefinedRuleSets: [
         { name: "Select a predefined set...", path: "" },
         { name: "Common_iocs_pattern", path: "rules/common_iocs_pattern.yaml" },
-        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_paterns.yaml" },
+        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_pattern.yaml" },
         { name: "Linux_basic_pattern", path: "rules/linux_basic_pattern.yaml" },
     ]
 };
