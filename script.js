@@ -77,6 +77,7 @@ const config = {
     querySnippets: [
         { name: "Select a snippet...", template: "" },
         { name: "Show all (pass)", template: "pass" },
+        { name: "Filter data by search term", template: "grep('pattern')" },
         { name: "Count by field", template: "count() by this['<field>']" },
         { name: "Top N values", template: "top N this['<field>']" },
         { name: "Sort by field", template: "sort this['<field>']" },
@@ -85,8 +86,11 @@ const config = {
     predefinedRuleSets: [
         { name: "Select a predefined set...", path: "" },
         { name: "Common_iocs_pattern", path: "rules/common_iocs_pattern.yaml" },
-        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_paterns.yaml" },
+        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_pattern.yaml" },
         { name: "Linux_basic_pattern", path: "rules/linux_basic_pattern.yaml" },
+        { name: "c2_pattern", path: "rules/c2_pattern.yaml" },
+        { name: "security_event_IDs_pattern", path: "rules/security_event_IDs_pattern.yaml" },
+        { name: "http_logs_pattern", path: "rules/http_investigation_pattern.yaml" },
     ]
 };
 
