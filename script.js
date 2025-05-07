@@ -50,7 +50,9 @@ const dom = {
     queryHistorySelect: document.getElementById('queryHistorySelect'),
     clearHistoryBtn: document.getElementById('clearHistoryBtn'),
     logTabsContainer: document.getElementById('logTabsContainer'),
-    addTabBtn: document.getElementById('addTabBtn')
+    addTabBtn: document.getElementById('addTabBtn'),
+    cancelScanBtn: document.getElementById('cancelScanBtn'),
+    scanProgress: document.getElementById('scanProgress')
 };
 
 let superdbInstance = null;
@@ -58,6 +60,7 @@ let tabsState = [];
 let activeTabId = null;
 let nextTabId = 1;
 const MAX_HISTORY_ITEMS = 25;
+let scannerWorker = null;
 
 const config = {
     inputFormats: [
@@ -76,13 +79,13 @@ const config = {
         { name: "Count by field", template: "count() by this['<field>']" },
         { name: "Top N values", template: "top N this['<field>']" },
         { name: "Sort by field", template: "sort this['<field>']" },
-        { name: "Parse Linux Logs", template: "yield grok('%{SYSLOGTIMESTAMP:timestamp} %{HOSTNAME:hostname} %{GREEDYDATA:message}', this) " },       
+        { name: "Parse Unstructured Linux Logs", template: "yield grok('%{SYSLOGTIMESTAMP:timestamp} %{HOSTNAME:hostname} %{GREEDYDATA:message}', this) " },
     ],
     predefinedRuleSets: [
         { name: "Select a predefined set...", path: "" },
-        { name: "Common_iocs_pattern", path: "rules/common_iocs_pattern.yaml" },        
-        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_paterns.yaml" },        
-        { name: "Linux_basic_pattern", path: "rules/linux_basic_pattern.yaml" },                
+        { name: "Common_iocs_pattern", path: "rules/common_iocs_pattern.yaml" },
+        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_paterns.yaml" },
+        { name: "Linux_basic_pattern", path: "rules/linux_basic_pattern.yaml" },
     ]
 };
 
@@ -248,6 +251,7 @@ function addTab() {
     tabsState.push(newTab);
     switchTab(newTab.id);
     if (tabsState.length === 1 && superdbInstance) { dom.queryInput.focus(); }
+    return newTab;
 }
 
 function closeTab(tabIdToClose) {
@@ -259,11 +263,24 @@ function closeTab(tabIdToClose) {
     if (tabToClose.gridInstance) { try { tabToClose.gridInstance.destroy(); } catch(e) {} }
     tabsState.splice(tabIndex, 1);
 
+    if (scannerWorker && scannerWorker.tabId === tabIdToClose) {
+        scannerWorker.terminate();
+        scannerWorker = null;
+        console.log(`Scanner worker for tab ${tabIdToClose} terminated.`);
+        dom.cancelScanBtn.classList.add('d-none');
+        dom.scanProgress.classList.add('d-none');
+        dom.runScannerBtn.disabled = !(getActiveTabState()?.scannerRules?.length > 0 && superdbInstance);
+        dom.runScannerBtn.textContent = 'Run Scanner';
+        dom.runQueryBtn.disabled = !superdbInstance;
+    }
+
     if (activeTabId === tabIdToClose) {
         activeTabId = null;
-        const newActiveIndex = Math.max(0, tabIndex -1);
+        const newActiveIndex = Math.max(0, tabIndex - 1);
         switchTab(tabsState[newActiveIndex].id);
-    } else { renderTabs(); }
+    } else {
+        renderTabs();
+    }
 }
 
 function loadQueryHistory() {
@@ -282,6 +299,7 @@ function loadQueryHistory() {
         dom.queryHistorySelect.appendChild(option);
     });
 }
+
 function saveQueryToHistory(query) {
     if (!query || !query.trim()) return;
     let history = JSON.parse(localStorage.getItem('zqQueryHistory') || '[]');
@@ -291,6 +309,7 @@ function saveQueryToHistory(query) {
     localStorage.setItem('zqQueryHistory', JSON.stringify(history));
     loadQueryHistory();
 }
+
 function clearQueryHistory() {
     localStorage.removeItem('zqQueryHistory');
     loadQueryHistory();
@@ -321,7 +340,7 @@ function parseAndSetScannerRules(yamlContent, fileName, tab) {
 
 async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
     try {
-        if (!filePath) { 
+        if (!filePath) {
              const exampleRuleContent = `rules:\n  - name: Example Rule for ${ruleSetName}\n    query: "pass | head 1"`;
              console.warn(`Using example content for ${ruleSetName} as path is placeholder: ${filePath}`);
              parseAndSetScannerRules(exampleRuleContent, `${ruleSetName} (Example)`, tab);
@@ -408,6 +427,7 @@ function parseResultForTable(resultText, actualOutputFormat) {
                 });
             }
         } else { return null; }
+        if (headers.length === 0) return null;
         return { headers, dataRows };
     } catch (e) { console.error(`Error parsing result for table (format: ${actualOutputFormat}):`, e, resultText); return null; }
 }
@@ -427,12 +447,21 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
         showAppMessage("Error: Table library (Grid.js) not loaded.", "error", true);
         return null;
     }
-    tab.gridInstance = new gridjs.Grid({
-        columns: headers, data: dataRows, search: true, sort: true,
-        pagination: { enabled: true, limit: 10, summary: true },
-    }).render(containerElement);
-    containerElement.classList.remove('d-none');
-    return tab.gridInstance;
+    try {
+        tab.gridInstance = new gridjs.Grid({
+            columns: headers, data: dataRows, search: true, sort: true,
+            pagination: { enabled: true, limit: 100, summary: true },
+        }).render(containerElement);
+        containerElement.classList.remove('d-none');
+        return tab.gridInstance;
+    } catch (gridError) {
+        console.error("Error rendering Grid.js table:", gridError);
+        showAppMessage(`Error displaying results table: ${gridError.message}`, 'error', true);
+        containerElement.innerHTML = `<div class="alert alert-danger">Failed to render results table.</div>`;
+        containerElement.classList.remove('d-none');
+        tab.gridInstance = null;
+        return null;
+    }
 }
 
 function setupEventListeners() {
@@ -510,6 +539,17 @@ function setupEventListeners() {
     dom.exportBtn.addEventListener('click', exportResultsHandler);
     dom.runScannerBtn.addEventListener('click', runScannerHandler);
     dom.toggleViewBtn.addEventListener('click', toggleResultsViewHandler);
+    dom.cancelScanBtn.addEventListener('click', cancelScanHandler);
+
+    dom.scannerHitsOutput.addEventListener('click', (event) => {
+        const pivotButton = event.target.closest('.pivot-button');
+        if (pivotButton) {
+            const ruleName = pivotButton.dataset.ruleName;
+            const ruleQuery = pivotButton.dataset.ruleQuery;
+            const sourceTabId = pivotButton.dataset.sourceTabId;
+            handlePivotToNewTab(sourceTabId, ruleName, ruleQuery);
+        }
+    });
 }
 
 async function runQueryHandler() {
@@ -591,63 +631,208 @@ async function exportResultsHandler() {
     } catch (error) { showAppMessage(`Export error: ${error.message}`, 'error', true); }
 }
 
-async function runScannerHandler() {
-    const activeTab = getActiveTabState();
-    if (!activeTab || !superdbInstance) { showAppMessage(superdbInstance ? "No active tab." : "SuperDB not ready.", 'error', true); return; }
-    if (!activeTab.scannerRules || activeTab.scannerRules.length === 0) { showAppMessage("No scanner rules loaded. Upload or select predefined rules.", 'warning', true); return; }
-    if (!activeTab.rawData || !activeTab.rawData.trim()) { showAppMessage("No data to scan. Paste or upload data first.", 'warning', true); return; }
-
-    activeTab.scannerHitsHTML = ''; dom.scannerHitsOutput.innerHTML = '';
-    dom.noScannerHitsMessage.classList.add('d-none');
-    dom.scannerResultsPanel.classList.remove('d-none');
-
-    dom.runScannerBtn.disabled = true;
-    dom.runScannerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Scanning...';
-    showAppMessage(`Scanner running with ${activeTab.scannerRules.length} rule(s)...`, 'info');
-    let hitsFound = 0, errorsOccurred = false;
-
-    for (const rule of activeTab.scannerRules) {
-        try {
-            const result = await superdbInstance.run({ query: rule.query, input: activeTab.rawData, inputFormat: activeTab.inputFormat, outputFormat: 'line' }); // can overide with zjson
-            if (result && result.trim() !== "") {
-                hitsFound++;
-                activeTab.scannerHitsHTML += `
-                <div class="mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0">
-                    <strong class="text-info d-block mb-1 small">Hit for Rule: "${rule.name}"</strong>
-                    <p class="mb-1 small text-body-secondary scanner-hit-query">Query: <code class="text-light small">${rule.query}</code></p>
-                    <div class="scanner-hit-result">
-                        <pre class="small m-0"><code>${result.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
-                    </div>
-                 </div>`;
-            }
-        } catch (error) {
-            errorsOccurred = true; console.error(`Scanner rule "${rule.name}" error:`, error);
-            activeTab.scannerHitsHTML += `<div class="mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0 text-danger">
-                <strong>Error for Rule: "${rule.name}"</strong><br><small class="small">${error.message || String(error)}</small></div>`;
-        }
-    }
-    dom.scannerHitsOutput.innerHTML = activeTab.scannerHitsHTML;
-    dom.runScannerBtn.disabled = false;
-    dom.runScannerBtn.textContent = 'Run Scanner';
-
-    if (hitsFound === 0 && !errorsOccurred) {
-        dom.noScannerHitsMessage.classList.remove('d-none');
-        showAppMessage(`Scanner finished. No hits found.`, 'success');
-    } else if (hitsFound > 0) {
-        dom.noScannerHitsMessage.classList.add('d-none');
-        showAppMessage(`Scanner finished. Found ${hitsFound} hit(s). ${errorsOccurred ? 'Some rules had errors.' : ''}`, errorsOccurred ? 'warning' : 'success');
-    } else {
-         dom.noScannerHitsMessage.classList.add('d-none');
-         showAppMessage(`Scanner finished with errors. See details.`, 'error');
+function terminateScannerWorker() {
+    if (scannerWorker) {
+        scannerWorker.terminate();
+        scannerWorker = null;
+        console.log("Scanner worker terminated.");
+        dom.runScannerBtn.disabled = !(getActiveTabState()?.scannerRules?.length > 0 && superdbInstance);
+        dom.runQueryBtn.disabled = !superdbInstance;
+        dom.cancelScanBtn.classList.add('d-none');
+        dom.scanProgress.classList.add('d-none');
+        dom.runScannerBtn.textContent = 'Run Scanner';
     }
 }
 
+function handleWorkerMessage(event) {
+    const { type, ...data } = event.data;
+    const activeTab = getActiveTabState();
+
+    switch (type) {
+        case 'init_done':
+            console.log("Scanner worker initialized successfully.");
+            if (scannerWorker && scannerWorker.pendingStartData) {
+                 scannerWorker.postMessage({ type: 'start', ...scannerWorker.pendingStartData });
+                 delete scannerWorker.pendingStartData;
+            }
+            break;
+        case 'init_error':
+            showAppMessage(`Scanner Worker Error: ${data.message}`, 'error', true);
+            terminateScannerWorker();
+            break;
+        case 'progress':
+            dom.scanProgress.textContent = `Scanning ${data.processed}/${data.total}...`;
+            break;
+        case 'hit':
+            if (activeTab) {
+                const hitDiv = document.createElement('div');
+                hitDiv.className = "mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0";
+                hitDiv.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <strong class="text-info d-block mb-1 small">Hit for Rule: "${data.ruleName}"</strong>
+                        <button class="btn btn-outline-info btn-sm py-0 px-1 pivot-button"
+                                data-rule-name="${data.ruleName}"
+                                data-rule-query="${encodeURIComponent(data.query)}"
+                                data-source-tab-id="${activeTab.id}"
+                                title="Run this rule query in a new tab">
+                            Pivot &raquo;
+                        </button>
+                    </div>
+                    <p class="mb-1 small text-body-secondary scanner-hit-query">Query: <code class="text-light small">${data.query}</code></p>
+                    <div class="scanner-hit-result">
+                        <pre class="small m-0"><code>${data.result.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
+                    </div>`;
+                dom.scannerHitsOutput.appendChild(hitDiv);
+                dom.scannerHitsOutput.scrollTop = dom.scannerHitsOutput.scrollHeight;
+            }
+            break;
+        case 'error':
+             if (activeTab) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = "mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0 text-danger";
+                errorDiv.innerHTML = `<strong>Error for Rule: "${data.ruleName}"</strong><br><small class="small">${data.message}</small>`;
+                dom.scannerHitsOutput.appendChild(errorDiv);
+                dom.scannerHitsOutput.scrollTop = dom.scannerHitsOutput.scrollHeight;
+             }
+            break;
+        case 'cancelled':
+            showAppMessage('Scan cancelled by user.', 'warning', true);
+            terminateScannerWorker();
+            break;
+        case 'complete':
+            if (activeTab) {
+                activeTab.scannerHitsHTML = dom.scannerHitsOutput.innerHTML;
+                if (data.hitsFound === 0 && !data.errorsOccurred) {
+                    dom.noScannerHitsMessage.classList.remove('d-none');
+                    showAppMessage(`Scanner finished. No hits found.`, 'success');
+                } else if (data.hitsFound > 0) {
+                    dom.noScannerHitsMessage.classList.add('d-none');
+                    showAppMessage(`Scanner finished. Found ${data.hitsFound} hit(s). ${data.errorsOccurred ? 'Some rules had errors.' : ''}`, data.errorsOccurred ? 'warning' : 'success');
+                } else {
+                    dom.noScannerHitsMessage.classList.add('d-none');
+                    showAppMessage(`Scanner finished with errors. See details.`, 'error');
+                }
+            }
+            terminateScannerWorker();
+            break;
+        default:
+            console.warn("Received unknown message type from worker:", type, data);
+    }
+}
+
+function runScannerHandler() {
+    const activeTab = getActiveTabState();
+    if (!activeTab || !superdbInstance) {
+        showAppMessage(superdbInstance ? "No active tab." : "SuperDB not ready.", 'error', true);
+        return;
+    }
+    if (!activeTab.scannerRules || activeTab.scannerRules.length === 0) {
+        showAppMessage("No scanner rules loaded. Upload or select predefined rules.", 'warning', true);
+        return;
+    }
+    if (!activeTab.rawData || !activeTab.rawData.trim()) {
+        showAppMessage("No data to scan. Paste or upload data first.", 'warning', true);
+        return;
+    }
+
+    terminateScannerWorker();
+
+    activeTab.scannerHitsHTML = '';
+    dom.scannerHitsOutput.innerHTML = '';
+    dom.noScannerHitsMessage.classList.add('d-none');
+    dom.scannerResultsPanel.classList.remove('d-none');
+    dom.scanProgress.classList.remove('d-none');
+    dom.scanProgress.textContent = 'Initializing scanner worker...';
+    hideAppMessage();
+
+    dom.runScannerBtn.disabled = true;
+    dom.runQueryBtn.disabled = true;
+    dom.cancelScanBtn.classList.remove('d-none');
+    dom.runScannerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Starting...';
+
+    try {
+        scannerWorker = new Worker('scanner.worker.js', { type: 'module' });
+        scannerWorker.onerror = (error) => {
+            console.error("Scanner Worker Error:", error);
+            showAppMessage(`Scanner Worker failed: ${error.message}`, 'error', true);
+            terminateScannerWorker();
+        };
+        scannerWorker.onmessage = handleWorkerMessage;
+
+        scannerWorker.tabId = activeTab.id;
+
+        const startData = {
+            data: activeTab.rawData,
+            rules: activeTab.scannerRules,
+            inputFormat: activeTab.inputFormat,
+            wasmPath: "superdb.wasm"
+        };
+
+        scannerWorker.pendingStartData = startData;
+        scannerWorker.postMessage({ type: 'init', wasmPath: "superdb.wasm" });
+
+    } catch (error) {
+        console.error("Failed to create or start scanner worker:", error);
+        showAppMessage(`Failed to start scanner: ${error.message}`, 'error', true);
+        dom.runScannerBtn.disabled = false;
+        dom.runQueryBtn.disabled = false;
+        dom.cancelScanBtn.classList.add('d-none');
+        dom.scanProgress.classList.add('d-none');
+        dom.runScannerBtn.textContent = 'Run Scanner';
+    }
+}
+
+function cancelScanHandler() {
+    if (scannerWorker) {
+        showAppMessage("Attempting to cancel scan...", "warning");
+        scannerWorker.postMessage({ type: 'cancel' });
+    } else {
+        console.warn("Cancel button clicked but no active scanner worker found.");
+    }
+}
+
+function handlePivotToNewTab(sourceTabId, ruleName, encodedRuleQuery) {
+    const sourceTab = tabsState.find(tab => tab.id === sourceTabId);
+    if (!sourceTab) {
+        showAppMessage("Could not find the original tab data for pivoting.", "error", true);
+        return;
+    }
+
+    const ruleQuery = decodeURIComponent(encodedRuleQuery);
+
+    const newTab = addTab();
+
+    newTab.name = `Pivot: ${ruleName.substring(0, 15)}${ruleName.length > 15 ? '...' : ''}`;
+    newTab.rawData = sourceTab.rawData;
+    newTab.query = ruleQuery;
+    newTab.inputFormat = sourceTab.inputFormat;
+    newTab.outputFormat = sourceTab.outputFormat;
+    newTab.fileName = sourceTab.fileName;
+
+    dom.queryInput.value = newTab.query;
+    dom.dataInput.value = newTab.rawData;
+    dom.inputFormatSelect.value = newTab.inputFormat;
+    dom.outputFormatSelect.value = newTab.outputFormat;
+    dom.fileNameDisplay.textContent = newTab.fileName;
+
+    renderTabs();
+
+    setTimeout(() => {
+        runQueryHandler();
+    }, 50);
+
+    showAppMessage(`Pivoted to new tab with query for rule "${ruleName}".`, 'info');
+}
+
 async function initializeApp() {
-    if (!SuperDB) { return; }
+    if (!SuperDB) {
+        console.error("SuperDB class not loaded. Cannot initialize app.");
+        return;
+    }
     try {
         [dom.runQueryBtn, dom.exportBtn, dom.runScannerBtn, dom.addTabBtn].forEach(btn => { if(btn) btn.disabled = true; });
         dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Initializing...';
-        showAppMessage('Igniting Wasm engines... Stand by (or not). Our little surprises are loading anyway. 😉', 'info', true);
+        showAppMessage('Igniting Wasm engines... Stand by.', 'info', true);
 
         populateSelect(dom.inputFormatSelect, config.inputFormats, 'auto');
         populateSelect(dom.outputFormatSelect, config.outputFormats, 'zjson');
@@ -658,10 +843,21 @@ async function initializeApp() {
         superdbInstance = await SuperDB.instantiate("superdb.wasm");
 
         [dom.runQueryBtn, dom.addTabBtn].forEach(btn => { if(btn) btn.disabled = false; });
+        dom.runScannerBtn.disabled = true;
         addTab();
         dom.runQueryBtn.textContent = 'Run Query';
-        showAppMessage('Boot sequence done! Scripts, assets, mighty Wasm – locked in. Prepare for... ahem... data exploration. (Totally not encryption! 😉)', 'success');
+        showAppMessage('LogTap Viewer ready.', 'success');
         setupEventListeners();
+
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+          if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip !== 'undefined') {
+             return new bootstrap.Tooltip(tooltipTriggerEl);
+          } else {
+             console.warn("Bootstrap Tooltip component not found. Tooltips will not work.");
+             return null;
+          }
+        });
 
     } catch (error) {
         console.error("Failed to instantiate SuperDB Wasm:", error);
@@ -673,4 +869,5 @@ async function initializeApp() {
         }
     }
 }
+
 initializeApp();

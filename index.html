@@ -45,7 +45,7 @@
                     <a href="https://buymeacoffee.com/ajtap" target="_blank" rel="noopener noreferrer" class="text-decoration-none">Donate a Coffee ☕</a>
                 </p>
             </div>
-            </div>
+        </div>
     </aside>
 
     <main>
@@ -55,7 +55,18 @@
                     <div class="p-3 bg-dark rounded border border-secondary-subtle h-100">
                         <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Data Source</h3>
                         <div class="mb-2">
-                            <label for="dataInput" class="form-label form-label-sm">Paste Data</label>
+                            <label for="dataInput" class="form-label form-label-sm d-inline-flex align-items-center">
+                                Paste Data
+                                <span class="ms-1" style="cursor: help;"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="right"
+                                      data-bs-title="Tip: After pasting, set the correct Input Format, then run. If errors occur, try the 'Line' format.">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-question-circle text-info-emphasis" viewBox="0 0 16 16">
+                                          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                          <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.137-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.558 5.763c.03.03.06.058.091.086l.71.71a.25.25 0 0 0 .354 0l.71-.71c.03-.028.06-.056.09-.086a.25.25 0 0 0 .026-.16V10.5a.25.25 0 0 0-.25-.25h-1.937a.25.25 0 0 0-.25.25v.063a.25.25 0 0 0 .026.16z"/>
+                                      </svg>
+                                </span>
+                            </label>
                             <textarea id="dataInput" rows="3" class="form-control form-control-sm io-area" placeholder="Paste log data here..."></textarea>
                         </div>
                         <div>
@@ -70,7 +81,18 @@
                         <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Processing & Analysis</h3>
                         <div class="row g-2 mb-2">
                             <div class="col-sm-6">
-                                <label for="inputFormat" class="form-label form-label-sm">Input Format</label>
+                                <label for="inputFormat" class="form-label form-label-sm d-inline-flex align-items-center">
+                                    Input Format
+                                    <span class="ms-1" style="cursor: help;"
+                                          data-bs-toggle="tooltip"
+                                          data-bs-placement="right"
+                                          data-bs-title="Tip: If data is a plain text (one entry per line) or unstructure logs, select 'Line' format. 'Auto-detect' might misinterpret it.">
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-question-circle text-info-emphasis" viewBox="0 0 16 16">
+                                              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                              <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.137-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.558 5.763c.03.03.06.058.091.086l.71.71a.25.25 0 0 0 .354 0l.71-.71c.03-.028.06-.056.09-.086a.25.25 0 0 0 .026-.16V10.5a.25.25 0 0 0-.25-.25h-1.937a.25.25 0 0 0-.25.25v.063a.25.25 0 0 0 .026.16z"/>
+                                          </svg>
+                                    </span>
+                                </label>
                                 <select id="inputFormat" class="form-select form-select-sm"></select>
                             </div>
                             <div class="col-sm-6">
@@ -100,14 +122,16 @@
             </div>
 
             <div class="mb-3">
-                <label for="queryInput" class="form-label fs-6 fw-medium">Search Query (<a href="https://superdb.org/docs/language/overview/">Super query language</a>)</label>
+                <label for="queryInput" class="form-label fs-6 fw-medium">Search Query (<a href="https://superdb.org/docs/language/overview/" target="_blank" rel="noopener noreferrer">Super query language</a>)</label>
                 <textarea id="queryInput" rows="2" class="form-control io-area shadow-sm" placeholder="e.g., 'pass | count() by field | sort field'"></textarea>
             </div>
 
             <div class="d-flex flex-wrap align-items-center justify-content-start gap-2 pt-2 border-top border-secondary mt-2">
                 <button id="runQueryBtn" class="btn btn-primary btn-sm">Run Query</button>
                 <button id="runScannerBtn" class="btn btn-warning btn-sm">Run Scanner</button>
+                <button id="cancelScanBtn" class="btn btn-secondary btn-sm d-none">Cancel Scan</button>
                 <button id="exportBtn" class="btn btn-success btn-sm" disabled>Export Results</button>
+                <div id="scanProgress" class="alert alert-info d-none ms-2 p-2 mb-0 text-sm" role="status"></div>
                 <div id="statusMessage" class="alert alert-info d-none flex-grow-1 ms-auto p-2 mb-0 text-sm" role="alert"></div>
             </div>
         </div>
@@ -139,7 +163,7 @@
                          <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2h-4v3h4zm0 4h-4v3h4zm0 4h-4v3h3a1 1 0 0 0 1-1zm-5 3v-3H6v3zm-4 0v-3H2v2a1 1 0 0 0 1 1zm-3-4h3v-3H2zm0-4h3V3H2zm4 0v3h4V3zm4 0v3h4V3z"/>
                      </svg>
                     <h3 class="fs-6 fw-medium">No Results</h3>
-                    <p class="small">Your query returned no data or the result is not displayable.</p>
+                    <p class="small">Your query returned no data.</p>
                 </div>
             </div>
         </div>

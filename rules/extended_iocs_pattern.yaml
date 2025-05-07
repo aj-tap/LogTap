@@ -1,0 +1,126 @@
+rules:
+  - name: "Detect_IOC_IPv4"
+    query: "grep(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b/, this)"
+
+  - name: "Detect_IOC_IPv6"
+    query: "grep(/\\b((([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])))\\b/, this)"
+
+  - name: "Detect_IOC_ASN"
+    query: "grep(/\\b(?:[aA][sS][nN]|[aA][sS]) ?(\\d+)\\b/, this)"
+
+  - name: "Detect_IOC_Bitcoin_P2PKH_Address"
+    query: "grep(/\\b[1][a-km-zA-HJ-NP-Z1-9]{25,34}\\b/, this)"
+
+  - name: "Detect_IOC_Bitcoin_P2SH_Address"
+    query: "grep(/\\b[3][a-km-zA-HJ-NP-Z1-9]{25,34}\\b/, this)"
+
+  - name: "Detect_IOC_Bitcoin_Bech32_Address"
+    query: "grep(/\\b[bB][cC]1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{11,71}\\b/, this)"
+
+  - name: "Detect_IOC_Ethereum_Address"
+    query: "grep(/\\b0x[a-fA-F0-9]{40}\\b/, this)"
+
+  - name: "Detect_IOC_Litecoin_Address_P2PKH_P2SH"
+    query: "grep(/\\b[LM3][a-km-zA-HJ-NP-Z1-9]{25,34}\\b/, this)"
+
+  - name: "Detect_IOC_Litecoin_Bech32_Address"
+    query: "grep(/\\bltc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{11,71}\\b/, this)"
+
+  - name: "Detect_IOC_Dogecoin_Address"
+    query: "grep(/\\bD{1}[5-9A-HJ-NP-Za-km-z]{1}[1-9A-HJ-NP-Za-km-z]{32}\\b/, this)"
+
+  - name: "Detect_IOC_Ripple_Address"
+    query: "grep(/\\br[a-zA-Z0-9]{24,34}\\b/, this)"
+
+  - name: "Detect_IOC_Monero_Address"
+    query: "grep(/\\b[48][1-9A-HJ-NP-Za-km-z]{93}[1-9A-HJ-NP-Za-km-z]?\\b/, this)"
+
+  - name: "Detect_IOC_IPv4_CIDR_Range"
+    query: "grep(/\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\/(?:[0-9]|[12][0-9]|3[012])\\b/, this)"
+
+  - name: "Detect_IOC_IPv6_CIDR_Range_Beta"
+    query: "grep(/\\b((([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])))\\/([0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])\\b/, this)"
+
+  - name: "Detect_IOC_CVE_ID"
+    query: "grep(/\\bCVE-(?:1999|2\\d{3})-(?:0\\d{2}[1-9]|[1-9]\\d{3,})\\b/, this)"
+
+  - name: "Detect_IOC_Domain"
+    query: "grep(/\\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,63}\\b/, this)"
+
+  - name: "Detect_IOC_Email_Address_Standard"
+    query: "grep(/\\b[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}\\b/, this)"
+
+  - name: "Detect_IOC_Email_Address_With_IPv4_Domain"
+    query: "grep(/\\b[a-zA-Z0-9._%+\\-]+@\\[(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\]\\b/, this)"
+
+  - name: "Detect_IOC_MD5_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{32}\\b/, this)"
+  - name: "Detect_IOC_SHA1_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{40}\\b/, this)"
+  - name: "Detect_IOC_SHA256_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{64}\\b/, this)"
+  - name: "Detect_IOC_SHA512_Hash"
+    query: "grep(/\\b[a-fA-F0-9]{128}\\b/, this)"
+
+  - name: "Detect_IOC_SSDeep_Hash_Beta"
+    query: "grep(/\\b\\d{1,}:[A-Za-z0-9+\\/]{1,}:[A-Za-z0-9+\\/]{1,}\\b/, this)"
+
+  - name: "Detect_IOC_Windows_File_Path_Beta"
+    query: "grep(/\\b[a-zA-Z]:(?:\\\\[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F]+)+(?:\\\\[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F]*)?\\b|\\b\\\\\\\\(?:[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F\\\\]+)\\\\(?:[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F\\\\]+)(?:\\\\[^<>:\"\\/\\\\|?*\\r\\n\\x00-\\x1F]+)*\\b/, this)"
+
+  - name: "Detect_IOC_UNC_Path_Beta"
+    query: "grep(/\\b\\\\\\\\[^\\\\\\/\\s?*:'\"<>|]+\\\\[^\\\\\\/\\s?*:'\"<>|]+(?:\\\\[^\\\\\\/\\s?*:'\"<>|]+)*\\b/, this)"
+
+  - name: "Detect_IOC_Google_Adsense_Publisher_ID"
+    query: "grep(/\\bpub-\\d{16}\\b/, this)"
+
+  - name: "Detect_IOC_Google_Analytics_UA_ID"
+    query: "grep(/\\bUA-\\d{4,10}-\\d{1,4}\\b/, this)"
+  - name: "Detect_IOC_Google_Analytics_G_ID"
+    query: "grep(/\\bG-[A-Z0-9]{10}\\b/, this)"
+
+  - name: "Detect_IOC_MAC_Address_Beta"
+    query: "grep(/\\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\\b|\\b(?:[0-9A-Fa-f]{4}\\.){2}[0-9A-Fa-f]{4}\\b|\\b[0-9A-Fa-f]{12}\\b/, this)"
+
+  - name: "Detect_IOC_Windows_Registry_Key_Path"
+    query: "grep(/\\b(?:HKEY_(?:CLASSES_ROOT|CURRENT_USER|LOCAL_MACHINE|USERS|CURRENT_CONFIG)|HKCR|HKCU|HKLM|HKU)(?:\\\\[^\\\\\\/:*?\"<>|\\r\\n]+)+\\b/, this)"
+
+  - name: "Detect_IOC_URL_With_Scheme"
+    query: "grep(/\\b(?:https?|ftp|file|sftp|scp|ldap|ldaps|smb|cifs):\\/\\/[-a-zA-Z0-9()@:%_+.~#?&\\/=]*[-a-zA-Z0-9@%_+~#?&\\/=]/, this)"
+
+  - name: "Detect_IOC_User_Agent_Common_Keywords_Beta"
+    query: "grep(/\\b(?:Mozilla|Opera|Curl|Wget|Python-urllib|Java|okhttp|Go-http-client|HeadlessChrome|PhantomJS|Googlebot|Bingbot|[aA][pP][aA][cC][hH][eE]-[hH][tT][tT][pP][cC][lL][iI][eE][nN][tT])(?:\\/[\\w.-]+)?(?:\\s+\\([^)]*\\))?/, this)"
+
+  - name: "Detect_IOC_XMPP_Address"
+    query: "grep(/\\b[a-zA-Z0-9._%+\\-]+@(?:[a-zA-Z0-9.\\-]*?(?:[jJ][aA][bB][bB][eE][rR]|[xX][mM][pP][pP])[a-zA-Z0-9.\\-]*?\\.[a-zA-Z]{2,})\\b/, this)"
+
+  - name: "Detect_IOC_MITRE_ATTACK_ID"
+    query: "grep(/\\b(?:T\\d{4}(?:\\.\\d{3})?|TA\\d{4}|M\\d{4}|G\\d{4}|S\\d{4}|DS\\d{4}|C\\d{4})\\b/, this)"
+
+  - name: "Detect_IOC_TLP_Label"
+    query: "grep(/\\b[tT][lL][pP]:(?:CLEAR|GREEN|AMBER(?:\\+STRICT)?|RED|WHITE)\\b/, this)"
+
+  - name: "Detect_IOC_Tor_Onion_Address_v2"
+    query: "grep(/\\b[a-z2-7]{16}\\.onion\\b/, this)"
+  - name: "Detect_IOC_Tor_Onion_Address_v3"
+    query: "grep(/\\b[a-z2-7]{56}\\.onion\\b/, this)"
+  - name: "Detect_IOC_I2P_B32_Address"
+    query: "grep(/\\b[a-z2-7]{52}\\.b32\\.i2p\\b/, this)"
+
+  - name: "Detect_Indicator_Credit_Card_Number_Luhn_Basic"
+    query: "grep(/\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9]{2})[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\\d{3})\\d{11})\\b/, this)"
+
+  - name: "Detect_Indicator_IBAN"
+    query: "grep(/\\b[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}([A-Z0-9]?){0,16}\\b/, this)"
+
+  - name: "Detect_Indicator_SWIFT_BIC"
+    query: "grep(/\\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?\\b/, this)"
+
+  - name: "Detect_Indicator_UUID_GUID"
+    query: "grep(/\\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\b/, this)"
+
+  - name: "Detect_Indicator_Magnet_Link"
+    query: "grep(/\\bmagnet:\\?xt=urn:[a-zA-Z0-9]+:[a-zA-Z0-9]{32,}\\b/, this)"
+
+  - name: "Detect_Indicator_Base64_Encoded_String_Long"
+    query: "grep(/\\b(?:[A-Za-z0-9+\\/]{4}){8,}(?:[A-Za-z0-9+\\/]{2}==|[A-Za-z0-9+\\/]{3}=)?\\b/, this)"
