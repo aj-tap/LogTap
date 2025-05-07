@@ -36,6 +36,7 @@ const dom = {
     resultOutputCode: document.getElementById('resultOutputCode'),
     statusMessage: document.getElementById('statusMessage'),
     toggleViewBtn: document.getElementById('toggleViewBtn'),
+    pivotResultsBtn: document.getElementById('pivotResultsBtn'), // Added
     textResultOutput: document.getElementById('textResultOutput'),
     tableResultOutputContainer: document.getElementById('tableResultOutputContainer'),
     noResultsMessage: document.getElementById('noResultsMessage'),
@@ -84,7 +85,7 @@ const config = {
     predefinedRuleSets: [
         { name: "Select a predefined set...", path: "" },
         { name: "Common_iocs_pattern", path: "rules/common_iocs_pattern.yaml" },
-        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_pattern.yaml" },
+        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_paterns.yaml" },
         { name: "Linux_basic_pattern", path: "rules/linux_basic_pattern.yaml" },
     ]
 };
@@ -176,17 +177,20 @@ function updateResultDisplay(tab) {
     dom.textResultOutput.classList.add('d-none');
     dom.noResultsMessage.classList.add('d-none');
     dom.toggleViewBtn.classList.add('d-none');
+    dom.pivotResultsBtn.classList.add('d-none'); // Hide pivot button initially
     dom.exportBtn.disabled = true;
 
     const viewRawText = "View Raw";
     const viewTableText = "View Table";
+    const hasResults = tab.currentRawOutput && tab.currentRawOutput.trim() !== "";
 
     if (tab.gridInstance) {
         dom.tableResultOutputContainer.classList.remove('d-none');
         dom.toggleViewBtn.textContent = viewRawText;
         dom.toggleViewBtn.classList.remove('d-none');
+        dom.pivotResultsBtn.classList.remove('d-none'); // Show pivot button
         dom.exportBtn.disabled = false;
-    } else if (tab.currentRawOutput && tab.currentRawOutput.trim() !== "") {
+    } else if (hasResults) {
         dom.resultOutputCode.textContent = tab.currentRawOutput;
         dom.textResultOutput.classList.remove('d-none');
         const canBeTable = parseResultForTable(tab.currentRawOutput, tab.outputFormat);
@@ -194,6 +198,7 @@ function updateResultDisplay(tab) {
             dom.toggleViewBtn.textContent = viewTableText;
             dom.toggleViewBtn.classList.remove('d-none');
         }
+        dom.pivotResultsBtn.classList.remove('d-none'); // Show pivot button
         dom.exportBtn.disabled = false;
     } else {
         dom.noResultsMessage.classList.remove('d-none');
@@ -539,6 +544,7 @@ function setupEventListeners() {
     dom.exportBtn.addEventListener('click', exportResultsHandler);
     dom.runScannerBtn.addEventListener('click', runScannerHandler);
     dom.toggleViewBtn.addEventListener('click', toggleResultsViewHandler);
+    dom.pivotResultsBtn.addEventListener('click', handlePivotResultsToNewTab); // Added listener
     dom.cancelScanBtn.addEventListener('click', cancelScanHandler);
 
     dom.scannerHitsOutput.addEventListener('click', (event) => {
@@ -823,6 +829,38 @@ function handlePivotToNewTab(sourceTabId, ruleName, encodedRuleQuery) {
 
     showAppMessage(`Pivoted to new tab with query for rule "${ruleName}".`, 'info');
 }
+
+function handlePivotResultsToNewTab() {
+    const sourceTab = getActiveTabState();
+    if (!sourceTab || !sourceTab.currentRawOutput || !sourceTab.currentRawOutput.trim()) {
+        showAppMessage("No results available to pivot.", "warning");
+        return;
+    }
+
+    const newTab = addTab();
+
+    newTab.name = `Pivot from ${sourceTab.name.substring(0, 10)}${sourceTab.name.length > 10 ? '...' : ''}`;
+    newTab.rawData = sourceTab.currentRawOutput; // Use current results as new raw data
+    newTab.query = "pass"; // Default query for the pivoted data
+    newTab.inputFormat = sourceTab.outputFormat; // Input format is the previous output format
+    newTab.outputFormat = sourceTab.outputFormat; // Keep output format or default to zjson
+    newTab.fileName = `Pivoted from ${sourceTab.name}`; // Indicate source
+
+    dom.queryInput.value = newTab.query;
+    dom.dataInput.value = newTab.rawData;
+    dom.inputFormatSelect.value = newTab.inputFormat;
+    dom.outputFormatSelect.value = newTab.outputFormat;
+    dom.fileNameDisplay.textContent = newTab.fileName;
+
+    renderTabs();
+
+    setTimeout(() => {
+        runQueryHandler(); // Run default 'pass' query on the pivoted data
+    }, 50);
+
+    showAppMessage(`Pivoted results from tab "${sourceTab.name}" to new tab.`, 'info');
+}
+
 
 async function initializeApp() {
     if (!SuperDB) {

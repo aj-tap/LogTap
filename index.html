@@ -86,7 +86,7 @@
                                     <span class="ms-1" style="cursor: help;"
                                           data-bs-toggle="tooltip"
                                           data-bs-placement="right"
-                                          data-bs-title="Tip: If data is a plain text (one entry per line) or unstructure logs, select 'Line' format. 'Auto-detect' might misinterpret it.">
+                                          data-bs-title="Tip: If data is unstructure log or plain text (one entry per line), select 'Line' format. 'Auto-detect' might misinterpret it.">
                                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-question-circle text-info-emphasis" viewBox="0 0 16 16">
                                               <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
                                               <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.137-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.558 5.763c.03.03.06.058.091.086l.71.71a.25.25 0 0 0 .354 0l.71-.71c.03-.028.06-.056.09-.086a.25.25 0 0 0 .026-.16V10.5a.25.25 0 0 0-.25-.25h-1.937a.25.25 0 0 0-.25.25v.063a.25.25 0 0 0 .026.16z"/>
@@ -148,7 +148,9 @@
             <div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h2 class="fs-6 fw-semibold">Query Results</h2>
-                    <button id="toggleViewBtn" class="btn btn-outline-secondary btn-sm d-none">View Raw</button>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Results Actions">
+                         <button id="toggleViewBtn" class="btn btn-outline-secondary d-none">View Raw</button>
+                         <button id="pivotResultsBtn" class="btn btn-outline-info d-none">Pivot Results &raquo;</button> </div>
                 </div>
 
                 <div id="tableResultOutputContainer" class="d-none">
@@ -163,7 +165,7 @@
                          <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2h-4v3h4zm0 4h-4v3h4zm0 4h-4v3h3a1 1 0 0 0 1-1zm-5 3v-3H6v3zm-4 0v-3H2v2a1 1 0 0 0 1 1zm-3-4h3v-3H2zm0-4h3V3H2zm4 0v3h4V3zm4 0v3h4V3z"/>
                      </svg>
                     <h3 class="fs-6 fw-medium">No Results</h3>
-                    <p class="small">Your query returned no data.</p>
+                    <p class="small">Your query returned no data or the result is not displayable.</p>
                 </div>
             </div>
         </div>
