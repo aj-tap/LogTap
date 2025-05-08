@@ -1,3 +1,5 @@
+import { saveData, getData, deleteData, openDB } from './db.js';
+
 let SuperDB;
 try {
     SuperDB = (await import("./index.js")).SuperDB;
@@ -36,7 +38,7 @@ const dom = {
     resultOutputCode: document.getElementById('resultOutputCode'),
     statusMessage: document.getElementById('statusMessage'),
     toggleViewBtn: document.getElementById('toggleViewBtn'),
-    pivotResultsBtn: document.getElementById('pivotResultsBtn'), // Added
+    pivotResultsBtn: document.getElementById('pivotResultsBtn'),
     textResultOutput: document.getElementById('textResultOutput'),
     tableResultOutputContainer: document.getElementById('tableResultOutputContainer'),
     noResultsMessage: document.getElementById('noResultsMessage'),
@@ -62,6 +64,7 @@ let activeTabId = null;
 let nextTabId = 1;
 const MAX_HISTORY_ITEMS = 25;
 let scannerWorker = null;
+const LARGE_DATA_THRESHOLD = 5 * 1024 * 1024;
 
 const config = {
     inputFormats: [
@@ -132,9 +135,13 @@ function populateSelect(selectElement, options, selectedValue, valueKey = 'value
 function createNewTabState(nameSuffix = tabsState.length + 1) {
     const newTabId = `tab-${nextTabId++}`;
     return {
-        id: newTabId, name: `Log ${nameSuffix}`, isActive: false, rawData: "", query: "pass",
-        inputFormat: "auto", outputFormat: "zjson", currentRawOutput: null, gridInstance: null,
-        scannerRules: [], scannerRuleFileName: "No scanner rules loaded.", fileName: "No file loaded.",
+        id: newTabId, name: `Log ${nameSuffix}`, isActive: false,
+        rawData: null,
+        dataLocation: { type: 'empty' },
+        dataSummary: 'No data loaded.',
+        query: "pass", inputFormat: "auto", outputFormat: "zjson",
+        currentRawOutput: null, gridInstance: null,
+        scannerRules: [], scannerRuleFileName: "No scanner rules loaded.",
         querySnippetValue: "", predefinedRulesSelectValue: "", scannerHitsHTML: "",
     };
 }
@@ -181,7 +188,7 @@ function updateResultDisplay(tab) {
     dom.textResultOutput.classList.add('d-none');
     dom.noResultsMessage.classList.add('d-none');
     dom.toggleViewBtn.classList.add('d-none');
-    dom.pivotResultsBtn.classList.add('d-none'); // Hide pivot button initially
+    dom.pivotResultsBtn.classList.add('d-none');
     dom.exportBtn.disabled = true;
 
     const viewRawText = "View Raw";
@@ -192,7 +199,7 @@ function updateResultDisplay(tab) {
         dom.tableResultOutputContainer.classList.remove('d-none');
         dom.toggleViewBtn.textContent = viewRawText;
         dom.toggleViewBtn.classList.remove('d-none');
-        dom.pivotResultsBtn.classList.remove('d-none'); // Show pivot button
+        dom.pivotResultsBtn.classList.remove('d-none');
         dom.exportBtn.disabled = false;
     } else if (hasResults) {
         dom.resultOutputCode.textContent = tab.currentRawOutput;
@@ -202,22 +209,27 @@ function updateResultDisplay(tab) {
             dom.toggleViewBtn.textContent = viewTableText;
             dom.toggleViewBtn.classList.remove('d-none');
         }
-        dom.pivotResultsBtn.classList.remove('d-none'); // Show pivot button
+        dom.pivotResultsBtn.classList.remove('d-none');
         dom.exportBtn.disabled = false;
     } else {
         dom.noResultsMessage.classList.remove('d-none');
     }
 }
 
-function loadTabData(tabId) {
+async function loadTabData(tabId) {
     const tab = tabsState.find(t => t.id === tabId);
     if (!tab) { console.error("Tab not found:", tabId); return; }
 
     dom.queryInput.value = tab.query;
-    dom.dataInput.value = tab.rawData;
+    dom.dataInput.value = (tab.dataLocation?.type === 'memory' && tab.rawData) ? tab.rawData : '';
+    dom.dataInput.placeholder = (tab.dataLocation?.type === 'indexeddb')
+        ? `Large data stored in database (${tab.dataSummary}). Paste or upload to replace.`
+        : "Paste log data here...";
+    dom.dataInput.disabled = (tab.dataLocation?.type === 'indexeddb');
+
     populateSelect(dom.inputFormatSelect, config.inputFormats, tab.inputFormat);
     populateSelect(dom.outputFormatSelect, config.outputFormats, tab.outputFormat);
-    dom.fileNameDisplay.textContent = tab.fileName;
+    dom.fileNameDisplay.textContent = tab.dataSummary;
     dom.scannerRuleFileNameDisplay.textContent = tab.scannerRuleFileName;
     populateSelect(dom.querySnippetsSelect, config.querySnippets, tab.querySnippetValue, 'template', 'name');
     populateSelect(dom.predefinedRulesSelect, config.predefinedRuleSets, tab.predefinedRulesSelectValue, 'path', 'name');
@@ -231,27 +243,31 @@ function loadTabData(tabId) {
     dom.scannerResultsPanel.classList.toggle('d-none', !(tab.scannerHitsHTML && tab.scannerHitsHTML.trim() !== ''));
     dom.noScannerHitsMessage.classList.toggle('d-none', (tab.scannerHitsHTML && tab.scannerHitsHTML.trim() !== '') || dom.scannerResultsPanel.classList.contains('d-none'));
 
-    dom.runScannerBtn.disabled = !(tab.scannerRules && tab.scannerRules.length > 0 && superdbInstance);
+    const hasData = tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb';
+    dom.runScannerBtn.disabled = !(tab.scannerRules && tab.scannerRules.length > 0 && superdbInstance && hasData);
 }
+
 
 function saveActiveTabData() {
     const activeTab = getActiveTabState();
     if (!activeTab) return;
     activeTab.query = dom.queryInput.value;
-    activeTab.rawData = dom.dataInput.value;
+    if (activeTab.dataLocation?.type === 'memory') {
+        activeTab.rawData = dom.dataInput.value;
+    }
     activeTab.inputFormat = dom.inputFormatSelect.value;
     activeTab.outputFormat = dom.outputFormatSelect.value;
     activeTab.querySnippetValue = dom.querySnippetsSelect.value;
     activeTab.predefinedRulesSelectValue = dom.predefinedRulesSelect.value;
 }
 
-function switchTab(tabId) {
+async function switchTab(tabId) {
     if (activeTabId === tabId && tabsState.find(t => t.id === tabId && t.isActive)) return;
     if(activeTabId) saveActiveTabData();
     tabsState.forEach(tab => tab.isActive = (tab.id === tabId));
     activeTabId = tabId;
     renderTabs();
-    loadTabData(tabId);
+    await loadTabData(tabId);
 }
 
 function addTab() {
@@ -263,30 +279,38 @@ function addTab() {
     return newTab;
 }
 
-function closeTab(tabIdToClose) {
+async function closeTab(tabIdToClose) {
     if (tabsState.length <= 1) { showAppMessage("Cannot close the last tab.", "warning"); return; }
     const tabIndex = tabsState.findIndex(tab => tab.id === tabIdToClose);
     if (tabIndex === -1) return;
 
     const tabToClose = tabsState[tabIndex];
+
+    if (tabToClose.dataLocation?.type === 'indexeddb' && tabToClose.dataLocation.key) {
+        try {
+            await deleteData(tabToClose.dataLocation.key);
+            console.log(`Deleted IndexedDB data for tab ${tabIdToClose}`);
+        } catch (dbError) {
+            console.error(`Failed to delete IndexedDB data for tab ${tabIdToClose}:`, dbError);
+            showAppMessage(`Error deleting stored data for closed tab: ${dbError.message}`, 'error');
+        }
+    }
+
     if (tabToClose.gridInstance) { try { tabToClose.gridInstance.destroy(); } catch(e) {} }
     tabsState.splice(tabIndex, 1);
 
     if (scannerWorker && scannerWorker.tabId === tabIdToClose) {
-        scannerWorker.terminate();
-        scannerWorker = null;
-        console.log(`Scanner worker for tab ${tabIdToClose} terminated.`);
-        dom.cancelScanBtn.classList.add('d-none');
-        dom.scanProgress.classList.add('d-none');
-        dom.runScannerBtn.disabled = !(getActiveTabState()?.scannerRules?.length > 0 && superdbInstance);
-        dom.runScannerBtn.textContent = 'Run Scanner';
-        dom.runQueryBtn.disabled = !superdbInstance;
+        terminateScannerWorker();
     }
 
     if (activeTabId === tabIdToClose) {
         activeTabId = null;
         const newActiveIndex = Math.max(0, tabIndex - 1);
-        switchTab(tabsState[newActiveIndex].id);
+        if (tabsState.length > 0) {
+            await switchTab(tabsState[newActiveIndex].id);
+        } else {
+             addTab();
+        }
     } else {
         renderTabs();
     }
@@ -344,7 +368,8 @@ function parseAndSetScannerRules(yamlContent, fileName, tab) {
         showAppMessage(`Error parsing scanner file "${fileName}": ${e.message}`, 'error', true);
     }
     dom.scannerRuleFileNameDisplay.textContent = tab.scannerRuleFileName;
-    dom.runScannerBtn.disabled = !(tab.scannerRules.length > 0 && superdbInstance);
+    const hasData = tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb';
+    dom.runScannerBtn.disabled = !(tab.scannerRules.length > 0 && superdbInstance && hasData);
 }
 
 async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
@@ -365,7 +390,8 @@ async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
         tab.scannerRules = []; tab.scannerRuleFileName = `Failed to load ${ruleSetName}.`;
         dom.scannerRuleFileNameDisplay.textContent = tab.scannerRuleFileName;
         showAppMessage(`Failed to load rules "${ruleSetName}": ${e.message}. Check path and file.`, 'error', true);
-        dom.runScannerBtn.disabled = true;
+        const hasData = tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb';
+        dom.runScannerBtn.disabled = !(tab.scannerRules.length > 0 && superdbInstance && hasData);
     }
 }
 
@@ -458,8 +484,12 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
     }
     try {
         tab.gridInstance = new gridjs.Grid({
-            columns: headers, data: dataRows, search: true, sort: true,
-            pagination: { enabled: true, limit: 100, summary: true },
+            columns: headers,
+            data: dataRows,
+            search: true,
+            sort: true,
+            resizable: true,
+            pagination: { enabled: true, limit: 50, summary: true },
         }).render(containerElement);
         containerElement.classList.remove('d-none');
         return tab.gridInstance;
@@ -473,6 +503,51 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
     }
 }
 
+async function handleNewData(tab, data, sourceName) {
+    const dataSize = data.length;
+    const isLarge = dataSize > LARGE_DATA_THRESHOLD;
+    const displaySize = (dataSize / (1024 * 1024)).toFixed(2) + ' MB';
+    const summary = `${sourceName} (${displaySize})`;
+
+    if (tab.dataLocation?.type === 'indexeddb' && tab.dataLocation.key) {
+        try { await deleteData(tab.dataLocation.key); } catch (e) { console.warn("Failed to delete old DB data for tab", tab.id, e); }
+    }
+
+    tab.dataSummary = summary;
+    dom.fileNameDisplay.textContent = summary;
+
+    if (isLarge) {
+        tab.rawData = null;
+        dom.dataInput.value = '';
+        dom.dataInput.placeholder = `Large data (${displaySize}) stored in database. Paste or upload to replace.`;
+        dom.dataInput.disabled = true;
+        showAppMessage(`Storing large data (${displaySize}) in database...`, 'info', true);
+        try {
+            await saveData(tab.id, data);
+            tab.dataLocation = { type: 'indexeddb', key: tab.id };
+            showAppMessage(`Data "${sourceName}" (${displaySize}) stored successfully.`, 'success');
+            const hasRules = tab.scannerRules && tab.scannerRules.length > 0;
+            dom.runScannerBtn.disabled = !(hasRules && superdbInstance);
+        } catch (dbError) {
+            console.error("Failed to save data to IndexedDB:", dbError);
+            showAppMessage(`Failed to store large data: ${dbError.message}`, 'error', true);
+            tab.dataLocation = { type: 'error' };
+            tab.dataSummary = `Error storing ${sourceName}`;
+            dom.fileNameDisplay.textContent = tab.dataSummary;
+            dom.runScannerBtn.disabled = true;
+        }
+    } else {
+        tab.rawData = data;
+        tab.dataLocation = { type: 'memory' };
+        dom.dataInput.value = data;
+        dom.dataInput.placeholder = "Paste log data here...";
+        dom.dataInput.disabled = false;
+        showAppMessage(`Data "${sourceName}" loaded into memory.`, 'info');
+        const hasRules = tab.scannerRules && tab.scannerRules.length > 0;
+        dom.runScannerBtn.disabled = !(hasRules && superdbInstance);
+    }
+}
+
 function setupEventListeners() {
     dom.querySnippetsSelect.addEventListener('change', (event) => {
         const activeTab = getActiveTabState(); if (!activeTab) return;
@@ -480,30 +555,50 @@ function setupEventListeners() {
         if (selectedTemplate) { dom.queryInput.value = selectedTemplate; activeTab.query = selectedTemplate; }
         activeTab.querySnippetValue = selectedTemplate;
     });
-    dom.fileInput.addEventListener('change', (event) => {
+
+    dom.fileInput.addEventListener('change', async (event) => {
         const activeTab = getActiveTabState(); if (!activeTab) return;
         const file = event.target.files[0];
         if (file) {
             const oldTabName = activeTab.name;
             activeTab.name = file.name.length > 20 ? file.name.substring(0,17) + "..." : file.name;
             if (oldTabName !== activeTab.name) renderTabs();
+
             const reader = new FileReader();
-            reader.onload = (e) => {
-                activeTab.rawData = e.target.result; dom.dataInput.value = e.target.result;
-                activeTab.fileName = `Loaded: ${file.name}`; dom.fileNameDisplay.textContent = activeTab.fileName;
-                showAppMessage(`Data file "${file.name}" loaded into tab "${activeTab.name}".`, 'info');
+            reader.onload = async (e) => {
+                try {
+                    await handleNewData(activeTab, e.target.result, file.name);
+                } catch (error) {
+                     showAppMessage(`Error processing file data: ${error.message}`, 'error', true);
+                }
             };
             reader.onerror = (e) => {
                 console.error("Error reading data file:", e);
                 showAppMessage(`Error reading data file: ${file.name}.`, 'error', true);
-                activeTab.fileName = "File load error."; dom.fileNameDisplay.textContent = activeTab.fileName;
+                activeTab.dataSummary = "File load error."; dom.fileNameDisplay.textContent = activeTab.dataSummary;
+                activeTab.dataLocation = { type: 'error' };
             };
             reader.readAsText(file);
         }
         dom.fileInput.value = "";
     });
 
-    dom.dataInput.addEventListener('input', () => { const t = getActiveTabState(); if (t) t.rawData = dom.dataInput.value; });
+    dom.dataInput.addEventListener('input', () => {
+         const activeTab = getActiveTabState();
+         if (activeTab && activeTab.dataLocation?.type === 'memory') {
+             activeTab.rawData = dom.dataInput.value;
+         }
+    });
+
+    dom.dataInput.addEventListener('paste', async (event) => {
+        const activeTab = getActiveTabState();
+        if (!activeTab) return;
+        event.preventDefault();
+        const pastedData = (event.clipboardData || window.clipboardData).getData('text');
+        await handleNewData(activeTab, pastedData, 'Pasted Data');
+    });
+
+
     dom.queryInput.addEventListener('input', () => { const t = getActiveTabState(); if (t) t.query = dom.queryInput.value; });
     dom.inputFormatSelect.addEventListener('change', () => { const t = getActiveTabState(); if (t) t.inputFormat = dom.inputFormatSelect.value; });
     dom.outputFormatSelect.addEventListener('change', () => { const t = getActiveTabState(); if (t) t.outputFormat = dom.outputFormatSelect.value; });
@@ -548,7 +643,7 @@ function setupEventListeners() {
     dom.exportBtn.addEventListener('click', exportResultsHandler);
     dom.runScannerBtn.addEventListener('click', runScannerHandler);
     dom.toggleViewBtn.addEventListener('click', toggleResultsViewHandler);
-    dom.pivotResultsBtn.addEventListener('click', handlePivotResultsToNewTab); // Added listener
+    dom.pivotResultsBtn.addEventListener('click', handlePivotResultsToNewTab);
     dom.cancelScanBtn.addEventListener('click', cancelScanHandler);
 
     dom.scannerHitsOutput.addEventListener('click', (event) => {
@@ -560,6 +655,7 @@ function setupEventListeners() {
             handlePivotToNewTab(sourceTabId, ruleName, ruleQuery);
         }
     });
+
 }
 
 async function runQueryHandler() {
@@ -567,21 +663,58 @@ async function runQueryHandler() {
     if (!activeTab || !superdbInstance) {
         showAppMessage(superdbInstance ? "No active tab." : "SuperDB not ready.", 'error', true); return;
     }
+
     let query = activeTab.query.trim();
+    let inputData = null;
+    let dataLoadError = null;
+
+    if (activeTab.dataLocation?.type === 'indexeddb' && activeTab.dataLocation.key) {
+        showAppMessage("Loading large data from database for query...", 'info', true);
+        try {
+            inputData = await getData(activeTab.dataLocation.key);
+            hideAppMessage();
+            if (typeof inputData === 'undefined') throw new Error("Data not found in DB.");
+        } catch (dbError) {
+            console.error("Error loading data from IndexedDB for query:", dbError);
+            dataLoadError = `Failed to load data from DB: ${dbError.message}`;
+            inputData = null;
+        }
+    } else if (activeTab.dataLocation?.type === 'memory') {
+        inputData = activeTab.rawData;
+    }
+
+    if (dataLoadError) {
+         showAppMessage(dataLoadError, 'error', true);
+         return;
+    }
+     if (!inputData && query !== 'pass') {
+         showAppMessage("No data available to run the query.", 'warning');
+         if (query === 'pass' && !inputData) {
+             inputData = '';
+         } else {
+             return;
+         }
+    }
+
     saveQueryToHistory(query);
-    if (!query && activeTab.rawData) { query = "pass"; activeTab.query = "pass"; dom.queryInput.value = "pass"; }
-    if (!query && !activeTab.rawData) { showAppMessage("Enter a query or provide data.", 'info'); return; }
+    if (!query && inputData) { query = "pass"; activeTab.query = "pass"; dom.queryInput.value = "pass"; }
+    if (!query && !inputData) { showAppMessage("Enter a query or provide data.", 'info'); return; }
 
     activeTab.currentRawOutput = null;
     if (activeTab.gridInstance) { try {activeTab.gridInstance.destroy();} catch(e){} activeTab.gridInstance = null; }
     updateResultDisplay(activeTab);
-
     dom.runQueryBtn.disabled = true;
+    dom.runScannerBtn.disabled = true;
     dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Running...';
     hideAppMessage();
 
     try {
-        const result = await superdbInstance.run({ query, input: activeTab.rawData, inputFormat: activeTab.inputFormat, outputFormat: activeTab.outputFormat });
+        const result = await superdbInstance.run({
+            query: query,
+            input: inputData,
+            inputFormat: activeTab.inputFormat,
+            outputFormat: activeTab.outputFormat
+        });
         activeTab.currentRawOutput = result;
         const tableData = parseResultForTable(result, activeTab.outputFormat);
         if (tableData && tableData.headers && tableData.headers.length > 0) {
@@ -598,6 +731,8 @@ async function runQueryHandler() {
         showAppMessage(`Query failed: ${error.message || String(error)}`, 'error', true);
     } finally {
         dom.runQueryBtn.disabled = false;
+        const hasData = activeTab.dataLocation?.type === 'memory' || activeTab.dataLocation?.type === 'indexeddb';
+        dom.runScannerBtn.disabled = !(activeTab.scannerRules && activeTab.scannerRules.length > 0 && superdbInstance && hasData);
         dom.runQueryBtn.textContent = 'Run Query';
     }
 }
@@ -646,7 +781,11 @@ function terminateScannerWorker() {
         scannerWorker.terminate();
         scannerWorker = null;
         console.log("Scanner worker terminated.");
-        dom.runScannerBtn.disabled = !(getActiveTabState()?.scannerRules?.length > 0 && superdbInstance);
+
+        const activeTab = getActiveTabState();
+        const hasData = activeTab?.dataLocation?.type === 'memory' || activeTab?.dataLocation?.type === 'indexeddb';
+        dom.runScannerBtn.disabled = !(activeTab?.scannerRules?.length > 0 && superdbInstance && hasData);
+
         dom.runQueryBtn.disabled = !superdbInstance;
         dom.cancelScanBtn.classList.add('d-none');
         dom.scanProgress.classList.add('d-none');
@@ -658,6 +797,13 @@ function handleWorkerMessage(event) {
     const { type, ...data } = event.data;
     const activeTab = getActiveTabState();
 
+    if (!scannerWorker || activeTab?.id !== scannerWorker.tabId) {
+        if (type === 'complete' || type === 'cancelled' || type === 'critical_error' || type === 'init_error') {
+             terminateScannerWorker();
+        }
+        return;
+    }
+
     switch (type) {
         case 'init_done':
             console.log("Scanner worker initialized successfully.");
@@ -667,11 +813,16 @@ function handleWorkerMessage(event) {
             }
             break;
         case 'init_error':
-            showAppMessage(`Scanner Worker Error: ${data.message}`, 'error', true);
+        case 'critical_error':
+            const errorPrefix = type === 'init_error' ? 'Scanner Worker Init Error' : 'Scanner Worker Critical Error';
+            showAppMessage(`${errorPrefix}: ${data.message}`, 'error', true);
             terminateScannerWorker();
             break;
         case 'progress':
             dom.scanProgress.textContent = `Scanning ${data.processed}/${data.total}...`;
+            break;
+        case 'progress_detail':
+            dom.scanProgress.textContent = data.message || 'Scanning...';
             break;
         case 'hit':
             if (activeTab) {
@@ -718,10 +869,13 @@ function handleWorkerMessage(event) {
                 } else if (data.hitsFound > 0) {
                     dom.noScannerHitsMessage.classList.add('d-none');
                     showAppMessage(`Scanner finished. Found ${data.hitsFound} hit(s). ${data.errorsOccurred ? 'Some rules had errors.' : ''}`, data.errorsOccurred ? 'warning' : 'success');
-                } else {
+                } else if (data.errorsOccurred) {
                     dom.noScannerHitsMessage.classList.add('d-none');
                     showAppMessage(`Scanner finished with errors. See details.`, 'error');
-                }
+                 } else {
+                     dom.noScannerHitsMessage.classList.remove('d-none');
+                      showAppMessage(`Scanner finished.`, 'info');
+                 }
             }
             terminateScannerWorker();
             break;
@@ -740,8 +894,9 @@ function runScannerHandler() {
         showAppMessage("No scanner rules loaded. Upload or select predefined rules.", 'warning', true);
         return;
     }
-    if (!activeTab.rawData || !activeTab.rawData.trim()) {
-        showAppMessage("No data to scan. Paste or upload data first.", 'warning', true);
+    const hasData = activeTab.dataLocation?.type === 'memory' || activeTab.dataLocation?.type === 'indexeddb';
+    if (!hasData) {
+        showAppMessage("No data available to scan. Paste or upload data first.", 'warning', true);
         return;
     }
 
@@ -752,43 +907,47 @@ function runScannerHandler() {
     dom.noScannerHitsMessage.classList.add('d-none');
     dom.scannerResultsPanel.classList.remove('d-none');
     dom.scanProgress.classList.remove('d-none');
-    dom.scanProgress.textContent = 'Initializing scanner worker...';
+    dom.scanProgress.textContent = 'Initializing scanner...';
     hideAppMessage();
-
     dom.runScannerBtn.disabled = true;
     dom.runQueryBtn.disabled = true;
     dom.cancelScanBtn.classList.remove('d-none');
     dom.runScannerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Starting...';
 
+    const startData = {
+        rules: activeTab.scannerRules,
+        inputFormat: activeTab.inputFormat,
+        wasmPath: "superdb.wasm"
+    };
+
+    if (activeTab.dataLocation?.type === 'indexeddb') {
+        startData.dataLocation = { type: 'indexeddb', key: activeTab.dataLocation.key };
+    } else if (activeTab.dataLocation?.type === 'memory') {
+        startData.data = activeTab.rawData;
+    } else {
+        showAppMessage("Invalid data state for scanning.", 'error', true);
+        terminateScannerWorker();
+        return;
+    }
+
     try {
         scannerWorker = new Worker('scanner.worker.js', { type: 'module' });
         scannerWorker.onerror = (error) => {
-            console.error("Scanner Worker Error:", error);
-            showAppMessage(`Scanner Worker failed: ${error.message}`, 'error', true);
+            console.error("Scanner Worker onerror:", error);
+            const errorMessage = `Scanner Worker failed: ${error.message || 'Unknown error'}`;
+            showAppMessage(errorMessage, 'error', true);
             terminateScannerWorker();
         };
         scannerWorker.onmessage = handleWorkerMessage;
-
         scannerWorker.tabId = activeTab.id;
 
-        const startData = {
-            data: activeTab.rawData,
-            rules: activeTab.scannerRules,
-            inputFormat: activeTab.inputFormat,
-            wasmPath: "superdb.wasm"
-        };
-
         scannerWorker.pendingStartData = startData;
-        scannerWorker.postMessage({ type: 'init', wasmPath: "superdb.wasm" });
+        scannerWorker.postMessage({ type: 'init', wasmPath: startData.wasmPath });
 
     } catch (error) {
         console.error("Failed to create or start scanner worker:", error);
         showAppMessage(`Failed to start scanner: ${error.message}`, 'error', true);
-        dom.runScannerBtn.disabled = false;
-        dom.runQueryBtn.disabled = false;
-        dom.cancelScanBtn.classList.add('d-none');
-        dom.scanProgress.classList.add('d-none');
-        dom.runScannerBtn.textContent = 'Run Scanner';
+        terminateScannerWorker();
     }
 }
 
@@ -809,32 +968,31 @@ function handlePivotToNewTab(sourceTabId, ruleName, encodedRuleQuery) {
     }
 
     const ruleQuery = decodeURIComponent(encodedRuleQuery);
-
     const newTab = addTab();
+    const newTabId = newTab.id;
 
     newTab.name = `Pivot: ${ruleName.substring(0, 15)}${ruleName.length > 15 ? '...' : ''}`;
-    newTab.rawData = sourceTab.rawData;
     newTab.query = ruleQuery;
     newTab.inputFormat = sourceTab.inputFormat;
     newTab.outputFormat = sourceTab.outputFormat;
-    newTab.fileName = sourceTab.fileName;
+    newTab.dataLocation = sourceTab.dataLocation;
+    newTab.dataSummary = sourceTab.dataSummary;
+    if (sourceTab.dataLocation?.type === 'memory') {
+        newTab.rawData = sourceTab.rawData;
+    }
 
-    dom.queryInput.value = newTab.query;
-    dom.dataInput.value = newTab.rawData;
-    dom.inputFormatSelect.value = newTab.inputFormat;
-    dom.outputFormatSelect.value = newTab.outputFormat;
-    dom.fileNameDisplay.textContent = newTab.fileName;
-
-    renderTabs();
-
-    setTimeout(() => {
-        runQueryHandler();
-    }, 50);
+    switchTab(newTabId).then(() => {
+        setTimeout(() => {
+            if (activeTabId === newTabId) {
+                 runQueryHandler();
+            }
+        }, 50);
+    });
 
     showAppMessage(`Pivoted to new tab with query for rule "${ruleName}".`, 'info');
 }
 
-function handlePivotResultsToNewTab() {
+async function handlePivotResultsToNewTab() {
     const sourceTab = getActiveTabState();
     if (!sourceTab || !sourceTab.currentRawOutput || !sourceTab.currentRawOutput.trim()) {
         showAppMessage("No results available to pivot.", "warning");
@@ -842,29 +1000,26 @@ function handlePivotResultsToNewTab() {
     }
 
     const newTab = addTab();
+    const newTabId = newTab.id;
 
     newTab.name = `Pivot from ${sourceTab.name.substring(0, 10)}${sourceTab.name.length > 10 ? '...' : ''}`;
-    newTab.rawData = sourceTab.currentRawOutput; // Use current results as new raw data
-    newTab.query = "pass"; // Default query for the pivoted data
-    newTab.inputFormat = sourceTab.outputFormat; // Input format is the previous output format
-    newTab.outputFormat = sourceTab.outputFormat; // Keep output format or default to zjson
-    newTab.fileName = `Pivoted from ${sourceTab.name}`; // Indicate source
+    newTab.query = "pass";
+    newTab.inputFormat = sourceTab.outputFormat;
+    newTab.outputFormat = sourceTab.outputFormat;
+    newTab.dataSummary = `Pivoted from ${sourceTab.name}`;
 
-    dom.queryInput.value = newTab.query;
-    dom.dataInput.value = newTab.rawData;
-    dom.inputFormatSelect.value = newTab.inputFormat;
-    dom.outputFormatSelect.value = newTab.outputFormat;
-    dom.fileNameDisplay.textContent = newTab.fileName;
+    await handleNewData(newTab, sourceTab.currentRawOutput, `Pivoted from ${sourceTab.name}`);
 
-    renderTabs();
+    await switchTab(newTabId);
 
     setTimeout(() => {
-        runQueryHandler(); // Run default 'pass' query on the pivoted data
+        if (activeTabId === newTabId) {
+             runQueryHandler();
+        }
     }, 50);
 
     showAppMessage(`Pivoted results from tab "${sourceTab.name}" to new tab.`, 'info');
 }
-
 
 async function initializeApp() {
     if (!SuperDB) {
@@ -875,6 +1030,12 @@ async function initializeApp() {
         [dom.runQueryBtn, dom.exportBtn, dom.runScannerBtn, dom.addTabBtn].forEach(btn => { if(btn) btn.disabled = true; });
         dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Initializing...';
         showAppMessage('Igniting Wasm engines... Stand by.', 'info', true);
+
+        try {
+            await openDB();
+        } catch (dbError) {
+             showAppMessage(`Failed to initialize local database: ${dbError}. Large file support disabled.`, 'error', true);
+        }
 
         populateSelect(dom.inputFormatSelect, config.inputFormats, 'auto');
         populateSelect(dom.outputFormatSelect, config.outputFormats, 'zjson');

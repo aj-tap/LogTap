@@ -1,6 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Menlo&family=Monaco&family=Consolas&family=Liberation+Mono&family=Courier+New&display=swap');
-
 html, body {
     height: 100%;
     overflow: hidden;
@@ -8,6 +5,7 @@ html, body {
 body {
     display: flex;
     background-color: #111827;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 main {
     flex-grow: 1;
@@ -49,7 +47,7 @@ main {
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
 .io-area {
-    font-family: 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", monospace;
+    font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.875rem;
     background-color: #1e293b;
     color: #e2e8f0;
@@ -75,16 +73,20 @@ main {
     font-weight: 600 !important; border-bottom: 1px solid #475569 !important;
     border-left: none !important; border-right: none !important; border-top: none !important;
     padding: 0.75rem 1rem !important;
+    white-space: nowrap;
 }
 .gridjs-td {
      padding: 0.65rem 1rem !important; border-bottom: 1px solid #273344 !important;
      border-left: none !important; border-right: none !important;
-     color: #2C2C2C !important; background-color: transparent !important;
-     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+     color: #000000 !important;
+     background-color: transparent !important;
+     white-space: nowrap;
+     overflow: hidden;
+     text-overflow: ellipsis;
 }
 .gridjs-tr:hover .gridjs-td { background-color: #334155 !important; color: #ffffff !important; }
  .gridjs-tr:last-child .gridjs-td { border-bottom: none !important; }
-.gridjs-footer { background-color: #1e293b !important; border-top: 1px solid #334155 !important; padding: 0.6rem 0.75rem !important; }
+.gridjs-footer { background-color: #1e293b !important; border-top: 1px solid #ffffff !important; padding: 0.6rem 0.75rem !important; }
 .gridjs-pagination button, .gridjs-pagination .gridjs-pages button {
     color: #adb5bd !important; border: 1px solid #334155 !important;
     background-color: #273344 !important;

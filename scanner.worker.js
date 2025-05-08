@@ -1,28 +1,18 @@
-// scanner.worker.js
+import { SuperDB } from './index.js';
+import { getData } from './db.js';
 
-// --- Use ES Module import instead of importScripts ---
-// index.js should handle importing wasm_exec.js and bridge.js internally if needed
-import { SuperDB } from './index.js'; // Assuming SuperDB is exported from index.js
-
-// Flag to control cancellation
 let isCancelled = false;
 let superdbWorkerInstance = null;
 
-/**
- * Initializes the SuperDB Wasm instance within the worker.
- * @param {string} wasmPath - Path to the superdb.wasm file.
- */
 async function initializeSuperDB(wasmPath) {
-    if (superdbWorkerInstance) return true; // Already initialized
+    if (superdbWorkerInstance) return true;
     if (typeof SuperDB === 'undefined') {
          postMessage({ type: 'init_error', message: 'SuperDB class not found in worker after import.' });
          return false;
     }
-
     try {
-        // Instantiate SuperDB specifically for this worker
         superdbWorkerInstance = await SuperDB.instantiate(wasmPath);
-        postMessage({ type: 'init_done' }); // Signal main thread that worker is ready
+        postMessage({ type: 'init_done' });
         return true;
     } catch (error) {
         console.error("Worker: Failed to instantiate SuperDB Wasm:", error);
@@ -31,12 +21,10 @@ async function initializeSuperDB(wasmPath) {
     }
 }
 
-/**
- * Runs the scanner rules against the provided data.
- * @param {object} dataPayload - Object containing data, rules, inputFormat.
- */
 async function runScan(dataPayload) {
-    const { data, rules, inputFormat } = dataPayload;
+    const { rules, inputFormat, data, dataLocation } = dataPayload;
+    let inputData = data;
+
     if (!superdbWorkerInstance) {
         postMessage({ type: 'error', ruleName: 'Setup', message: 'SuperDB not initialized in worker.' });
         postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
@@ -48,36 +36,56 @@ async function runScan(dataPayload) {
         return;
     }
 
-    isCancelled = false; // Reset cancellation flag for this run
+    if (dataLocation && dataLocation.type === 'indexeddb' && dataLocation.key) {
+        try {
+            postMessage({ type: 'progress_detail', message: 'Loading data from DB...' });
+            inputData = await getData(dataLocation.key);
+            if (typeof inputData === 'undefined') {
+                 postMessage({ type: 'error', ruleName: 'Setup', message: 'Data not found in IndexedDB for key: ' + dataLocation.key });
+                 postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
+                 return;
+            }
+            postMessage({ type: 'progress_detail', message: 'Data loaded. Starting scan...' });
+        } catch (dbError) {
+            console.error("Worker: Failed to load data from IndexedDB:", dbError);
+            postMessage({ type: 'error', ruleName: 'Setup', message: `Failed to load data from DB: ${dbError.message}` });
+            postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
+            return;
+        }
+    } else if (!inputData) {
+         postMessage({ type: 'error', ruleName: 'Setup', message: 'No input data available for scan.' });
+         postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
+         return;
+    }
+
+    isCancelled = false;
     let hitsFound = 0;
     let errorsOccurred = false;
     let rulesProcessed = 0;
     const totalRules = rules.length;
 
-    postMessage({ type: 'progress', processed: 0, total: totalRules }); // Initial progress
+    postMessage({ type: 'progress', processed: 0, total: totalRules });
 
     for (const rule of rules) {
         if (isCancelled) {
             console.log("Worker: Scan cancelled.");
             postMessage({ type: 'cancelled' });
-            break; // Exit loop if cancelled
+            break;
         }
 
         rulesProcessed++;
         postMessage({ type: 'progress', processed: rulesProcessed, total: totalRules });
 
         try {
-            // Run the individual rule query using the worker's SuperDB instance
             const result = await superdbWorkerInstance.run({
                 query: rule.query,
-                input: data,
+                input: inputData,
                 inputFormat: inputFormat,
-                outputFormat: 'line' // Keep output simple
+                outputFormat: 'line'
             });
 
             if (result && result.trim() !== "") {
                 hitsFound++;
-                // Send hit details back to the main thread
                 postMessage({
                     type: 'hit',
                     ruleName: rule.name,
@@ -101,25 +109,43 @@ async function runScan(dataPayload) {
     }
 }
 
-// Listen for messages from the main thread
-self.onmessage = async (event) => {
-    const { type, ...dataPayload } = event.data;
+self.addEventListener('unhandledrejection', event => {
+    console.error("Worker: Unhandled Rejection:", event.reason);
+    postMessage({
+        type: 'critical_error',
+        message: `Unhandled promise rejection: ${event.reason?.message || event.reason}`
+    });
+});
 
-    if (type === 'init') {
-        await initializeSuperDB(dataPayload.wasmPath || "superdb.wasm");
-    } else if (type === 'start') {
-        if (!superdbWorkerInstance) {
-            const initialized = await initializeSuperDB(dataPayload.wasmPath || "superdb.wasm");
-            if (initialized) {
-                await runScan(dataPayload);
-            }
-        } else {
-             await runScan(dataPayload);
+self.onmessage = async (event) => {
+    try {
+        const { type, ...dataPayload } = event.data;
+
+        if (type === 'init') {
+            await initializeSuperDB(dataPayload.wasmPath || "superdb.wasm");
+        } else if (type === 'start') {
+             if (!superdbWorkerInstance) {
+                 const initialized = await initializeSuperDB(dataPayload.wasmPath || "superdb.wasm");
+                 if (initialized) {
+                     await runScan(dataPayload);
+                 } else {
+                      postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
+                 }
+             } else {
+                  await runScan(dataPayload);
+             }
+        } else if (type === 'cancel') {
+            isCancelled = true;
+            console.log("Worker: Received cancel signal.");
         }
-    } else if (type === 'cancel') {
-        // Set the cancellation flag
-        isCancelled = true;
-        console.log("Worker: Received cancel signal.");
+    } catch (error) {
+        console.error("Worker: Critical Error in onmessage:", error);
+        postMessage({
+            type: 'critical_error',
+            message: `Critical worker error: ${error.message}`,
+            stack: error.stack
+        });
+        postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
     }
 };
 
@@ -128,3 +154,4 @@ if (typeof SuperDB === 'undefined') {
 } else {
     console.log("Worker: SuperDB class found.");
 }
+
