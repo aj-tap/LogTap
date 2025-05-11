@@ -30,6 +30,7 @@ const dom = {
     querySnippetsSelect: document.getElementById('querySnippets'),
     dataInput: document.getElementById('dataInput'),
     fileInput: document.getElementById('fileInput'),
+    loadTestDataBtn: document.getElementById('loadTestDataBtn'),
     fileNameDisplay: document.getElementById('fileNameDisplay'),
     inputFormatSelect: document.getElementById('inputFormat'),
     outputFormatSelect: document.getElementById('outputFormat'),
@@ -85,15 +86,6 @@ const config = {
         { name: "Top N values", template: "top N this['<field>']" },
         { name: "Sort by field", template: "sort this['<field>']" },
         { name: "Parse Unstructured Linux Logs", template: "yield grok('%{SYSLOGTIMESTAMP:timestamp} %{HOSTNAME:hostname} %{GREEDYDATA:message}', this) " },
-    ],
-    predefinedRuleSets: [
-        { name: "Select a predefined set...", path: "" },
-        { name: "Common_iocs_pattern", path: "rules/common_iocs_pattern.yaml" },
-        { name: "Extended_iocs_pattern", path: "rules/extended_iocs_pattern.yaml" },
-        { name: "Linux_basic_pattern", path: "rules/linux_basic_pattern.yaml" },
-        { name: "c2_pattern", path: "rules/c2_pattern.yaml" },
-        { name: "security_event_IDs_pattern", path: "rules/security_event_IDs_pattern.yaml" },
-        { name: "http_logs_pattern", path: "rules/http_investigation_pattern.yaml" },
     ]
 };
 
@@ -232,7 +224,12 @@ async function loadTabData(tabId) {
     dom.fileNameDisplay.textContent = tab.dataSummary;
     dom.scannerRuleFileNameDisplay.textContent = tab.scannerRuleFileName;
     populateSelect(dom.querySnippetsSelect, config.querySnippets, tab.querySnippetValue, 'template', 'name');
-    populateSelect(dom.predefinedRulesSelect, config.predefinedRuleSets, tab.predefinedRulesSelectValue, 'path', 'name');
+
+    if (dom.predefinedRulesSelect.options.length <= 1 && dom.predefinedRulesSelect.firstChild?.value === "") {
+        await initializePredefinedRulesSelect(tab.predefinedRulesSelectValue);
+    } else {
+        dom.predefinedRulesSelect.value = tab.predefinedRulesSelectValue;
+    }
 
     dom.resultOutputCode.textContent = '';
     if (tab.gridInstance) { try { tab.gridInstance.destroy(); tab.gridInstance = null; } catch(e) {} }
@@ -246,7 +243,6 @@ async function loadTabData(tabId) {
     const hasData = tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb';
     dom.runScannerBtn.disabled = !(tab.scannerRules && tab.scannerRules.length > 0 && superdbInstance && hasData);
 }
-
 
 function saveActiveTabData() {
     const activeTab = getActiveTabState();
@@ -263,24 +259,34 @@ function saveActiveTabData() {
 
 async function switchTab(tabId) {
     if (activeTabId === tabId && tabsState.find(t => t.id === tabId && t.isActive)) return;
+
     if(activeTabId) saveActiveTabData();
+
     tabsState.forEach(tab => tab.isActive = (tab.id === tabId));
     activeTabId = tabId;
+
     renderTabs();
     await loadTabData(tabId);
 }
 
 function addTab() {
     if(activeTabId) saveActiveTabData();
+
     const newTab = createNewTabState();
     tabsState.push(newTab);
     switchTab(newTab.id);
-    if (tabsState.length === 1 && superdbInstance) { dom.queryInput.focus(); }
+    if (tabsState.length === 1 && superdbInstance) {
+        dom.queryInput.focus();
+    }
     return newTab;
 }
 
 async function closeTab(tabIdToClose) {
-    if (tabsState.length <= 1) { showAppMessage("Cannot close the last tab.", "warning"); return; }
+    if (tabsState.length <= 1) {
+        showAppMessage("Cannot close the last tab.", "warning");
+        return;
+    }
+
     const tabIndex = tabsState.findIndex(tab => tab.id === tabIdToClose);
     if (tabIndex === -1) return;
 
@@ -296,7 +302,10 @@ async function closeTab(tabIdToClose) {
         }
     }
 
-    if (tabToClose.gridInstance) { try { tabToClose.gridInstance.destroy(); } catch(e) {} }
+    if (tabToClose.gridInstance) {
+        try { tabToClose.gridInstance.destroy(); } catch(e) { }
+    }
+
     tabsState.splice(tabIndex, 1);
 
     if (scannerWorker && scannerWorker.tabId === tabIdToClose) {
@@ -322,7 +331,10 @@ function loadQueryHistory() {
     const placeholder = Object.assign(document.createElement('option'), {value: "", textContent: "Select from history..."});
     dom.queryHistorySelect.appendChild(placeholder);
     dom.queryHistorySelect.disabled = history.length === 0;
-    if(history.length === 0) placeholder.textContent = "No history yet...";
+
+    if(history.length === 0) {
+        placeholder.textContent = "No history yet...";
+    }
 
     history.forEach(query => {
         const option = document.createElement('option');
@@ -359,11 +371,14 @@ function parseAndSetScannerRules(yamlContent, fileName, tab) {
                 showAppMessage(`Scanner rules from "${fileName}" loaded: ${tab.scannerRules.length} rules.`, 'success');
             } else {
                 tab.scannerRuleFileName = `File "${fileName}" contained no valid rules.`;
-                showAppMessage(`No valid rules in "${fileName}". Ensure 'name' and 'query'.`, 'warning');
+                showAppMessage(`No valid rules in "${fileName}". Ensure 'name' and 'query' for each rule.`, 'warning');
             }
-        } else { throw new Error("YAML needs a 'rules' array with 'name' and 'query' per rule."); }
+        } else {
+            throw new Error("YAML structure incorrect. Expected a 'rules' array with 'name' and 'query' for each rule.");
+        }
     } catch (e) {
-        console.error("Error parsing scanner YAML:", e); tab.scannerRules = [];
+        console.error("Error parsing scanner YAML:", e);
+        tab.scannerRules = [];
         tab.scannerRuleFileName = `Error loading ${fileName}.`;
         showAppMessage(`Error parsing scanner file "${fileName}": ${e.message}`, 'error', true);
     }
@@ -374,20 +389,20 @@ function parseAndSetScannerRules(yamlContent, fileName, tab) {
 
 async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
     try {
-        if (!filePath) {
-             const exampleRuleContent = `rules:\n  - name: Example Rule for ${ruleSetName}\n    query: "pass | head 1"`;
-             console.warn(`Using example content for ${ruleSetName} as path is placeholder: ${filePath}`);
-             parseAndSetScannerRules(exampleRuleContent, `${ruleSetName} (Example)`, tab);
-             showAppMessage(`Loaded example rules for "${ruleSetName}". Replace with actual file path.`, 'warning', true);
+        if (!filePath || filePath.startsWith("rules/Select")) {
+             showAppMessage(`Cannot load example rules for "${ruleSetName}" as path is a placeholder: ${filePath}`, 'warning', true);
              return;
         }
         const response = await fetch(filePath);
-        if (!response.ok) { throw new Error(`HTTP ${response.status} fetching ${ruleSetName} from ${filePath}`); }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status} fetching ${ruleSetName} from ${filePath}`);
+        }
         const yamlContent = await response.text();
         parseAndSetScannerRules(yamlContent, ruleSetName, tab);
     } catch (e) {
-        console.error(`Failed to load predefined rules "${ruleSetName}":`, e);
-        tab.scannerRules = []; tab.scannerRuleFileName = `Failed to load ${ruleSetName}.`;
+        console.error(`Failed to load predefined rules "${ruleSetName}" from ${filePath}:`, e);
+        tab.scannerRules = [];
+        tab.scannerRuleFileName = `Failed to load ${ruleSetName}.`;
         dom.scannerRuleFileNameDisplay.textContent = tab.scannerRuleFileName;
         showAppMessage(`Failed to load rules "${ruleSetName}": ${e.message}. Check path and file.`, 'error', true);
         const hasData = tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb';
@@ -396,85 +411,144 @@ async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
 }
 
 function parseCsvLine(text) {
-    const result = []; let currentField = ''; let inQuotes = false;
+    const result = [];
+    let currentField = '';
+    let inQuotes = false;
     for (let i = 0; i < text.length; i++) {
         const char = text[i];
         if (char === '"') {
-            if (inQuotes && i + 1 < text.length && text[i+1] === '"') { currentField += '"'; i++; }
-            else { inQuotes = !inQuotes; }
-        } else if (char === ',' && !inQuotes) { result.push(currentField); currentField = ''; }
-        else { currentField += char; }
+            if (inQuotes && i + 1 < text.length && text[i+1] === '"') {
+                currentField += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(currentField);
+            currentField = '';
+        } else {
+            currentField += char;
+        }
     }
-    result.push(currentField); return result;
+    result.push(currentField);
+    return result;
 }
 
 function parseResultForTable(resultText, actualOutputFormat) {
     const lines = resultText.trim().split('\n').filter(line => line.trim() !== '');
     if (lines.length === 0) return null;
-    let headers = []; let dataRows = []; const typeDefinitions = {};
+
+    let headers = [];
+    let dataRows = [];
+    const typeDefinitions = {};
 
     try {
         if (actualOutputFormat === 'zjson') {
-            const jsonDataObjects = []; const allPossibleHeaders = new Set();
+            const jsonDataObjects = [];
+            const allPossibleHeaders = new Set();
+
             lines.forEach(line => {
                 try {
-                    const record = JSON.parse(line); jsonDataObjects.push(record);
+                    const record = JSON.parse(line);
+                    jsonDataObjects.push(record);
                     if (record.type && record.type.kind === 'record' && record.type.fields) {
                         typeDefinitions[record.type.id] = record.type.fields.map(f => f.name);
                         record.type.fields.forEach(f => allPossibleHeaders.add(f.name));
-                    } else if (record.type && record.type.kind === 'ref') {
-                        const refSchemaFields = typeDefinitions[record.type.id];
-                        if (refSchemaFields) { refSchemaFields.forEach(fieldName => allPossibleHeaders.add(fieldName)); }
+                    } else if (record.type && record.type.kind === 'ref' && typeDefinitions[record.type.id]) {
+                        typeDefinitions[record.type.id].forEach(fieldName => allPossibleHeaders.add(fieldName));
                     } else if (typeof record === 'object' && record !== null && !record.type) {
                         Object.keys(record).forEach(k => allPossibleHeaders.add(k));
                     }
-                } catch (parseError) { console.warn("Skipping line (JSON parse error in ZJSON):", parseError, line); }
+                } catch (parseError) {
+                    console.warn("Skipping line (JSON parse error in ZJSON):", parseError, line);
+                }
             });
+
             headers = Array.from(allPossibleHeaders);
             if (headers.length === 0 && jsonDataObjects.length > 0 && typeof jsonDataObjects[0] !== 'object') {
                  headers.push("value");
             }
+
             jsonDataObjects.forEach(record => {
-                let currentSchemaFields; let valuesToMap = record.value;
-                if (record.type && record.type.kind === 'record') { currentSchemaFields = record.type.fields.map(f => f.name); }
-                else if (record.type && record.type.kind === 'ref') { currentSchemaFields = typeDefinitions[record.type.id]; }
-                else if (typeof record === 'object' && record !== null && !record.type) { currentSchemaFields = Object.keys(record); valuesToMap = record; }
-                else {
-                    if (headers.includes("value")) { dataRows.push(headers.map(h => (h === "value") ? String(record) : '')); }
+                let currentSchemaFields;
+                let valuesToMap = record.value;
+
+                if (record.type && record.type.kind === 'record') {
+                    currentSchemaFields = record.type.fields.map(f => f.name);
+                } else if (record.type && record.type.kind === 'ref' && typeDefinitions[record.type.id]) {
+                    currentSchemaFields = typeDefinitions[record.type.id];
+                } else if (typeof record === 'object' && record !== null && !record.type) {
+                    currentSchemaFields = Object.keys(record);
+                    valuesToMap = record;
+                } else {
+                    if (headers.includes("value")) {
+                        dataRows.push(headers.map(h => (h === "value") ? String(record) : ''));
+                    }
                     return;
                 }
+
                 if (currentSchemaFields && (Array.isArray(valuesToMap) || (typeof valuesToMap === 'object' && valuesToMap !== null))) {
                     const rowObject = {};
-                    if (Array.isArray(valuesToMap)) { currentSchemaFields.forEach((fieldName, idx) => { rowObject[fieldName] = valuesToMap[idx]; }); }
-                    else { currentSchemaFields.forEach(fieldName => { rowObject[fieldName] = valuesToMap[fieldName]; }); }
+                    if (Array.isArray(valuesToMap)) {
+                        currentSchemaFields.forEach((fieldName, idx) => {
+                            rowObject[fieldName] = valuesToMap[idx];
+                        });
+                    } else {
+                         currentSchemaFields.forEach(fieldName => {
+                            rowObject[fieldName] = valuesToMap[fieldName];
+                        });
+                    }
                     dataRows.push(headers.map(h => String(rowObject[h] !== undefined ? rowObject[h] : '')));
                 } else if (currentSchemaFields && headers.length === currentSchemaFields.length && !valuesToMap && typeof record === 'object' && record !== null) {
                      dataRows.push(headers.map(h => String(record[h] !== undefined ? record[h] : '')));
                 }
             });
+
         } else if (actualOutputFormat === 'csv') {
             if (lines.length > 0) {
                 headers = parseCsvLine(lines[0]);
                 dataRows = lines.slice(1).map(line => {
-                    const parsedLine = parseCsvLine(line); const rowArray = [];
-                    for (let i = 0; i < headers.length; i++) { rowArray.push(parsedLine[i] !== undefined ? String(parsedLine[i]) : ''); }
+                    const parsedLine = parseCsvLine(line);
+                    const rowArray = [];
+                    for (let i = 0; i < headers.length; i++) {
+                        rowArray.push(parsedLine[i] !== undefined ? String(parsedLine[i]) : '');
+                    }
                     return rowArray;
                 });
             }
-        } else { return null; }
-        if (headers.length === 0) return null;
+        } else {
+            return null;
+        }
+
+        if (headers.length === 0 && dataRows.length === 0) return null;
+        if (headers.length === 0 && dataRows.length > 0) {
+            headers = ["value"];
+            dataRows = dataRows.map(row => [String(row[0] !== undefined ? row[0] : (Array.isArray(row) ? row.join(", ") : row) )]);
+        }
+
         return { headers, dataRows };
-    } catch (e) { console.error(`Error parsing result for table (format: ${actualOutputFormat}):`, e, resultText); return null; }
+
+    } catch (e) {
+        console.error(`Error parsing result for table (format: ${actualOutputFormat}):`, e, resultText);
+        return null;
+    }
 }
 
 function displayTableWithGridJs(parsedData, containerElement, tab) {
     if (!parsedData || !parsedData.headers || parsedData.headers.length === 0) {
         containerElement.classList.add('d-none');
-        if (tab.gridInstance) { try { tab.gridInstance.destroy(); } catch(e){} tab.gridInstance = null; }
+        if (tab.gridInstance) {
+            try { tab.gridInstance.destroy(); } catch(e){}
+            tab.gridInstance = null;
+        }
         return null;
     }
+
     const { headers, dataRows } = parsedData;
-    if (tab.gridInstance) { try { tab.gridInstance.destroy(); } catch(e){} }
+
+    if (tab.gridInstance) {
+        try { tab.gridInstance.destroy(); } catch(e){}
+    }
     containerElement.innerHTML = '';
 
     if (typeof gridjs === 'undefined') {
@@ -482,6 +556,7 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
         showAppMessage("Error: Table library (Grid.js) not loaded.", "error", true);
         return null;
     }
+
     try {
         tab.gridInstance = new gridjs.Grid({
             columns: headers,
@@ -489,7 +564,11 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
             search: true,
             sort: true,
             resizable: true,
-            pagination: { enabled: true, limit: 50, summary: true },
+            pagination: {
+                enabled: true,
+                limit: 50,
+                summary: true
+            },
         }).render(containerElement);
         containerElement.classList.remove('d-none');
         return tab.gridInstance;
@@ -504,13 +583,18 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
 }
 
 async function handleNewData(tab, data, sourceName) {
-    const dataSize = data.length;
+    const dataSize = (typeof data === 'string') ? data.length : 0;
     const isLarge = dataSize > LARGE_DATA_THRESHOLD;
     const displaySize = (dataSize / (1024 * 1024)).toFixed(2) + ' MB';
     const summary = `${sourceName} (${displaySize})`;
 
     if (tab.dataLocation?.type === 'indexeddb' && tab.dataLocation.key) {
-        try { await deleteData(tab.dataLocation.key); } catch (e) { console.warn("Failed to delete old DB data for tab", tab.id, e); }
+        try {
+            await deleteData(tab.dataLocation.key);
+            console.log(`Cleared old IndexedDB data for tab ${tab.id}`);
+        } catch (e) {
+            console.warn("Failed to delete old DB data for tab", tab.id, e);
+        }
     }
 
     tab.dataSummary = summary;
@@ -552,7 +636,10 @@ function setupEventListeners() {
     dom.querySnippetsSelect.addEventListener('change', (event) => {
         const activeTab = getActiveTabState(); if (!activeTab) return;
         const selectedTemplate = event.target.value;
-        if (selectedTemplate) { dom.queryInput.value = selectedTemplate; activeTab.query = selectedTemplate; }
+        if (selectedTemplate) {
+            dom.queryInput.value = selectedTemplate;
+            activeTab.query = selectedTemplate;
+        }
         activeTab.querySnippetValue = selectedTemplate;
     });
 
@@ -583,6 +670,38 @@ function setupEventListeners() {
         dom.fileInput.value = "";
     });
 
+    dom.loadTestDataBtn.addEventListener('click', async () => {
+        const activeTab = getActiveTabState();
+        if (!activeTab) {
+            showAppMessage("No active tab to load data into.", "warning");
+            return;
+        }
+        const testDataPath = 'test_data.csv';
+        try {
+            showAppMessage(`Loading ${testDataPath}...`, 'info');
+            const response = await fetch(testDataPath);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status} while fetching ${testDataPath}`);
+            }
+            const csvData = await response.text();
+
+            const oldTabName = activeTab.name;
+            activeTab.name = testDataPath.length > 20 ? testDataPath.substring(0,17) + "..." : testDataPath;
+            if (oldTabName !== activeTab.name) renderTabs();
+
+            await handleNewData(activeTab, csvData, testDataPath);
+            dom.inputFormatSelect.value = 'csv';
+            activeTab.inputFormat = 'csv';
+            showAppMessage(`${testDataPath} loaded successfully. Input format set to CSV.`, 'success');
+        } catch (error) {
+            console.error(`Error loading ${testDataPath}:`, error);
+            showAppMessage(`Failed to load ${testDataPath}: ${error.message}`, 'error', true);
+            activeTab.dataSummary = `Failed to load ${testDataPath}.`;
+            dom.fileNameDisplay.textContent = activeTab.dataSummary;
+            activeTab.dataLocation = { type: 'error' };
+        }
+    });
+
     dom.dataInput.addEventListener('input', () => {
          const activeTab = getActiveTabState();
          if (activeTab && activeTab.dataLocation?.type === 'memory') {
@@ -597,7 +716,6 @@ function setupEventListeners() {
         const pastedData = (event.clipboardData || window.clipboardData).getData('text');
         await handleNewData(activeTab, pastedData, 'Pasted Data');
     });
-
 
     dom.queryInput.addEventListener('input', () => { const t = getActiveTabState(); if (t) t.query = dom.queryInput.value; });
     dom.inputFormatSelect.addEventListener('change', () => { const t = getActiveTabState(); if (t) t.inputFormat = dom.inputFormatSelect.value; });
@@ -621,18 +739,22 @@ function setupEventListeners() {
 
     dom.loadPredefinedRuleBtn.addEventListener('click', () => {
         const activeTab = getActiveTabState(); if (!activeTab) return;
-        const selectedPath = dom.predefinedRulesSelect.value;
-        if (selectedPath) {
-            const ruleSet = config.predefinedRuleSets.find(rs => rs.path === selectedPath);
-            loadScannerRulesFromFile(selectedPath, ruleSet ? ruleSet.name : selectedPath, activeTab);
-            activeTab.predefinedRulesSelectValue = selectedPath;
-        } else { showAppMessage('Please select a predefined rule set to load.', 'warning'); }
+        const selectedFileName = dom.predefinedRulesSelect.value;
+        if (selectedFileName) {
+            const selectedOptionText = dom.predefinedRulesSelect.options[dom.predefinedRulesSelect.selectedIndex].text;
+            const filePath = `rules/${selectedFileName}`;
+            loadScannerRulesFromFile(filePath, selectedOptionText, activeTab);
+            activeTab.predefinedRulesSelectValue = selectedFileName;
+        } else {
+            showAppMessage('Please select a predefined rule set to load.', 'warning');
+        }
     });
 
     dom.queryHistorySelect.addEventListener('change', (event) => {
         const activeTab = getActiveTabState(); if (!activeTab) return;
         if (event.target.value) {
-            dom.queryInput.value = event.target.value; activeTab.query = event.target.value;
+            dom.queryInput.value = event.target.value;
+            activeTab.query = event.target.value;
             showAppMessage('Query loaded from history.', 'info');
         }
     });
@@ -655,7 +777,6 @@ function setupEventListeners() {
             handlePivotToNewTab(sourceTabId, ruleName, ruleQuery);
         }
     });
-
 }
 
 async function runQueryHandler() {
@@ -687,6 +808,7 @@ async function runQueryHandler() {
          showAppMessage(dataLoadError, 'error', true);
          return;
     }
+
      if (!inputData && query !== 'pass') {
          showAppMessage("No data available to run the query.", 'warning');
          if (query === 'pass' && !inputData) {
@@ -703,6 +825,7 @@ async function runQueryHandler() {
     activeTab.currentRawOutput = null;
     if (activeTab.gridInstance) { try {activeTab.gridInstance.destroy();} catch(e){} activeTab.gridInstance = null; }
     updateResultDisplay(activeTab);
+
     dom.runQueryBtn.disabled = true;
     dom.runScannerBtn.disabled = true;
     dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Running...';
@@ -716,6 +839,7 @@ async function runQueryHandler() {
             outputFormat: activeTab.outputFormat
         });
         activeTab.currentRawOutput = result;
+
         const tableData = parseResultForTable(result, activeTab.outputFormat);
         if (tableData && tableData.headers && tableData.headers.length > 0) {
             displayTableWithGridJs(tableData, dom.tableResultOutputContainer, activeTab);
@@ -740,22 +864,31 @@ async function runQueryHandler() {
 function toggleResultsViewHandler() {
     const activeTab = getActiveTabState();
     if (!activeTab || !activeTab.currentRawOutput) return;
+
     if (activeTab.gridInstance) {
-        try { activeTab.gridInstance.destroy(); } catch(e){} activeTab.gridInstance = null;
+        try { activeTab.gridInstance.destroy(); } catch(e){}
+        activeTab.gridInstance = null;
     } else {
         const tableData = parseResultForTable(activeTab.currentRawOutput, activeTab.outputFormat);
         if (tableData && tableData.headers && tableData.headers.length > 0) {
             displayTableWithGridJs(tableData, dom.tableResultOutputContainer, activeTab);
-        } else { showAppMessage('Cannot display as table. Output might be an error or unsuitable format.', 'warning'); }
+        } else {
+            showAppMessage('Cannot display as table. Output might be an error or unsuitable format.', 'warning');
+        }
     }
     updateResultDisplay(activeTab);
 }
 
 async function exportResultsHandler() {
     const activeTab = getActiveTabState();
-    if (!activeTab || !activeTab.currentRawOutput) { showAppMessage("No results to export.", 'info'); return; }
+    if (!activeTab || !activeTab.currentRawOutput) {
+        showAppMessage("No results to export.", 'info');
+        return;
+    }
+
     const {outputFormat, currentRawOutput, name} = activeTab;
     let fileExtension = outputFormat, mimeType = 'text/plain';
+
     switch (outputFormat) {
         case 'csv': mimeType = 'text/csv'; break;
         case 'json': mimeType = 'application/json'; break;
@@ -764,16 +897,22 @@ async function exportResultsHandler() {
         case 'zson': mimeType = 'application/zson'; break;
         case 'line': fileExtension = 'txt'; break;
     }
+
     try {
         const blob = new Blob([currentRawOutput], { type: mimeType });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url;
+        const a = document.createElement('a');
+        a.href = url;
         const safeName = name.replace(/[^a-z0-9_.-]/gi, '_').substring(0, 30);
         a.download = `results_${safeName}.${fileExtension}`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showAppMessage(`Results exported as ${a.download}.`, 'success');
-    } catch (error) { showAppMessage(`Export error: ${error.message}`, 'error', true); }
+    } catch (error) {
+        showAppMessage(`Export error: ${error.message}`, 'error', true);
+    }
 }
 
 function terminateScannerWorker() {
@@ -797,9 +936,12 @@ function handleWorkerMessage(event) {
     const { type, ...data } = event.data;
     const activeTab = getActiveTabState();
 
-    if (!scannerWorker || activeTab?.id !== scannerWorker.tabId) {
+    if (!scannerWorker || !activeTab || activeTab.id !== scannerWorker.tabId) {
         if (type === 'complete' || type === 'cancelled' || type === 'critical_error' || type === 'init_error') {
-             terminateScannerWorker();
+             if(scannerWorker && type !== 'cancelled') {
+                console.warn("Terminating orphaned scanner worker due to completion/error message for non-active tab:", scannerWorker.tabId);
+                terminateScannerWorker();
+             }
         }
         return;
     }
@@ -851,7 +993,7 @@ function handleWorkerMessage(event) {
              if (activeTab) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = "mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0 text-danger";
-                errorDiv.innerHTML = `<strong>Error for Rule: "${data.ruleName}"</strong><br><small class="small">${data.message}</small>`;
+                errorDiv.innerHTML = `<strong>Error for Rule: "${data.ruleName}"</strong><br><small class="small">${data.message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</small>`;
                 dom.scannerHitsOutput.appendChild(errorDiv);
                 dom.scannerHitsOutput.scrollTop = dom.scannerHitsOutput.scrollHeight;
              }
@@ -871,7 +1013,7 @@ function handleWorkerMessage(event) {
                     showAppMessage(`Scanner finished. Found ${data.hitsFound} hit(s). ${data.errorsOccurred ? 'Some rules had errors.' : ''}`, data.errorsOccurred ? 'warning' : 'success');
                 } else if (data.errorsOccurred) {
                     dom.noScannerHitsMessage.classList.add('d-none');
-                    showAppMessage(`Scanner finished with errors. See details.`, 'error');
+                    showAppMessage(`Scanner finished with errors. See details in Scanner Hits panel.`, 'error');
                  } else {
                      dom.noScannerHitsMessage.classList.remove('d-none');
                       showAppMessage(`Scanner finished.`, 'info');
@@ -934,7 +1076,7 @@ function runScannerHandler() {
         scannerWorker = new Worker('scanner.worker.js', { type: 'module' });
         scannerWorker.onerror = (error) => {
             console.error("Scanner Worker onerror:", error);
-            const errorMessage = `Scanner Worker failed: ${error.message || 'Unknown error'}`;
+            const errorMessage = `Scanner Worker failed: ${error.message || 'Unknown error'}. Check console.`;
             showAppMessage(errorMessage, 'error', true);
             terminateScannerWorker();
         };
@@ -1009,7 +1151,6 @@ async function handlePivotResultsToNewTab() {
     newTab.dataSummary = `Pivoted from ${sourceTab.name}`;
 
     await handleNewData(newTab, sourceTab.currentRawOutput, `Pivoted from ${sourceTab.name}`);
-
     await switchTab(newTabId);
 
     setTimeout(() => {
@@ -1021,32 +1162,72 @@ async function handlePivotResultsToNewTab() {
     showAppMessage(`Pivoted results from tab "${sourceTab.name}" to new tab.`, 'info');
 }
 
+function prettifyRuleName(filename) {
+    if (!filename) return "";
+    return filename
+        .replace(/\.yaml$/i, '')
+        .replace(/\.yml$/i, '')
+        .replace(/_/g, ' ')
+        .replace(/-/g, ' ')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+async function initializePredefinedRulesSelect(selectedValue = "") {
+    dom.loadPredefinedRuleBtn.disabled = true;
+    const placeholder = [{ name: "Select a predefined set...", path: "" }];
+    try {
+        const response = await fetch('rules/rule_files.json');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status} - Could not load rule_files.json`);
+        }
+        const ruleFiles = await response.json();
+        if (Array.isArray(ruleFiles) && ruleFiles.length > 0) {
+            const options = ruleFiles.map(filename => ({
+                path: filename,
+                name: prettifyRuleName(filename)
+            }));
+            populateSelect(dom.predefinedRulesSelect, placeholder.concat(options), selectedValue, 'path', 'name');
+            dom.loadPredefinedRuleBtn.disabled = false;
+        } else {
+            populateSelect(dom.predefinedRulesSelect, placeholder.concat([{ name: "No rules found in manifest.", path: "" }]), "", 'path', 'name');
+            showAppMessage("No predefined rules found or manifest is empty.", "warning");
+        }
+    } catch (error) {
+        console.error("Failed to load predefined scanner rules:", error);
+        populateSelect(dom.predefinedRulesSelect, placeholder.concat([{ name: "Error loading rules.", path: "" }]), "", 'path', 'name');
+        showAppMessage(`Failed to load predefined rules: ${error.message}`, 'error', true);
+    }
+}
+
 async function initializeApp() {
     if (!SuperDB) {
         console.error("SuperDB class not loaded. Cannot initialize app.");
         return;
     }
     try {
-        [dom.runQueryBtn, dom.exportBtn, dom.runScannerBtn, dom.addTabBtn].forEach(btn => { if(btn) btn.disabled = true; });
+        [dom.runQueryBtn, dom.exportBtn, dom.runScannerBtn, dom.addTabBtn, dom.loadTestDataBtn, dom.loadPredefinedRuleBtn].forEach(btn => { if(btn) btn.disabled = true; });
         dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Initializing...';
         showAppMessage('Igniting Wasm engines... Stand by.', 'info', true);
 
         try {
             await openDB();
         } catch (dbError) {
-             showAppMessage(`Failed to initialize local database: ${dbError}. Large file support disabled.`, 'error', true);
+             showAppMessage(`Failed to initialize local database: ${dbError}. Large file support disabled.`, 'warning', true);
         }
 
         populateSelect(dom.inputFormatSelect, config.inputFormats, 'auto');
         populateSelect(dom.outputFormatSelect, config.outputFormats, 'zjson');
         populateSelect(dom.querySnippetsSelect, config.querySnippets, "", 'template', 'name');
-        populateSelect(dom.predefinedRulesSelect, config.predefinedRuleSets, "", 'path', 'name');
+        await initializePredefinedRulesSelect();
+
         loadQueryHistory();
 
         superdbInstance = await SuperDB.instantiate("superdb.wasm");
 
-        [dom.runQueryBtn, dom.addTabBtn].forEach(btn => { if(btn) btn.disabled = false; });
-        dom.runScannerBtn.disabled = true;
+        [dom.runQueryBtn, dom.addTabBtn, dom.loadTestDataBtn].forEach(btn => { if(btn) btn.disabled = false; });
+
         addTab();
         dom.runQueryBtn.textContent = 'Run Query';
         showAppMessage('LogTap Viewer ready.', 'success');

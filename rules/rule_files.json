@@ -1,0 +1,12 @@
+[
+    "common_iocs_pattern.yaml",
+    "extended_iocs_pattern.yaml",
+    "c2_pattern.yaml",    
+    "sigma_rules_WinDefender.yaml",
+    "sigma_rules_azure_cloud.yaml",
+    "sigma_rules_linux.yaml",
+    "sigma_rules_web.yaml",
+    "sigma_rules_winevtx.yaml",    
+    "http_investigation_pattern.yaml",
+    "linux_basic_pattern.yaml"
+]

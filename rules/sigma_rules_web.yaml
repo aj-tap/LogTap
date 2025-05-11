@@ -1,0 +1,392 @@
+rules:
+- name: Apache Segmentation Fault
+  query: grep("exit signal Segmentation Fault", this)
+  sigma_id: 1da8ce0b-855d-4004-8860-7d64d42063b1
+- name: Apache Threading Error
+  query: 'grep("__pthread_tpp_change_priority: Assertion `new_prio == -1 || (new_prio
+    >= fifo_min_prio && new_prio <= fifo_max_prio)", this)'
+  sigma_id: e9a2b582-3f6a-48ac-b4a1-6849cdc50b3c
+- name: Nginx Core Dump
+  query: grep("exited on signal 6 (core dumped)", this)
+  sigma_id: 59ec40bb-322e-40ab-808d-84fa690d7e56
+- name: Download from Suspicious Dyndns Hosts
+  query: (this['c-uri-extension'] in ["exe", "vbs", "bat", "rar", "ps1", "doc", "docm",
+    "xls", "xlsm", "pptm", "rtf", "hta", "dll", "ws", "wsf", "sct", "zip"]) and (this['cs-host']==".hopto.org"
+    or this['cs-host']==".no-ip.org" or this['cs-host']==".no-ip.info" or this['cs-host']==".no-ip.biz"
+    or this['cs-host']==".no-ip.com" or this['cs-host']==".noip.com" or this['cs-host']==".ddns.name"
+    or this['cs-host']==".myftp.org" or this['cs-host']==".myftp.biz" or this['cs-host']==".serveblog.net"
+    or this['cs-host']==".servebeer.com" or this['cs-host']==".servemp3.com" or this['cs-host']==".serveftp.com"
+    or this['cs-host']==".servequake.com" or this['cs-host']==".servehalflife.com"
+    or this['cs-host']==".servehttp.com" or this['cs-host']==".servegame.com" or this['cs-host']==".servepics.com"
+    or this['cs-host']==".myvnc.com" or this['cs-host']==".ignorelist.com" or this['cs-host']==".jkub.com"
+    or this['cs-host']==".dlinkddns.com" or this['cs-host']==".jumpingcrab.com" or
+    this['cs-host']==".ddns.info" or this['cs-host']==".mooo.com" or this['cs-host']==".dns-dns.com"
+    or this['cs-host']==".strangled.net" or this['cs-host']==".adultdns.net" or this['cs-host']==".craftx.biz"
+    or this['cs-host']==".ddns01.com" or this['cs-host']==".dns53.biz" or this['cs-host']==".dnsapi.info"
+    or this['cs-host']==".dnsd.info" or this['cs-host']==".dnsdynamic.com" or this['cs-host']==".dnsdynamic.net"
+    or this['cs-host']==".dnsget.org" or this['cs-host']==".fe100.net" or this['cs-host']==".flashserv.net"
+    or this['cs-host']==".ftp21.net" or this['cs-host']==".http01.com" or this['cs-host']==".http80.info"
+    or this['cs-host']==".https443.com" or this['cs-host']==".imap01.com" or this['cs-host']==".kadm5.com"
+    or this['cs-host']==".mysq1.net" or this['cs-host']==".ns360.info" or this['cs-host']==".ntdll.net"
+    or this['cs-host']==".ole32.com" or this['cs-host']==".proxy8080.com" or this['cs-host']==".sql01.com"
+    or this['cs-host']==".ssh01.com" or this['cs-host']==".ssh22.net" or this['cs-host']==".tempors.com"
+    or this['cs-host']==".tftpd.net" or this['cs-host']==".ttl60.com" or this['cs-host']==".ttl60.org"
+    or this['cs-host']==".user32.com" or this['cs-host']==".voip01.com" or this['cs-host']==".wow64.net"
+    or this['cs-host']==".x64.me" or this['cs-host']==".xns01.com" or this['cs-host']==".dyndns.org"
+    or this['cs-host']==".dyndns.info" or this['cs-host']==".dyndns.tv" or this['cs-host']==".dyndns-at-home.com"
+    or this['cs-host']==".dnsomatic.com" or this['cs-host']==".zapto.org" or this['cs-host']==".webhop.net"
+    or this['cs-host']==".25u.com" or this['cs-host']==".slyip.net")
+  sigma_id: 195c1119-ef07-4909-bb12-e66f5e07bf3c
+- name: Windows WebDAV User Agent
+  query: this['c-useragent']=="Microsoft-WebDAV-MiniRedir/" and this['cs-method']=="GET"
+  sigma_id: e09aed7a-09e0-4c9a-90dd-f0d52507347e
+- name: F5 BIG-IP iControl Rest API Command Execution - Proxy
+  query: this['cs-method']=="POST" and this['c-uri']=="/mgmt/tm/util/bash"
+  sigma_id: b59c98c6-95e8-4d65-93ee-f594dfb96b17
+- name: HackTool - BabyShark Agent Default URL Pattern
+  query: 'this[''c-uri'']=="(''momyshark'', <SpecialChars.WILDCARD_SINGLE: 2>, ''key='')"'
+  sigma_id: 304810ed-8853-437f-9e36-c4975c3dfd7e
+- name: HackTool - CobaltStrike Malleable Profile Patterns - Proxy
+  query: '(this[''c-useragent'']=="Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0;
+    rv:11.0) like Gecko" and this[''cs-method'']=="GET" and this[''c-uri'']=="/s/ref=nb_sb_noss_1/167-3294888-0262949/field-keywords=books"
+    and this[''cs-host'']=="www.amazon.com" and this[''cs-cookie'']=="=csm-hit=s-24KU11BB82RZSYGJ3BDK|1419899012996"
+    or this[''c-useragent'']=="Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0)
+    like Gecko" and this[''cs-method'']=="POST" and this[''c-uri'']=="/N4215/adj/amzn.us.sr.aps"
+    and this[''cs-host'']=="www.amazon.com" or this[''c-useragent''] in ["Mozilla/4.0
+    (compatible; MSIE 6.0;Windows NT 5.1)", "Mozilla/4.0 (compatible; MSIE 7.0; Windows
+    NT 6.1; WOW64; Trident/4.0; SLCC2; .NET CLR 3.0.30729; .NET4.0C; .NET4.0E )",
+    "Mozilla/5.0 (Windows; U; MSIE 7.0; Windows NT 5.2) Java/1.5.0_08"] or this[''c-useragent'']==";
+    MANM; MANM)" or this[''c-uri'']=="/oscp/" and this[''cs-host'']=="ocsp.verisign.com"
+    or this[''cs-method'']=="GET" and this[''c-uri'']=="(<SpecialChars.WILDCARD_SINGLE:
+    2>, ''manifest=wac'')" and this[''cs-host'']=="onedrive.live.com") and not (this[''c-uri'']=="http"
+    and this[''c-uri'']=="://onedrive.live.com/")'
+  sigma_id: f3f21ce1-cdef-4bfc-8328-ed2e826f5fac
+- name: HackTool - Empire UserAgent URI Combo
+  query: this['c-useragent']=="Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0)
+    like Gecko" and (this['cs-uri'] in ["/admin/get.php", "/news.php", "/login/process.php"])
+    and this['cs-method']=="POST"
+  sigma_id: b923f7d6-ac89-4a50-a71a-89fb846b4aa8
+- name: PUA - Advanced IP/Port Scanner Update Check
+  query: this['c-uri']=="/checkupdate.php" and this['c-uri-query']=="lng=" and this['c-uri-query']=="ver="
+    and this['c-uri-query']=="beta=" and this['c-uri-query']=="type=" and this['c-uri-query']=="rmode="
+    and this['c-uri-query']=="product="
+  sigma_id: 1a9bb21a-1bb5-42d7-aa05-3219c7c8f47d
+- name: PwnDrp Access
+  query: this['c-uri']=="/pwndrop/"
+  sigma_id: 2b1ee7e4-89b6-4739-b7bb-b811b6607e5e
+- name: Raw Paste Service Access
+  query: this['c-uri']==".paste.ee/r/" or this['c-uri']==".pastebin.com/raw/" or this['c-uri']==".hastebin.com/raw/"
+    or (this['c-uri']==".ghostbin.co/paste/" or this['c-uri']=="/raw/") or this['c-uri']=="pastetext.net/"
+    or this['c-uri']=="pastebin.pl/" or this['c-uri']=="paste.ee/"
+  sigma_id: 5468045b-4fcc-4d1a-973c-c9c9578edacb
+- name: Flash Player Update from Suspicious Location
+  query: (this['c-uri']=="/flash_install.php" or this['c-uri']=="/install_flash_player.exe")
+    and not this['cs-host']==".adobe.com"
+  sigma_id: 4922a5dd-6743-4fc2-8e81-144374280997
+- name: Telegram API Access
+  query: this['cs-host']=="api.telegram.org" and not (this['c-useragent']=="Telegram"
+    or this['c-useragent']=="Bot")
+  sigma_id: b494b165-6634-483d-8c47-2026a6c52372
+- name: APT User Agent
+  query: 'this[''c-useragent'']=="SJZJ (compatible; MSIE 6.0; Win32)" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows NT 6.; WOW64; rv:20.0) Gecko/20100101 Firefox/20.0" or this[''c-useragent'']=="User-Agent:
+    Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; SLCC" or this[''c-useragent'']=="Mozilla/4.0
+    (compatible; MSIE 7.4; Win32;32-bit)" or this[''c-useragent'']=="webclient" or
+    this[''c-useragent'']=="Mozilla/5.0 (Windows; U; Windows NT 5.1; zh-EN; rv:1.7.12)
+    Gecko/200" or this[''c-useragent'']=="Mozilla/4.0 (compatible; MSI 6.0;" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows NT 6.3; WOW64; rv:28.0) Gecko/20100101 Firefox/28.0" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows NT 6.2; WOW64; rv:20.0) Gecko/20100101 Firefox/" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows NT 6.; WOW64; rv:20.0) Gecko/20100101 Firefox/2" or this[''c-useragent'']=="Mozilla/4.0"
+    or this[''c-useragent'']=="Netscape" or this[''c-useragent'']=="Mozilla/5.0 (Windows;
+    U; Windows NT 5.1; zh-EN; rv:1.7.12) Gecko/20100719 Firefox/1.0.7" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows; U; Windows NT 5.1; en-US; rv:1.9.2.13) Firefox/3.6.13 GTB7.1" or this[''c-useragent'']=="Mozilla/5.0
+    (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0)" or this[''c-useragent'']=="Mozilla/4.0
+    (compatible; MSIE 8.0; Windows NT 6.1; WOW64; Trident/4.0; SLCC2; .NETCLR 2.0.50727)"
+    or this[''c-useragent'']=="Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.0;
+    SV1)" or this[''c-useragent'']=="Mozilla/4.0 (compatible; MSIE 11.0; Windows NT
+    6.1; SV1)" or this[''c-useragent'']=="Mozilla/4.0 (compatible; MSIE 8.0; Win32)"
+    or this[''c-useragent'']=="Mozilla v5.1 (Windows NT 6.1; rv:6.0.1) Gecko/20100101
+    Firefox/6.0.1" or this[''c-useragent'']=="Mozilla/6.1 (compatible; MSIE 9.0; Windows
+    NT 5.3; Trident/5.0)" or this[''c-useragent'']=="Mozilla/4.0 (compatible; MSIE
+    6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322; .NET CLR 2.0.50727; .NET CLR 3.0.04506.30;
+    .NET CLR 3.0.04506.648; InfoPath.1)" or this[''c-useragent'']=="Mozilla/5.0 (Windows
+    NT 6.1; WOW64) WinHttp/1.6.3.8 (WinHTTP/5.1) like Gecko" or this[''c-useragent'']=="Mozilla
+    v5.1 " or this[''c-useragent'']=="MSIE 8.0" or this[''c-useragent'']=="Mozilla/4.0
+    (compatible; MSIE 7.0; Windows NT 6.1; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729;
+    .NET CLR 3.0.30729; Media Center PC 6.0; .NET4.0C; .NET4.0E; InfoPath.2)" or this[''c-useragent'']=="Mozilla/4.0
+    (compatible; RMS)" or this[''c-useragent'']=="Mozilla/4.0 (compatible; MSIE 6.0;
+    DynGate)" or this[''c-useragent'']=="O/9.27 (W; U; Z)" or this[''c-useragent'']=="Mozilla/5.0
+    (compatible; MSIE 9.0; Windows NT 6.0; Trident/5.0;  Trident/5.0" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows NT 9; " or this[''c-useragent'']=="hots scot" or this[''c-useragent'']=="Mozilla/5.0
+    (compatible; MSIE 10.0; Windows NT)" or this[''c-useragent'']=="Mozilla/5.0 (Windows
+    NT 6.1; WOW64) Chrome/28.0.1500.95 Safari/537.36" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows NT 6.2; Win32; rv:47.0)" or this[''c-useragent'']=="Mozilla/4.0 (compatible;
+    MSIE 6.0; Windows NT 5.1;SV1;" or this[''c-useragent'']=="Mozilla/5.0 (X11; Linux
+    i686; rv:22.0) Firefox/22.0" or this[''c-useragent'']=="Mozilla/5.0 Chrome/72.0.3626.109
+    Safari/537.36" or this[''c-useragent'']=="Mozilla/5.0 (Windows NT 10.0; Win64;
+    x64; rv:FTS_06) Gecko/22.36.35.06 Firefox/2.0" or this[''c-useragent'']=="Mozilla/5.0
+    (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63
+    Safari/537.36 Edg/100.0.1185.39" or this[''c-useragent'']=="Mozilla/4.0 (compatible;
+    MSIE 7.0; Windows NT 6.1; WOW64; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET
+    CLR 3.5.30729; .NET CLR 3.0.30729; InfoPath.3; .NET4.0C; .NET4.0E)" or this[''c-useragent'']=="Mozilla/4.0
+    (compatible; MSIE 9.0; Windows NT 10.0; .NET4.0C; .NET4.0E; Tablet PC 2.0)" or
+    this[''c-useragent'']=="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+    (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246001"'
+  sigma_id: 6ec820f2-e963-4801-9127-d8b2dce4d31b
+- name: Suspicious Base64 Encoded User-Agent
+  query: this['c-useragent']=="Q2hyb21l" or this['c-useragent']=="QXBwbGVXZWJLaX"
+    or this['c-useragent']=="RGFsdmlr" or this['c-useragent']=="TW96aWxsY"
+  sigma_id: d443095b-a221-4957-a2c4-cd1756c9b747
+- name: Bitsadmin to Uncommon IP Server Address
+  query: this['c-useragent']=="Microsoft BITS/" and (this['cs-host']=="1" or this['cs-host']=="2"
+    or this['cs-host']=="3" or this['cs-host']=="4" or this['cs-host']=="5" or this['cs-host']=="6"
+    or this['cs-host']=="7" or this['cs-host']=="8" or this['cs-host']=="9")
+  sigma_id: 8ccd35a2-1c7c-468b-b568-ac6cdf80eec3
+- name: Bitsadmin to Uncommon TLD
+  query: this['c-useragent']=="Microsoft BITS/" and not (this['cs-host']==".com" or
+    this['cs-host']==".net" or this['cs-host']==".org" or this['cs-host']==".scdn.co"
+    or this['cs-host']==".sfx.ms")
+  sigma_id: 9eb68894-7476-4cd6-8752-23b51f5883a7
+- name: Crypto Miner User Agent
+  query: this['c-useragent']=="XMRig " or this['c-useragent']=="ccminer"
+  sigma_id: fa935401-513b-467b-81f4-f9e77aa0dd78
+- name: HTTP Request With Empty User Agent
+  query: 'false'
+  sigma_id: 21e44d78-95e7-421b-a464-ffd8395659c4
+- name: Exploit Framework User Agent
+  query: this['c-useragent']=="Internet Explorer " or this['c-useragent']=="Mozilla/4.0
+    (compatible; MSIE 6.0; Windows NT 5.1; SV1; InfoPath.2)" or this['c-useragent']=="Mozilla/4.0
+    (compatible; Metasploit RSPEC)" or this['c-useragent']=="Mozilla/4.0 (compatible;
+    MSIE 6.1; Windows NT)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE
+    6.0; Windows NT 5.1)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 7.0;
+    Windows NT 6.0)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 8.0; Windows
+    NT 6.0; Trident/4.0)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 7.0;
+    Windows NT 6.0; Trident/4.0; SIMBAR={7DB0F6DE-8DE7-4841-9084-28FA914B0F2E}; SLCC1;
+    .N" or this['c-useragent']=="Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    or this['c-useragent']=="Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US) AppleWebKit/525.13
+    (KHTML, like Gecko) Chrome/4.0.221.6 Safari/525.13" or this['c-useragent']=="Mozilla/5.0
+    (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0; MAAU)" or this['c-useragent']=="Mozilla/5.0"
+    or this['c-useragent']=="Mozilla/4.0 (compatible; SPIPE/1.0" or this['c-useragent']=="Mozilla/5.0
+    (Windows NT 6.3; rv:39.0) Gecko/20100101 Firefox/35.0" or this['c-useragent']=="Sametime
+    Community Agent" or this['c-useragent']=="X-FORWARDED-FOR" or this['c-useragent']=="DotDotPwn
+    v2.1" or this['c-useragent']=="SIPDROID" or this['c-useragent']=="Mozilla/5.0
+    (Windows NT 10.0; Win32; x32; rv:60.0)" or this['c-useragent']=="Mozilla/6.0 (X11;
+    Linux x86_64; rv:24.0) Gecko/20140205     Firefox/27.0 Iceweasel/25.3.0" or this['c-useragent']=="wordpress
+    hash grabber" or this['c-useragent']=="exploit" or this['c-useragent']=="Mozilla/5.0
+    (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110
+    Safari/537.36"
+  sigma_id: fdd1bfb5-f60b-4a35-910e-f36ed3d0b32f
+- name: Hack Tool User Agent
+  query: this['c-useragent']=="(hydra)" or this['c-useragent']==" arachni/" or this['c-useragent']=="
+    BFAC " or this['c-useragent']==" brutus " or this['c-useragent']==" cgichk " or
+    this['c-useragent']=="core-project/1.0" or this['c-useragent']==" crimscanner/"
+    or this['c-useragent']=="datacha0s" or this['c-useragent']=="dirbuster" or this['c-useragent']=="domino
+    hunter" or this['c-useragent']=="dotdotpwn" or this['c-useragent']=="FHScan Core"
+    or this['c-useragent']=="floodgate" or this['c-useragent']=="get-minimal" or this['c-useragent']=="gootkit
+    auto-rooter scanner" or this['c-useragent']=="grendel-scan" or this['c-useragent']=="
+    inspath " or this['c-useragent']=="internet ninja" or this['c-useragent']=="jaascois"
+    or this['c-useragent']==" zmeu " or this['c-useragent']=="masscan" or this['c-useragent']=="
+    metis " or this['c-useragent']=="morfeus fucking scanner" or this['c-useragent']=="n-stealth"
+    or this['c-useragent']=="nsauditor" or this['c-useragent']=="pmafind" or this['c-useragent']=="security
+    scan" or this['c-useragent']=="springenwerk" or this['c-useragent']=="teh forest
+    lobster" or this['c-useragent']=="toata dragostea" or this['c-useragent']==" vega/"
+    or this['c-useragent']=="voideye" or this['c-useragent']=="webshag" or this['c-useragent']=="webvulnscan"
+    or this['c-useragent']==" whcc/" or this['c-useragent']==" Havij" or this['c-useragent']=="absinthe"
+    or this['c-useragent']=="bsqlbf" or this['c-useragent']=="mysqloit" or this['c-useragent']=="pangolin"
+    or this['c-useragent']=="sql power injector" or this['c-useragent']=="sqlmap"
+    or this['c-useragent']=="sqlninja" or this['c-useragent']=="uil2pn" or this['c-useragent']=="ruler"
+    or this['c-useragent']=="Mozilla/5.0 (Windows; U; Windows NT 5.1; pt-PT; rv:1.9.1.2)
+    Gecko/20090729 Firefox/3.5.2 (.NET CLR 3.5.30729)"
+  sigma_id: c42a3073-30fb-48ae-8c99-c23ada84b103
+- name: Malware User Agent
+  query: this['c-useragent']=="Mozilla/5.0 (Windows NT 6.1; WOW64; rv:53.0) Gecko/20100101
+    Chrome /53.0" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 8.0; Windows
+    NT 5.1)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 7.0; Windows NT
+    5.1; Trident/4.0)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 6.0;
+    Windows NT 5.0; .NET CLR  1.1.4322)" or this['c-useragent']=="HttpBrowser/1.0"
+    or this['c-useragent']=="<|>" or this['c-useragent']=="nsis_inetc (mozilla)" or
+    this['c-useragent']=="Wget/1.9+cvs-stable (Red Hat modified)" or this['c-useragent']=="Mozilla/4.0
+    (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0; .NET CLR 1.1.4322)" or this['c-useragent']=="zeroup"
+    or this['c-useragent']=="Mozilla/5.0 (Windows NT 5.1 ; v." or this['c-useragent']=="
+    adlib/" or this['c-useragent']==" tiny" or this['c-useragent']==" BGroom " or
+    this['c-useragent']==" changhuatong" or this['c-useragent']==" CholTBAgent" or
+    this['c-useragent']=="Mozilla/5.0 WinInet" or this['c-useragent']=="RookIE/1.0"
+    or this['c-useragent']=="M" or this['c-useragent']=="Mozilla/4.0 (compatible;
+    MSIE 8.0; Windows NT 5.1; Trident/4.0)" or this['c-useragent']=="Mozilla/4.0 (compatible;MSIE
+    7.0;Windows NT 6.0)" or this['c-useragent']=="backdoorbot" or this['c-useragent']=="Mozilla/5.0
+    (Windows; U; Windows NT 5.1; en-US; rv:1.9.2.3) Gecko/20100401 Firefox/3.6.1 (.NET
+    CLR 3.5.30731)" or this['c-useragent']=="Opera/8.81 (Windows NT 6.0; U; en)" or
+    this['c-useragent']=="Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.2.3)
+    Gecko/20100401 Firefox/3.6.1 (.NET CLR 3.5.30729)" or this['c-useragent']=="Opera"
+    or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 5.0; Windows 98)" or this['c-useragent']=="Mozilla/4.0
+    (compatible; MSIE 5.01; Windows NT 5.0)" or this['c-useragent']=="MSIE" or this['c-useragent']=="(Charon;
+    Inferno)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 8.0; Windows
+    NT 5.1; Trident/5.0)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 6.1;
+    Windows NT)" or this['c-useragent']=="Mozilla/4.0(compatible; MSIE 6.0; Windows
+    NT 5.1)" or this['c-useragent']=="Mozilla/5.0 (Windows NT 10.0; Win64; x64)" or
+    this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 10.0; Win64;
+    x64)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1;
+    Win64; x64)" or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 7.0; Windows
+    NT 6.2; WOW64; Trident/7.0; .NET4.0C; .NET4.0E; InfoPath.3)" or this['c-useragent']=="Mozilla/5.0
+    (Windows NT 6.1)" or this['c-useragent']=="AppleWebkit/587.38 (KHTML, like Gecko)"
+    or this['c-useragent']=="Chrome/91.0.4472.77" or this['c-useragent']=="Safari/537.36"
+    or this['c-useragent']=="Edge/91.0.864.37" or this['c-useragent']=="Firefox/89.0"
+    or this['c-useragent']=="Gecko/20100101" or this['c-useragent']==" pxyscand" or
+    this['c-useragent']==" asd" or this['c-useragent']==" mdms" or this['c-useragent']=="sample"
+    or this['c-useragent']=="nocase" or this['c-useragent']=="Moxilla" or this['c-useragent']=="Win32
+    " or this['c-useragent']=="Microsoft Internet Explorer" or this['c-useragent']=="agent
+    " or this['c-useragent']=="AutoIt" or this['c-useragent']=="IczelionDownLoad"
+    or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 10.0; .NET4.0C;
+    .NET4.0E; Tablet PC 2.0)" or this['c-useragent']=="record" or this['c-useragent']=="mozzzzzzzzzzz"
+    or this['c-useragent']=="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:76.0) Gecko/20100101
+    Firefox/76.0" or this['c-useragent']=="Havana/0.1" or this['c-useragent']=="antSword/v2.1"
+    or this['c-useragent']=="rqwrwqrqwrqw" or this['c-useragent']=="qwrqrwrqwrqwr"
+    or this['c-useragent']=="rc2.0/client" or this['c-useragent']=="TakeMyPainBack"
+    or this['c-useragent']=="xxx" or this['c-useragent']=="20112211" or this['c-useragent']=="23591"
+    or this['c-useragent']=="901785252112" or this['c-useragent']=="1235125521512"
+    or this['c-useragent']=="125122112551" or this['c-useragent']=="B1D3N_RIM_MY_ASS"
+    or this['c-useragent']=="AYAYAYAY1337" or this['c-useragent']=="iMightJustPayMySelfForAFeature"
+    or this['c-useragent']=="ForAFeature" or this['c-useragent']=="Ares_ldr_v_" or
+    this['c-useragent']=="Microsoft Internet Explorer" or this['c-useragent']=="CLCTR"
+    or this['c-useragent']=="uploader" or this['c-useragent']=="agent" or this['c-useragent']=="License"
+    or this['c-useragent']=="vb wininet" or this['c-useragent']=="Client" or this['c-useragent']=="Lilith-Bot/3.0"
+    or this['c-useragent']=="svc/1.0" or this['c-useragent']=="WSHRAT" or this['c-useragent']=="ZeroStresser
+    Botnet/1.5" or this['c-useragent']=="OK" or this['c-useragent']=="Project1sqlite"
+    or this['c-useragent']=="Project1" or this['c-useragent']=="DuckTales" or this['c-useragent']=="Zadanie"
+    or this['c-useragent']=="GunnaWunnaBlueTips" or this['c-useragent']=="Xlmst" or
+    this['c-useragent']=="GeekingToTheMoon" or this['c-useragent']=="SunShineMoonLight"
+    or this['c-useragent']=="BunnyRequester" or this['c-useragent']=="BunnyTasks"
+    or this['c-useragent']=="BunnyStealer" or this['c-useragent']=="BunnyLoader_Dropper"
+    or this['c-useragent']=="BunnyLoader" or this['c-useragent']=="BunnyShell" or
+    this['c-useragent']=="SPARK-COMMIT" or this['c-useragent']=="4B4DB4B3" or this['c-useragent']=="SouthSide"
+    or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1; Tob
+    1.1)"
+  sigma_id: 5c84856b-55a5-45f1-826f-13f37250cf4e
+- name: Windows PowerShell User Agent
+  query: this['c-useragent']==" WindowsPowerShell/"
+  sigma_id: c8557060-9221-4448-8794-96320e6f3e74
+- name: Rclone Activity via Proxy
+  query: this['c-useragent']=="rclone/v"
+  sigma_id: 2c03648b-e081-41a5-b9fb-7d854a915091
+- name: Suspicious User Agent
+  query: (this['c-useragent']=="user-agent" or this['c-useragent']=="Mozilla/3.0 "
+    or this['c-useragent']=="Mozilla/2.0 " or this['c-useragent']=="Mozilla/1.0 "
+    or this['c-useragent']=="Mozilla " or this['c-useragent']==" Mozilla/" or this['c-useragent']=="Mozila/"
+    or this['c-useragent']=="Mozilla/4.0 (compatible; MSIE 6.0; MS Web Services Client
+    Protocol" or this['c-useragent']==" (compatible;MSIE " or this['c-useragent']==".0;Windows
+    NT " or this['c-useragent']=="loader" or this['c-useragent'] in ["_", "CertUtil
+    URL Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:60.0)", "Mozilla/5.0
+    (Windows NT 6.3; WOW64; rv:28.0) Gecko/20100101 Firefox/28.0", "HTTPS", "Erbium-UA-4ce7c27cb4be9d32e333bf032c88235a",
+    "x", "xxx"]) and not ((this['c-useragent']=="Mozilla/3.0 " or this['c-useragent']=="
+    Acrobat ") or this['cs-host']==".acrobat.com" or this['cs-host']==".adobe.com"
+    or this['cs-host']==".adobe.io")
+  sigma_id: 7195a772-4b3f-43a4-a210-6a003d65caa1
+- name: Potential Base64 Encoded User-Agent
+  query: this['c-useragent']=="="
+  sigma_id: 894a8613-cf12-48b3-8e57-9085f54aa0c3
+- name: Suspicious External WebDAV Execution
+  query: this['c-useragent']=="Microsoft-WebDAV-MiniRedir/" and this['cs-method']=="GET"
+    and (this['c-uri']==".7z" or this['c-uri']==".bat" or this['c-uri']==".dat" or
+    this['c-uri']==".cmd" or this['c-uri']==".exe" or this['c-uri']==".js" or this['c-uri']==".lnk"
+    or this['c-uri']==".ps1" or this['c-uri']==".rar" or this['c-uri']==".url" or
+    this['c-uri']==".vbe" or this['c-uri']==".vbs" or this['c-uri']==".zip") and not
+    (cidr_match(127.0.0.0/8, this['dst_ip']) or cidr_match(10.0.0.0/8, this['dst_ip'])
+    or cidr_match(172.16.0.0/12, this['dst_ip']) or cidr_match(192.168.0.0/16, this['dst_ip'])
+    or cidr_match(169.254.0.0/16, this['dst_ip']) or cidr_match(::1/128, this['dst_ip'])
+    or cidr_match(fe80::/10, this['dst_ip']) or cidr_match(fc00::/7, this['dst_ip']))
+  sigma_id: 1ae64f96-72b6-48b3-ad3d-e71dff6c6398
+- name: F5 BIG-IP iControl Rest API Command Execution - Webserver
+  query: this['cs-method']=="POST" and this['cs-uri-query']=="/mgmt/tm/util/bash"
+  sigma_id: 85254a62-22be-4239-b79c-2ec17e566c37
+- name: Successful IIS Shortname Fuzzing Scan
+  query: this['cs-uri-query']=="~1" and this['cs-uri-query']=="a.aspx" and (this['cs-method']
+    in ["GET", "OPTIONS"]) and (this['sc-status'] in [200, 301])
+  sigma_id: 7cb02516-6d95-4ffc-8eee-162075e111ac
+- name: Java Payload Strings
+  query: grep("%24%7B%28%23a%3D%40", this) or grep("${(#a=@", this) or grep("%24%7B%40java",
+    this) or grep("${@java", this) or grep("u0022java", this) or grep("%2F%24%7B%23",
+    this) or grep("/${#", this) or grep("new+java.", this) or grep("getRuntime().exec(",
+    this) or grep("getRuntime%28%29.exec%28", this)
+  sigma_id: 583aa0a2-30b1-4d62-8bf3-ab73689efe6c
+- name: JNDIExploit Pattern
+  query: grep("/Basic/Command/Base64/", this) or grep("/Basic/ReverseShell/", this)
+    or grep("/Basic/TomcatMemshell", this) or grep("/Basic/JettyMemshell", this) or
+    grep("/Basic/WeblogicMemshell", this) or grep("/Basic/JBossMemshell", this) or
+    grep("/Basic/WebsphereMemshell", this) or grep("/Basic/SpringMemshell", this)
+    or grep("/Deserialization/URLDNS/", this) or grep("/Deserialization/CommonsCollections1/Dnslog/",
+    this) or grep("/Deserialization/CommonsCollections2/Command/Base64/", this) or
+    grep("/Deserialization/CommonsBeanutils1/ReverseShell/", this) or grep("/Deserialization/Jre8u20/TomcatMemshell",
+    this) or grep("/TomcatBypass/Dnslog/", this) or grep("/TomcatBypass/Command/",
+    this) or grep("/TomcatBypass/ReverseShell/", this) or grep("/TomcatBypass/TomcatMemshell",
+    this) or grep("/TomcatBypass/SpringMemshell", this) or grep("/GroovyBypass/Command/",
+    this) or grep("/WebsphereBypass/Upload/", this)
+  sigma_id: 412d55bc-7737-4d25-9542-5b396867ce55
+- name: Path Traversal Exploitation Attempts
+  query: this['cs-uri-query']=="../../../../../lib/password" or this['cs-uri-query']=="../../../../windows/"
+    or this['cs-uri-query']=="../../../etc/" or this['cs-uri-query']=="..%252f..%252f..%252fetc%252f"
+    or this['cs-uri-query']=="..%c0%af..%c0%af..%c0%afetc%c0%af" or this['cs-uri-query']=="%252e%252e%252fetc%252f"
+  sigma_id: 7745c2ea-24a5-4290-b680-04359cb84b35
+- name: Source Code Enumeration Detection by Keyword
+  query: grep(".git/", this)
+  sigma_id: 953d460b-f810-420a-97a2-cfca4c98e602
+- name: SQL Injection Strings In URI
+  query: this['cs-method']=="GET" and (grep("@@version", this) or grep("%271%27%3D%271",
+    this) or grep("=select ", this) or grep("=select(", this) or grep("=select%20",
+    this) or grep("concat_ws(", this) or grep("CONCAT(0x", this) or grep("from mysql.innodb_table_stats",
+    this) or grep("from%20mysql.innodb_table_stats", this) or grep("group_concat(",
+    this) or grep("information_schema.tables", this) or grep("json_arrayagg(", this)
+    or grep("or 1=1#", this) or grep("or%201=1#", this) or grep("order by ", this)
+    or grep("order%20by%20", this) or (grep("select ", this) or grep(" ", this)) or
+    grep("select database()", this) or grep("select version()", this) or (grep("select%20",
+    this) or grep("%20", this)) or grep("select%20database()", this) or grep("select%20version()",
+    this) or grep("select%28sleep%2810%29", this) or grep("SELECTCHAR(", this) or
+    grep("table_schema", this) or grep("UNION ALL SELECT", this) or grep("UNION SELECT",
+    this) or grep("UNION%20ALL%20SELECT", this) or grep("UNION%20SELECT", this) or
+    grep("'1'='1", this)) and not this['sc-status']==404
+  sigma_id: 5513deaf-f49a-46c2-a6c8-3f111b5cb453
+- name: Server Side Template Injection Strings
+  query: this['cs-method']=="GET" and (grep("={{", this) or grep("=%7B%7B", this)
+    or grep("=${", this) or grep("=$%7B", this) or grep("=<%=", this) or grep("=%3C%25=",
+    this) or grep("=@(", this) or grep("freemarker.template.utility.Execute", this)
+    or grep(".getClass().forName('javax.script.ScriptEngineManager')", this) or grep("T(org.apache.commons.io.IOUtils)",
+    this)) and not this['sc-status']==404
+  sigma_id: ada3bc4f-f0fd-42b9-ba91-e105e8af7342
+- name: Suspicious User-Agents Related To Recon Tools
+  query: this['cs-user-agent']=="Wfuzz/" or this['cs-user-agent']=="WPScan v" or this['cs-user-agent']=="Recon-ng/v"
+    or this['cs-user-agent']=="GIS - AppSec Team - Project Vision"
+  sigma_id: 19aa4f58-94ca-45ff-bc34-92e533c0994a
+- name: Suspicious Windows Strings In URI
+  query: this['cs-uri-query']=="=C:/Users" or this['cs-uri-query']=="=C:/Program%20Files"
+    or this['cs-uri-query']=="=C:/Windows" or this['cs-uri-query']=="=C%3A%5CUsers"
+    or this['cs-uri-query']=="=C%3A%5CProgram%20Files" or this['cs-uri-query']=="=C%3A%5CWindows"
+  sigma_id: 9f6a34b4-2688-4eb7-a7f5-e39fef573d0e
+- name: Webshell ReGeorg Detection Via Web Logs
+  query: (this['cs-uri-query']=="cmd=read" or this['cs-uri-query']=="connect&target"
+    or this['cs-uri-query']=="cmd=connect" or this['cs-uri-query']=="cmd=disconnect"
+    or this['cs-uri-query']=="cmd=forward") and this['cs-referer']==null and this['cs-user-agent']==null
+    and this['cs-method']=="POST"
+  sigma_id: 2ea44a60-cfda-11ea-87d0-0242ac130003
+- name: Windows Webshell Strings
+  query: this['cs-method']=="GET" and (grep("=whoami", this) or grep("=net%20user",
+    this) or grep("=net+user", this) or grep("=net%2Buser", this) or grep("=cmd%20/c%",
+    this) or grep("=cmd+/c+", this) or grep("=cmd%2B/c%", this) or grep("=cmd%20/r%",
+    this) or grep("=cmd+/r+", this) or grep("=cmd%2B/r%", this) or grep("=cmd%20/k%",
+    this) or grep("=cmd+/k+", this) or grep("=cmd%2B/k%", this) or grep("=powershell%",
+    this) or grep("=powershell+", this) or grep("=tasklist%", this) or grep("=tasklist+",
+    this) or grep("=wmic%", this) or grep("=wmic+", this) or grep("=ssh%", this) or
+    grep("=ssh+", this) or grep("=python%", this) or grep("=python+", this) or grep("=python3%",
+    this) or grep("=python3+", this) or grep("=ipconfig", this) or grep("=wget%",
+    this) or grep("=wget+", this) or grep("=curl%", this) or grep("=curl+", this)
+    or grep("=certutil", this) or grep("=copy%20%5C%5C", this) or grep("=dsquery%",
+    this) or grep("=dsquery+", this) or grep("=nltest%", this) or grep("=nltest+",
+    this))
+  sigma_id: 7ff9db12-1b94-4a79-ba68-a2402c5d6729
+- name: Cross Site Scripting Strings
+  query: this['cs-method']=="GET" and (grep("=<script>", this) or grep("=%3Cscript%3E",
+    this) or grep("=%253Cscript%253E", this) or grep("<iframe ", this) or grep("%3Ciframe
+    ", this) or grep("<svg ", this) or grep("%3Csvg ", this) or grep("document.cookie",
+    this) or grep("document.domain", this) or grep(" onerror=", this) or grep(" onresize=",
+    this) or grep(" onload=\"", this) or grep("onmouseover=", this) or grep("${alert",
+    this) or grep("javascript:alert", this) or grep("javascript%3Aalert", this)) and
+    not this['sc-status']==404
+  sigma_id: 65354b83-a2ea-4ea6-8414-3ab38be0d409

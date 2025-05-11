@@ -71,7 +71,10 @@
                         </div>
                         <div>
                             <label for="fileInput" class="form-label form-label-sm">Upload Data File</label>
-                            <input type="file" id="fileInput" class="form-control form-control-sm"/>
+                            <div class="input-group input-group-sm">
+                                <input type="file" id="fileInput" class="form-control form-control-sm"/>
+                                <button id="loadTestDataBtn" class="btn btn-outline-secondary" type="button">Load Sample EVTX Data</button>
+                            </div>
                             <div id="fileNameDisplay" class="form-text form-text-sm mt-1">No file loaded for this tab.</div>
                         </div>
                     </div>
@@ -107,7 +110,7 @@
                                     <label for="predefinedRulesSelect" class="form-label-sm">Load Predefined:</label>
                                     <div class="input-group input-group-sm">
                                         <select id="predefinedRulesSelect" class="form-select"></select>
-                                        <button id="loadPredefinedRuleBtn" class="btn btn-secondary" type="button">Load</button>
+                                        <button id="loadPredefinedRuleBtn" class="btn btn-secondary" type="button" disabled>Load</button>
                                     </div>
                                 </div>
                                 <div class="col-sm-6">

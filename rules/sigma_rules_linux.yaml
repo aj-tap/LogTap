@@ -1,0 +1,762 @@
+rules:
+- name: Auditing Configuration Changes on Linux Host
+  query: this['type']=="PATH" and (this['name']=="/etc/audit/" or this['name']=="/etc/libaudit.conf"
+    or this['name']=="/etc/audisp/")
+  sigma_id: 977ef627-4539-4875-adf4-ed8f780c4922
+- name: Binary Padding - Linux
+  query: this['type']=="EXECVE" and (grep("truncate", this) and grep("-s", this) or
+    grep("dd", this) and grep("if=", this) and not grep("of=", this))
+  sigma_id: c52a914f-3d8b-4b2a-bb75-b3991e75f8ba
+- name: BPFDoor Abnormal Process ID or Lock File Accessed
+  query: this['type']=="PATH" and (this['name'] in ["/var/run/haldrund.pid", "/var/run/xinetd.lock",
+    "/var/run/kdevrund.pid"])
+  sigma_id: 808146b2-9332-4d78-9416-d7e47012d83d
+- name: Bpfdoor TCP Ports Redirect
+  query: this['type']=="EXECVE" and this['a0']=="iptables" and this['a1']=="-t" and
+    this['a2']=="nat" and (grep("--to-ports 42", this) or grep("--to-ports 43", this))
+  sigma_id: 70b4156e-50fc-4523-aa50-c9dddf1993fc
+- name: File Time Attribute Change - Linux
+  query: this['type']=="EXECVE" and grep("touch", this) and (grep("-t", this) or grep("-acmr",
+    this) or grep("-d", this) or grep("-r", this))
+  sigma_id: b3cec4e7-6901-4b0d-a02d-8ab2d8eb818b
+- name: Remove Immutable File Attribute - Auditd
+  query: this['type']=="EXECVE" and this['a0']=="chattr" and this['a1']=="-i"
+  sigma_id: a5b977d6-8a81-4475-91b9-49dbfcd941f7
+- name: Possible Coin Miner CPU Priority Param
+  query: this['a1']=="--cpu-priority" or this['a2']=="--cpu-priority" or this['a3']=="--cpu-priority"
+    or this['a4']=="--cpu-priority" or this['a5']=="--cpu-priority" or this['a6']=="--cpu-priority"
+    or this['a7']=="--cpu-priority"
+  sigma_id: 071d5e5a-9cef-47ec-bc4e-a42e34d8d0ed
+- name: Creation Of An User Account
+  query: this['type']=="SYSCALL" and this['exe']=="/useradd" or this['type']=="ADD_USER"
+  sigma_id: 759d0d51-bc99-4b5e-9add-8f5b2c8e7512
+- name: Data Exfiltration with Wget
+  query: this['type']=="EXECVE" and this['a0']=="wget" and this['a1']=="--post-file="
+  sigma_id: cb39d16b-b3b6-4a7a-8222-1cf24b686ffc
+- name: Disable System Firewall
+  query: this['type']=="SERVICE_STOP" and (this['unit'] in ["firewalld", "iptables",
+    "ufw"])
+  sigma_id: 53059bc0-1472-438b-956a-7508a94a91f0
+- name: Credentials In Files - Linux
+  query: this['type']=="EXECVE" and grep("grep", this) and grep("password", this)
+  sigma_id: df3fcaea-2715-4214-99c5-0056ea59eb35
+- name: Linux Keylogging with Pam.d
+  query: this['type']=="PATH" and (this['name'] in ["/etc/pam.d/system-auth", "/etc/pam.d/password-auth"])
+    or this['type'] in ["TTY", "USER_TTY"]
+  sigma_id: 49aae26c-450e-448b-911d-b3c13d178dfc
+- name: Modification of ld.so.preload
+  query: this['type']=="PATH" and this['name']=="/etc/ld.so.preload"
+  sigma_id: 4b3cb710-5e83-4715-8c45-8b2b5b3e5751
+- name: Loading of Kernel Module via Insmod
+  query: this['type']=="SYSCALL" and this['comm']=="insmod" and this['exe']=="/usr/bin/kmod"
+  sigma_id: 106d7cbd-80ff-4985-b682-a7043e5acb72
+- name: Logging Configuration Changes on Linux Host
+  query: this['type']=="PATH" and (this['name'] in ["/etc/syslog.conf", "/etc/rsyslog.conf",
+    "/etc/syslog-ng/syslog-ng.conf"])
+  sigma_id: c830f15d-6f6e-430f-8074-6f73d6807841
+- name: Masquerading as Linux Crond Process
+  query: this['type']=="execve" and this['a0']=="cp" and this['a1']=="/bin/sh" and
+    this['a2']=="/crond"
+  sigma_id: 9d4548fa-bba0-4e88-bd66-5d5bf516cda0
+- name: Modify System Firewall
+  query: this['type']=="EXECVE" and this['a0']=="iptables" and this['a1']=="DROP"
+    or this['type']=="EXECVE" and this['a0']=="firewall-cmd" and this['a1']=="remove"
+    or this['type']=="EXECVE" and this['a0']=="ufw" and this['a1']=="delete"
+  sigma_id: 323ff3f5-0013-4847-bbd4-250b5edb62cc
+- name: Suspicious C2 Activities
+  query: this['key']=="susp_activity"
+  sigma_id: f7158a64-6204-4d6d-868a-6e6378b467e0
+- name: Suspicious Commands Linux
+  query: this['type']=="EXECVE" and this['a0']=="chmod" and this['a1']==777 or this['type']=="EXECVE"
+    and this['a0']=="chmod" and this['a1']=="u+s" or this['type']=="EXECVE" and this['a0']=="cp"
+    and this['a1']=="/bin/ksh" or this['type']=="EXECVE" and this['a0']=="cp" and
+    this['a1']=="/bin/sh"
+  sigma_id: 1543ae20-cbdf-4ec1-8d12-7664d667a825
+- name: Program Executions in Suspicious Folders
+  query: this['type']=="SYSCALL" and (this['exe']=="/tmp/" or this['exe']=="/var/www/"
+    or (this['exe']=="/home/" or this['exe']=="/public_html/") or this['exe']=="/usr/local/apache2/"
+    or this['exe']=="/usr/local/httpd/" or this['exe']=="/var/apache/" or this['exe']=="/srv/www/"
+    or this['exe']=="/home/httpd/html/" or this['exe']=="/srv/http/" or this['exe']=="/usr/share/nginx/html/"
+    or this['exe']=="/var/lib/pgsql/data/" or this['exe']=="/usr/local/mysql/data/"
+    or this['exe']=="/var/lib/mysql/" or this['exe']=="/var/vsftpd/" or this['exe']=="/etc/bind/"
+    or this['exe']=="/var/named/")
+  sigma_id: a39d7fa7-3fbd-4dc2-97e1-d87f546b1bbc
+- name: Suspicious History File Operations - Linux
+  query: this['type']=="EXECVE" and (grep(".bash_history", this) or grep(".zsh_history",
+    this) or grep(".zhistory", this) or grep(".history", this) or grep(".sh_history",
+    this) or grep("fish_history", this))
+  sigma_id: eae8ce9f-bde9-47a6-8e79-f20d18419910
+- name: Systemd Service Creation
+  query: this['type']=="PATH" and this['nametype']=="CREATE" and (this['name']=="/usr/lib/systemd/system/"
+    or this['name']=="/etc/systemd/system/" or this['name']=="/.config/systemd/user/")
+  sigma_id: 1bac86ba-41aa-4f62-9d6b-405eac99b485
+- name: Unix Shell Configuration Modification
+  query: this['type']=="PATH" and (this['name']=="/etc/shells" or this['name']=="/etc/profile"
+    or this['name']=="/etc/profile.d/" or this['name']=="/etc/bash.bashrc" or this['name']=="/etc/bashrc"
+    or this['name']=="/etc/zsh/zprofile" or this['name']=="/etc/zsh/zshrc" or this['name']=="/etc/zsh/zlogin"
+    or this['name']=="/etc/zsh/zlogout" or this['name']=="/etc/csh.cshrc" or this['name']=="/etc/csh.login"
+    or this['name']=="/root/.bashrc" or this['name']=="/root/.bash_profile" or this['name']=="/root/.profile"
+    or this['name']=="/root/.zshrc" or this['name']=="/root/.zprofile" or (this['name']=="/home/"
+    or this['name']=="/.bashrc") or (this['name']=="/home/" or this['name']=="/.zshrc")
+    or (this['name']=="/home/" or this['name']=="/.bash_profile") or (this['name']=="/home/"
+    or this['name']=="/.zprofile") or (this['name']=="/home/" or this['name']=="/.profile")
+    or (this['name']=="/home/" or this['name']=="/.bash_login") or (this['name']=="/home/"
+    or this['name']=="/.bash_logout") or (this['name']=="/home/" or this['name']=="/.zlogin")
+    or (this['name']=="/home/" or this['name']=="/.zlogout"))
+  sigma_id: a94cdd87-6c54-4678-a6cc-2814ffe5a13d
+- name: Webshell Remote Command Execution
+  query: this['type']=="SYSCALL" and this['syscall']=="execve" and this['key']=="detect_execve_www"
+  sigma_id: c0d3734d-330f-4a03-aae2-65dacc6a8222
+- name: Equation Group Indicators
+  query: (grep("chown root", this) or grep("chmod 4777 ", this)) or grep("cp /bin/sh
+    .;chown", this) or grep("chmod 4777 /tmp/.scsi/dev/bin/gsh", this) or grep("chown
+    root:root /tmp/.scsi/dev/bin/", this) or grep("chown root:root x;", this) or grep("/bin/telnet
+    locip locport < /dev/console | /bin/sh", this) or grep("/tmp/ratload", this) or
+    grep("ewok -t ", this) or grep("xspy -display ", this) or grep("cat > /dev/tcp/127.0.0.1/80
+    <<END", this) or grep("rm -f /current/tmp/ftshell.latest", this) or (grep("ghost_",
+    this) or grep(" -v ", this)) or grep(" --wipe > /dev/null", this) or (grep("ping
+    -c 2 ", this) or grep("; grep ", this) or grep(" /proc/net/arp >/tmp/gx", this))
+    or (grep("iptables ", this) or grep(" OUTPUT -p tcp -d 127.0.0.1 --tcp-flags RST
+    RST -j DROP;", this)) or grep("> /var/log/audit/audit.log; rm -f .", this) or
+    grep("cp /var/log/audit/audit.log .tmp", this) or (grep("sh >/dev/tcp/", this)
+    or grep(" <&1 2>&1", this)) or (grep("ncat -vv -l -p ", this) or grep(" <", this))
+    or (grep("nc -vv -l -p ", this) or grep(" <", this)) or grep("< /dev/console |
+    uudecode && uncompress", this) or grep("sendmail -osendmail;chmod +x sendmail",
+    this) or (grep("/usr/bin/wget -O /tmp/a http", this) or grep(" && chmod 755 /tmp/cron",
+    this)) or grep("chmod 666 /var/run/utmp~", this) or grep("chmod 700 nscd crond",
+    this) or grep("cp /etc/shadow /tmp/.", this) or grep("</dev/console |uudecode
+    > /dev/null 2>&1 && uncompress", this) or grep("chmod 700 jp&&netstat -an|grep",
+    this) or (grep("uudecode > /dev/null 2>&1 && uncompress -f ", this) or grep("
+    && chmod 755", this)) or grep("chmod 700 crond", this) or (grep("wget http", this)
+    or grep("; chmod +x /tmp/sendmail", this)) or grep("chmod 700 fp sendmail pt",
+    this) or grep("chmod 755 /usr/vmsys/bin/pipe", this) or grep("chmod -R 755 /usr/vmsys",
+    this) or (grep("chmod 755 $opbin/", this) or grep("tunnel", this)) or grep("chmod
+    700 sendmail", this) or grep("chmod 0700 sendmail", this) or (grep("/usr/bin/wget
+    http", this) or grep("sendmail;chmod +x sendmail;", this)) or (grep("&& telnet
+    ", this) or grep(" 2>&1 </dev/console", this))
+  sigma_id: 41e5c73d-9983-4b69-bd03-e13b67e9623c
+- name: Buffer Overflow Attempts
+  query: 'grep("attempt to execute code on stack by", this) or (grep("FTP LOGIN FROM
+    .", this) or grep(" 0bin0sh", this)) or grep("rpc.statd[\\d+]: gethostbyname error
+    for", this) or grep("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", this)'
+  sigma_id: 18b042f0-2ecd-4b6e-9f8d-aa7a7e7de781
+- name: Commands to Clear or Remove the Syslog - Builtin
+  query: (grep("rm /var/log/syslog", this) or grep("rm -r /var/log/syslog", this)
+    or grep("rm -f /var/log/syslog", this) or grep("rm -rf /var/log/syslog", this)
+    or grep("mv /var/log/syslog", this) or grep(" >/var/log/syslog", this) or grep("
+    > /var/log/syslog", this)) and not grep("/syslog.", this)
+  sigma_id: e09eb557-96d2-4de9-ba2d-30f712a5afd3
+- name: Code Injection by ld.so Preload
+  query: grep("/etc/ld.so.preload", this)
+  sigma_id: 7e3c4651-c347-40c4-b1d4-d48590fdf684
+- name: Nimbuspwn Exploitation
+  query: grep("networkd-dispatcher", this) and grep("Error handling notification for
+    interface", this) and grep("../../", this)
+  sigma_id: 7ba05b43-adad-4c02-b5e9-c8c35cdf9fa8
+- name: Potential Suspicious BPF Activity - Linux
+  query: grep("bpf_probe_write_user", this)
+  sigma_id: 0fadd880-6af3-4610-b1e5-008dc3a11b8a
+- name: Privileged User Has Been Created
+  query: grep("new user", this) and (grep("GID=0,", this) or grep("UID=0,", this)
+    or grep("GID=10,", this) or grep("GID=27,", this))
+  sigma_id: 0ac15ec3-d24f-4246-aa2a-3077bb1cf90e
+- name: Linux Command History Tampering
+  query: (grep("cat /dev/null >", this) or grep("sh_history", this)) or (grep("cat
+    /dev/zero >", this) or grep("sh_history", this)) or (grep("chattr +i", this) or
+    grep("sh_history", this)) or (grep("echo \"\" >", this) or grep("sh_history",
+    this)) or grep("empty_bash_history", this) or grep("export HISTFILESIZE=0", this)
+    or grep("history -c", this) or grep("history -w", this) or (grep("ln -sf /dev/null
+    ", this) or grep("sh_history", this)) or (grep("ln -sf /dev/zero ", this) or grep("sh_history",
+    this)) or (grep("rm ", this) or grep("sh_history", this)) or grep("shopt -ou history",
+    this) or grep("shopt -uo history", this) or (grep("shred ", this) or grep("sh_history",
+    this)) or (grep("truncate -s0 ", this) or grep("sh_history", this))
+  sigma_id: fdc88d25-96fb-4b7c-9633-c0e417fdbd4e
+- name: Suspicious Activity in Shell Commands
+  query: (grep("wget ", this) or grep(" - http", this) or grep(" | perl", this)) or
+    (grep("wget ", this) or grep(" - http", this) or grep(" | sh", this)) or (grep("wget
+    ", this) or grep(" - http", this) or grep(" | bash", this)) or grep("python -m
+    SimpleHTTPServer", this) or grep("-m http.server", this) or grep("import pty;
+    pty.spawn", this) or grep("socat exec:", this) or grep("socat -O /tmp/", this)
+    or grep("socat tcp-connect", this) or grep("echo binary >>", this) or (grep("wget
+    ", this) or grep("; chmod +x", this)) or (grep("wget ", this) or grep("; chmod
+    777 ", this)) or grep("cd /tmp || cd /var/run || cd /mnt", this) or grep("stop;service
+    iptables stop;", this) or grep("stop;SuSEfirewall2 stop;", this) or grep("chmod
+    777 2020", this) or grep(">>/etc/rc.local", this) or grep("base64 -d /tmp/", this)
+    or grep(" | base64 -d ", this) or grep("/chmod u+s ", this) or grep("chmod +s
+    /tmp/", this) or grep("chmod u+s /tmp/", this) or grep(" /tmp/haxhax", this) or
+    grep(" /tmp/ns_sploit", this) or grep("nc -l -p ", this) or grep("cp /bin/ksh
+    ", this) or grep("cp /bin/sh ", this) or (grep(" /tmp/", this) or grep(".b64 ",
+    this)) or grep("/tmp/ysocereal.jar", this) or grep("/tmp/x ", this) or grep(";
+    chmod +x /tmp/", this) or grep(";chmod +x /tmp/", this)
+  sigma_id: 2aa1440c-9ae9-4d92-84a7-a9e5f5e31695
+- name: Suspicious Log Entries
+  query: grep("entered promiscuous mode", this) or grep("Deactivating service", this)
+    or grep("Oversized packet received from", this) or grep("imuxsock begins to drop
+    messages", this)
+  sigma_id: f64b6e9a-5d9d-48a5-8289-e1dd2b3876e1
+- name: Suspicious Reverse Shell Command Line
+  query: grep("BEGIN {s = \"/inet/tcp/0/", this) or grep("bash -i >& /dev/tcp/", this)
+    or grep("bash -i >& /dev/udp/", this) or grep("sh -i >$ /dev/udp/", this) or grep("sh
+    -i >$ /dev/tcp/", this) or grep("&& while read line 0<&5; do", this) or grep("/bin/bash
+    -c exec 5<>/dev/tcp/", this) or grep("/bin/bash -c exec 5<>/dev/udp/", this) or
+    grep("nc -e /bin/sh ", this) or grep("/bin/sh | nc", this) or grep("rm -f backpipe;
+    mknod /tmp/backpipe p && nc ", this) or grep(";socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i))))",
+    this) or grep(";STDIN->fdopen($c,r);$~->fdopen($c,w);system$_ while<>;", this)
+    or grep("/bin/sh -i <&3 >&3 2>&3", this) or grep("uname -a; w; id; /bin/bash -i",
+    this) or grep("$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2); $stream.Write($sendbyte,0,$sendbyte.Length);
+    $stream.Flush()};", this) or grep(";os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);os.putenv('HISTFILE','/dev/null');",
+    this) or grep(".to_i;exec sprintf(\"/bin/sh -i <&%d >&%d 2>&%d\",f,f,f)", this)
+    or grep(";while(cmd=c.gets);IO.popen(cmd,\"r\"){|io|c.print", this) or grep("socat
+    exec:'bash -li',pty,stderr,setsid,sigint,sane tcp:", this) or grep("rm -f /tmp/p;
+    mknod /tmp/p p &&", this) or grep(" | /bin/bash | telnet ", this) or grep(",echo=0,raw
+    tcp-listen:", this) or grep("nc -lvvp ", this) or grep("xterm -display 1", this)
+  sigma_id: 738d9bcf-6999-4fdb-b4ac-3033037db8ab
+- name: Shellshock Expression
+  query: grep("(){:;};", this) or grep("() {:;};", this) or grep("() { :;};", this)
+    or grep("() { :; };", this)
+  sigma_id: c67e0c98-4d39-46ee-8f6b-437ebf6b950e
+- name: Suspicious Use of /dev/tcp
+  query: grep("cat </dev/tcp/", this) or grep("exec 3<>/dev/tcp/", this) or grep("echo
+    >/dev/tcp/", this) or grep("bash -i >& /dev/tcp/", this) or grep("sh -i >& /dev/udp/",
+    this) or grep("0<&196;exec 196<>/dev/tcp/", this) or grep("exec 5<>/dev/tcp/",
+    this) or grep("(sh)0>/dev/tcp/", this) or grep("bash -c 'bash -i >& /dev/tcp/",
+    this) or grep("echo -e '#!/bin/bash\\nbash -i >& /dev/tcp/", this)
+  sigma_id: 6cc5fceb-9a71-4c23-aeeb-963abe0b279c
+- name: JexBoss Command Sequence
+  query: grep("bash -c /bin/bash", this) and grep("&/dev/tcp/", this)
+  sigma_id: 8ec2c8b4-557a-4121-b87c-5dfb3a602fae
+- name: Symlink Etc Passwd
+  query: grep("ln -s -f /etc/passwd", this) or grep("ln -s /etc/passwd", this)
+  sigma_id: c67fc22a-0be5-4b4f-aad5-2b32c4b69523
+- name: PwnKit Local Privilege Escalation
+  query: grep("pkexec", this) and grep("The value for environment variable XAUTHORITY
+    contains suspicious content", this) and grep("[USER=root] [TTY=/dev/pts/0]", this)
+  sigma_id: 0506a799-698b-43b4-85a1-ac4c84c720e9
+- name: Relevant ClamAV Message
+  query: (grep("Trojan", this) or grep("FOUND", this)) or (grep("VirTool", this) or
+    grep("FOUND", this)) or (grep("Webshell", this) or grep("FOUND", this)) or (grep("Rootkit",
+    this) or grep("FOUND", this)) or (grep("Htran", this) or grep("FOUND", this))
+  sigma_id: 36aa86ca-fd9d-4456-814e-d3b1b8e1e0bb
+- name: Modifying Crontab
+  query: grep("REPLACE", this)
+  sigma_id: af202fd3-7bff-4212-a25a-fb34606cfcbe
+- name: Guacamole Two Users Sharing Session Anomaly
+  query: grep("(2 users now present)", this)
+  sigma_id: 1edd77db-0669-4fef-9598-165bda82826d
+- name: SSHD Error Message CVE-2018-15473
+  query: 'grep("error: buffer_get_ret: trying to get more bytes 1907 than in buffer
+    308 [preauth]", this)'
+  sigma_id: 4c9d903d-4939-4094-ade0-3cb748f4d7da
+- name: Suspicious OpenSSH Daemon Error
+  query: 'grep("unexpected internal error", this) or grep("unknown or unsupported
+    key type", this) or grep("invalid certificate signing key", this) or grep("invalid
+    elliptic curve value", this) or grep("incorrect signature", this) or grep("error
+    in libcrypto", this) or grep("unexpected bytes remain after decoding", this) or
+    grep("fatal: buffer_get_string: bad string", this) or grep("Local: crc32 compensation
+    attack", this) or grep("bad client public DH value", this) or grep("Corrupted
+    MAC on input", this)'
+  sigma_id: e76b413a-83d0-4b94-8e4c-85db4a5b8bdc
+- name: Sudo Privilege Escalation CVE-2019-14287 - Builtin
+  query: this['USER']=="#-" or (this['USER']=="#" or this['USER']=="4294967295")
+  sigma_id: 7fcc54cb-f27d-4684-84b7-436af096f858
+- name: Disabling Security Tools - Builtin
+  query: grep("stopping iptables", this) or grep("stopping ip6tables", this) or grep("stopping
+    firewalld", this) or grep("stopping cbdaemon", this) or grep("stopping falcon-sensor",
+    this)
+  sigma_id: 49f5dfc1-f92e-4d34-96fa-feba3f6acf36
+- name: Suspicious Named Error
+  query: grep(" dropping source port zero packet from ", this) or grep(" denied AXFR
+    from ", this) or grep(" exiting (due to fatal error)", this)
+  sigma_id: c8e35e96-19ce-4f16-aeb6-fd5588dc5365
+- name: Suspicious VSFTPD Error Messages
+  query: 'grep("Connection refused: too many sessions for this address.", this) or
+    grep("Connection refused: tcp_wrappers denial.", this) or grep("Bad HTTP verb.",
+    this) or grep("port and pasv both active", this) or grep("pasv and port both active",
+    this) or grep("Transfer done (but failed to open directory).", this) or grep("Could
+    not set file modification time.", this) or grep("bug: pid active in ptrace_sandbox_free",
+    this) or grep("PTRACE_SETOPTIONS failure", this) or grep("weird status:", this)
+    or grep("couldn''t handle sandbox event", this) or (grep("syscall ", this) or
+    grep(" out of bounds", this)) or grep("syscall not permitted:", this) or grep("syscall
+    validate failed:", this) or grep("Input line too long.", this) or grep("poor buffer
+    accounting in str_netfd_alloc", this) or grep("vsf_sysutil_read_loop", this)'
+  sigma_id: 377f33a1-4b36-4ee1-acee-1dbe4b43cfbe
+- name: Linux Doas Conf File Creation
+  query: this['TargetFilename']=="/etc/doas.conf"
+  sigma_id: 00eee2a5-fdb0-4746-a21d-e43fbdea5681
+- name: Persistence Via Cron Files
+  query: this['TargetFilename']=="/etc/cron.d/" or this['TargetFilename']=="/etc/cron.daily/"
+    or this['TargetFilename']=="/etc/cron.hourly/" or this['TargetFilename']=="/etc/cron.monthly/"
+    or this['TargetFilename']=="/etc/cron.weekly/" or this['TargetFilename']=="/var/spool/cron/crontabs/"
+    or this['TargetFilename']=="/etc/cron.allow" or this['TargetFilename']=="/etc/cron.deny"
+    or this['TargetFilename']=="/etc/crontab"
+  sigma_id: 6c4e2f43-d94d-4ead-b64d-97e53fa2bd05
+- name: Persistence Via Sudoers Files
+  query: this['TargetFilename']=="/etc/sudoers.d/"
+  sigma_id: ddb26b76-4447-4807-871f-1b035b2bfa5d
+- name: Triple Cross eBPF Rootkit Default LockFile
+  query: this['TargetFilename']=="/tmp/rootlog"
+  sigma_id: c0239255-822c-4630-b7f1-35362bcb8f44
+- name: Triple Cross eBPF Rootkit Default Persistence
+  query: this['TargetFilename']=="ebpfbackdoor"
+  sigma_id: 1a2ea919-d11d-4d1e-8535-06cda13be20f
+- name: Wget Creating Files in Tmp Directory
+  query: this['Image']=="/wget" and (this['TargetFilename']=="/tmp/" or this['TargetFilename']=="/var/tmp/")
+  sigma_id: 35a05c60-9012-49b6-a11f-6bab741c9f74
+- name: Linux Reverse Shell Indicator
+  query: this['Image']=="/bin/bash" and not (this['DestinationIp'] in ["127.0.0.1",
+    "0.0.0.0"])
+  sigma_id: 83dcd9f6-9ca8-4af7-a16e-a1c7a6b51871
+- name: Linux Crypto Mining Pool Connections
+  query: this['DestinationHostname'] in ["pool.minexmr.com", "fr.minexmr.com", "de.minexmr.com",
+    "sg.minexmr.com", "ca.minexmr.com", "us-west.minexmr.com", "pool.supportxmr.com",
+    "mine.c3pool.com", "xmr-eu1.nanopool.org", "xmr-eu2.nanopool.org", "xmr-us-east1.nanopool.org",
+    "xmr-us-west1.nanopool.org", "xmr-asia1.nanopool.org", "xmr-jp1.nanopool.org",
+    "xmr-au1.nanopool.org", "xmr.2miners.com", "xmr.hashcity.org", "xmr.f2pool.com",
+    "xmrpool.eu", "pool.hashvault.pro", "moneroocean.stream", "monerocean.stream"]
+  sigma_id: a46c93b7-55ed-4d27-a41b-c259456c4746
+- name: Communication To LocaltoNet Tunneling Service Initiated - Linux
+  query: (this['DestinationHostname']==".localto.net" or this['DestinationHostname']==".localtonet.com")
+    and this['Initiated']=="true"
+  sigma_id: c4568f5d-131f-4e78-83d4-45b2da0ec4f1
+- name: Communication To Ngrok Tunneling Service - Linux
+  query: this['DestinationHostname']=="tunnel.us.ngrok.com" or this['DestinationHostname']=="tunnel.eu.ngrok.com"
+    or this['DestinationHostname']=="tunnel.ap.ngrok.com" or this['DestinationHostname']=="tunnel.au.ngrok.com"
+    or this['DestinationHostname']=="tunnel.sa.ngrok.com" or this['DestinationHostname']=="tunnel.jp.ngrok.com"
+    or this['DestinationHostname']=="tunnel.in.ngrok.com"
+  sigma_id: 19bf6fdb-7721-4f3d-867f-53467f6a5db6
+- name: Potentially Suspicious Malware Callback Communication - Linux
+  query: this['Initiated']=="true" and (this['DestinationPort'] in [888, 999, 2200,
+    2222, 4000, 4444, 6789, 8531, 50501, 51820]) and not (cidr_match(127.0.0.0/8,
+    this['DestinationIp']) or cidr_match(10.0.0.0/8, this['DestinationIp']) or cidr_match(172.16.0.0/12,
+    this['DestinationIp']) or cidr_match(192.168.0.0/16, this['DestinationIp']) or
+    cidr_match(169.254.0.0/16, this['DestinationIp']) or cidr_match(::1/128, this['DestinationIp'])
+    or cidr_match(fe80::/10, this['DestinationIp']) or cidr_match(fc00::/7, this['DestinationIp']))
+  sigma_id: dbfc7c98-04ab-4ab7-aa94-c74d22aa7376
+- name: Shell Invocation via Apt - Linux
+  query: (this['Image']=="/apt" or this['Image']=="/apt-get") and this['CommandLine']=="APT::Update::Pre-Invoke::="
+  sigma_id: bb382fd5-b454-47ea-a264-1828e4c766d6
+- name: Suspicious Invocation of Shell via AWK - Linux
+  query: (this['Image']=="/awk" or this['Image']=="/gawk" or this['Image']=="/mawk"
+    or this['Image']=="/nawk") and this['CommandLine']=="BEGIN {system" and (this['CommandLine']=="/bin/bash"
+    or this['CommandLine']=="/bin/dash" or this['CommandLine']=="/bin/fish" or this['CommandLine']=="/bin/sh"
+    or this['CommandLine']=="/bin/zsh")
+  sigma_id: 8c1a5675-cb85-452f-a298-b01b22a51856
+- name: Linux Base64 Encoded Pipe to Shell
+  query: this['CommandLine']=="base64 " and (this['CommandLine']=="| bash " or this['CommandLine']=="|
+    sh " or this['CommandLine']=="|bash " or this['CommandLine']=="|sh " or this['CommandLine']=="
+    |sh" or this['CommandLine']=="| bash" or this['CommandLine']=="| sh" or this['CommandLine']=="|bash")
+  sigma_id: ba592c6d-6888-43c3-b8c6-689b8fe47337
+- name: Linux Base64 Encoded Shebang In CLI
+  query: this['CommandLine']=="IyEvYmluL2Jhc2" or this['CommandLine']=="IyEvYmluL2Rhc2"
+    or this['CommandLine']=="IyEvYmluL3pza" or this['CommandLine']=="IyEvYmluL2Zpc2"
+    or this['CommandLine']=="IyEvYmluL3No"
+  sigma_id: fe2f9663-41cb-47e2-b954-8a228f3b9dff
+- name: Enable BPF Kprobes Tracing
+  query: this['CommandLine']=="echo 1 >" and this['CommandLine']=="/sys/kernel/debug/tracing/events/kprobes/"
+    and (this['CommandLine']=="/myprobe/enable" or this['CommandLine']=="/myretprobe/enable")
+  sigma_id: 7692f583-bd30-4008-8615-75dab3f08a99
+- name: BPFtrace Unsafe Option Usage
+  query: this['Image']=="bpftrace" and this['CommandLine']=="--unsafe"
+  sigma_id: f8341cb2-ee25-43fa-a975-d8a5a9714b39
+- name: Capsh Shell Invocation - Linux
+  query: this['Image']=="/capsh" and this['CommandLine']==" --"
+  sigma_id: db1ac3be-f606-4e3a-89e0-9607cbe6b98a
+- name: Cat Sudoers
+  query: (this['Image']=="/cat" or this['Image']=="grep" or this['Image']=="/head"
+    or this['Image']=="/tail" or this['Image']=="/more") and this['CommandLine']=="
+    /etc/sudoers"
+  sigma_id: 0f79c4d2-4e1f-4683-9c36-b5469a665e06
+- name: Remove Immutable File Attribute
+  query: this['Image']=="/chattr" and this['CommandLine']==" -i "
+  sigma_id: 34979410-e4b5-4e5d-8cfb-389fdff05c12
+- name: Clear Linux Logs
+  query: (this['Image']=="/rm" or this['Image']=="/shred" or this['Image']=="/unlink")
+    and (this['CommandLine']=="/var/log" or this['CommandLine']=="/var/spool/mail")
+  sigma_id: 80915f59-9b56-4616-9de0-fd0dea6c12fe
+- name: Commands to Clear or Remove the Syslog
+  query: this['CommandLine']=="rm /var/log/syslog" or this['CommandLine']=="rm -r
+    /var/log/syslog" or this['CommandLine']=="rm -f /var/log/syslog" or this['CommandLine']=="rm
+    -rf /var/log/syslog" or this['CommandLine']=="unlink /var/log/syslog" or this['CommandLine']=="unlink
+    -r /var/log/syslog" or this['CommandLine']=="unlink -f /var/log/syslog" or this['CommandLine']=="unlink
+    -rf /var/log/syslog" or this['CommandLine']=="mv /var/log/syslog" or this['CommandLine']=="
+    >/var/log/syslog" or this['CommandLine']==" > /var/log/syslog"
+  sigma_id: 3fcc9b35-39e4-44c0-a2ad-9e82b6902b31
+- name: Copy Passwd Or Shadow From TMP Path
+  query: this['Image']=="/cp" and this['CommandLine']=="/tmp/" and (this['CommandLine']=="passwd"
+    or this['CommandLine']=="shadow")
+  sigma_id: fa4aaed5-4fe0-498d-bbc0-08e3346387ba
+- name: Remove Scheduled Cron Task/Job
+  query: this['Image']=="crontab" and this['CommandLine']==" -r"
+  sigma_id: c2e234de-03a3-41e1-b39a-1e56dc17ba67
+- name: Linux Crypto Mining Indicators
+  query: this['CommandLine']==" --cpu-priority=" or this['CommandLine']=="--donate-level=0"
+    or this['CommandLine']==" -o pool." or this['CommandLine']==" --nicehash" or this['CommandLine']=="
+    --algo=rx/0 " or this['CommandLine']=="stratum+tcp://" or this['CommandLine']=="stratum+udp://"
+    or this['CommandLine']=="sh -c /sbin/modprobe msr allow_writes=on" or this['CommandLine']=="LS1kb25hdGUtbGV2ZWw9"
+    or this['CommandLine']=="0tZG9uYXRlLWxldmVsP" or this['CommandLine']=="tLWRvbmF0ZS1sZXZlbD"
+    or this['CommandLine']=="c3RyYXR1bSt0Y3A6Ly" or this['CommandLine']=="N0cmF0dW0rdGNwOi8v"
+    or this['CommandLine']=="zdHJhdHVtK3RjcDovL" or this['CommandLine']=="c3RyYXR1bSt1ZHA6Ly"
+    or this['CommandLine']=="N0cmF0dW0rdWRwOi8v" or this['CommandLine']=="zdHJhdHVtK3VkcDovL"
+  sigma_id: 9069ea3c-b213-4c52-be13-86506a227ab1
+- name: Atlassian Confluence CVE-2022-26134
+  query: this['ParentImage']=="/opt/atlassian/confluence/" and this['ParentImage']=="/java"
+    and (this['CommandLine']=="/bin/sh" or this['CommandLine']=="bash" or this['CommandLine']=="dash"
+    or this['CommandLine']=="ksh" or this['CommandLine']=="zsh" or this['CommandLine']=="csh"
+    or this['CommandLine']=="fish" or this['CommandLine']=="curl" or this['CommandLine']=="wget"
+    or this['CommandLine']=="python")
+  sigma_id: 7fb14105-530e-4e2e-8cfb-99f7d8700b66
+- name: Apache Spark Shell Command Injection - ProcessCreation
+  query: this['ParentImage']=="\\bash" and (this['CommandLine']=="id -Gn `" or this['CommandLine']=="id
+    -Gn '")
+  sigma_id: c8a5f584-cdc8-42cc-8cce-0398e4265de3
+- name: Potential Linux Process Code Injection Via DD Utility
+  query: this['Image']=="/dd" and this['CommandLine']=="of=" and this['CommandLine']=="/proc/"
+    and this['CommandLine']=="/mem"
+  sigma_id: 4cad6c64-d6df-42d6-8dae-eb78defdc415
+- name: Ufw Force Stop Using Ufw-Init
+  query: this['CommandLine']=="-ufw-init" and this['CommandLine']=="force-stop" or
+    this['CommandLine']=="ufw" and this['CommandLine']=="disable"
+  sigma_id: 84c9e83c-599a-458a-a0cb-0ecce44e807a
+- name: Shell Invocation via Env Command - Linux
+  query: this['Image']=="/env" and (this['CommandLine']=="/bin/bash" or this['CommandLine']=="/bin/dash"
+    or this['CommandLine']=="/bin/fish" or this['CommandLine']=="/bin/sh" or this['CommandLine']=="/bin/zsh")
+  sigma_id: bed978f8-7f3a-432b-82c5-9286a9b3031a
+- name: ESXi Network Configuration Discovery Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="network" and (this['CommandLine']=="
+    get" or this['CommandLine']==" list")
+  sigma_id: 33e814e0-1f00-4e43-9c34-31fb7ae2b174
+- name: ESXi Admin Permission Assigned To Account Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="system" and this['CommandLine']=="
+    permission " and this['CommandLine']==" set" and this['CommandLine']=="Admin"
+  sigma_id: 9691f58d-92c1-4416-8bf3-2edd753ec9cf
+- name: ESXi Storage Information Discovery Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="storage" and (this['CommandLine']=="
+    get" or this['CommandLine']==" list")
+  sigma_id: f41dada5-3f56-4232-8503-3fb7f9cf2d60
+- name: ESXi Syslog Configuration Change Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="system" and this['CommandLine']=="syslog"
+    and this['CommandLine']=="config" and this['CommandLine']==" set"
+  sigma_id: 38eb1dbb-011f-40b1-a126-cf03a0210563
+- name: ESXi System Information Discovery Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="system" and (this['CommandLine']=="
+    get" or this['CommandLine']==" list")
+  sigma_id: e80273e1-9faf-40bc-bd85-dbaff104c4e9
+- name: ESXi Account Creation Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="system " and this['CommandLine']=="account
+    " and this['CommandLine']=="add "
+  sigma_id: b28e4eb3-8bbc-4f0c-819f-edfe8e2f25db
+- name: ESXi VM List Discovery Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="vm process" and this['CommandLine']=="
+    list"
+  sigma_id: 5f1573a7-363b-4114-9208-ad7a61de46eb
+- name: ESXi VM Kill Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="vm process" and this['CommandLine']=="kill"
+  sigma_id: 2992ac4d-31e9-4325-99f2-b18a73221bb2
+- name: ESXi VSAN Information Discovery Via ESXCLI
+  query: this['Image']=="/esxcli" and this['CommandLine']=="vsan" and (this['CommandLine']=="
+    get" or this['CommandLine']==" list")
+  sigma_id: d54c2f06-aca9-4e2b-81c9-5317858f4b79
+- name: Shell Execution via Find - Linux
+  query: this['Image']=="/find" and this['CommandLine']==" . " and this['CommandLine']=="-exec"
+    and (this['CommandLine']=="/bin/bash" or this['CommandLine']=="/bin/dash" or this['CommandLine']=="/bin/fish"
+    or this['CommandLine']=="/bin/sh" or this['CommandLine']=="/bin/zsh")
+  sigma_id: 6adfbf8f-52be-4444-9bac-81b539624146
+- name: Shell Execution via Flock - Linux
+  query: this['Image']=="/flock" and this['CommandLine']==" -u " and (this['CommandLine']=="/bin/bash"
+    or this['CommandLine']=="/bin/dash" or this['CommandLine']=="/bin/fish" or this['CommandLine']=="/bin/sh"
+    or this['CommandLine']=="/bin/zsh")
+  sigma_id: 4b09c71e-4269-4111-9cdd-107d8867f0cc
+- name: Shell Execution GCC  - Linux
+  query: (this['Image']=="/c89" or this['Image']=="/c99" or this['Image']=="/gcc")
+    and this['CommandLine']=="-wrapper" and (this['CommandLine']=="/bin/bash,-s" or
+    this['CommandLine']=="/bin/dash,-s" or this['CommandLine']=="/bin/fish,-s" or
+    this['CommandLine']=="/bin/sh,-s" or this['CommandLine']=="/bin/zsh,-s")
+  sigma_id: 9b5de532-a757-4d70-946c-1f3e44f48b4d
+- name: Shell Execution via Git - Linux
+  query: this['ParentImage']=="/git" and this['ParentCommandLine']==" -p " and this['ParentCommandLine']=="help"
+    and (this['CommandLine']=="bash 0<&1" or this['CommandLine']=="dash 0<&1" or this['CommandLine']=="sh
+    0<&1")
+  sigma_id: 47b3bbd4-1bf7-48cc-84ab-995362aaa75a
+- name: Group Has Been Deleted Via Groupdel
+  query: this['Image']=="/groupdel"
+  sigma_id: 8a46f16c-8c4c-82d1-b121-0fdd3ba70a84
+- name: Suspicious Package Installed - Linux
+  query: ((this['Image']=="/apt" or this['Image']=="/apt-get") and this['CommandLine']=="install"
+    or this['Image']=="/yum" and (this['CommandLine']=="localinstall" or this['CommandLine']=="install")
+    or this['Image']=="/rpm" and this['CommandLine']=="-i" or this['Image']=="/dpkg"
+    and (this['CommandLine']=="--install" or this['CommandLine']=="-i")) and (this['CommandLine']=="nmap"
+    or this['CommandLine']==" nc" or this['CommandLine']=="netcat" or this['CommandLine']=="wireshark"
+    or this['CommandLine']=="tshark" or this['CommandLine']=="openconnect" or this['CommandLine']=="proxychains")
+  sigma_id: 700fb7e8-2981-401c-8430-be58e189e741
+- name: Flush Iptables Ufw Chain
+  query: (this['Image']=="/iptables" or this['Image']=="/xtables-legacy-multi" or
+    this['Image']=="/iptables-legacy-multi" or this['Image']=="/ip6tables" or this['Image']=="/ip6tables-legacy-multi")
+    and (this['CommandLine']=="-F" or this['CommandLine']=="-Z" or this['CommandLine']=="-X")
+    and (this['CommandLine']=="ufw-logging-deny" or this['CommandLine']=="ufw-logging-allow"
+    or this['CommandLine']=="ufw6-logging-deny" or this['CommandLine']=="ufw6-logging-allow")
+  sigma_id: 3be619f4-d9ec-4ea8-a173-18fdd01996ab
+- name: Potential GobRAT File Discovery Via Grep
+  query: this['Image']=="/grep" and (this['CommandLine']=="apached" or this['CommandLine']=="frpc"
+    or this['CommandLine']=="sshd.sh" or this['CommandLine']=="zone.arm")
+  sigma_id: e34cfa0c-0a50-4210-9cb3-5632d08eb041
+- name: Potentially Suspicious Named Pipe Created Via Mkfifo
+  query: this['Image']=="/mkfifo" and this['CommandLine']==" /tmp/"
+  sigma_id: 999c3b12-0a8c-40b6-8e13-dd7d62b75c7a
+- name: Mount Execution With Hidepid Parameter
+  query: this['Image']=="/mount" and this['CommandLine']=="hidepid=2" and this['CommandLine']=="
+    -o "
+  sigma_id: ec52985a-d024-41e3-8ff6-14169039a0b3
+- name: Potential Netcat Reverse Shell Execution
+  query: (this['Image']=="/nc" or this['Image']=="/ncat") and (this['CommandLine']=="
+    -c " or this['CommandLine']==" -e ") and (this['CommandLine']==" ash" or this['CommandLine']=="
+    bash" or this['CommandLine']==" bsh" or this['CommandLine']==" csh" or this['CommandLine']=="
+    ksh" or this['CommandLine']==" pdksh" or this['CommandLine']==" sh" or this['CommandLine']=="
+    tcsh" or this['CommandLine']=="/bin/ash" or this['CommandLine']=="/bin/bash" or
+    this['CommandLine']=="/bin/bsh" or this['CommandLine']=="/bin/csh" or this['CommandLine']=="/bin/ksh"
+    or this['CommandLine']=="/bin/pdksh" or this['CommandLine']=="/bin/sh" or this['CommandLine']=="/bin/tcsh"
+    or this['CommandLine']=="/bin/zsh" or this['CommandLine']=="$IFSash" or this['CommandLine']=="$IFSbash"
+    or this['CommandLine']=="$IFSbsh" or this['CommandLine']=="$IFScsh" or this['CommandLine']=="$IFSksh"
+    or this['CommandLine']=="$IFSpdksh" or this['CommandLine']=="$IFSsh" or this['CommandLine']=="$IFStcsh"
+    or this['CommandLine']=="$IFSzsh")
+  sigma_id: 7f734ed0-4f47-46c0-837f-6ee62505abd9
+- name: Shell Execution via Nice - Linux
+  query: this['Image']=="/nice" and (this['CommandLine']=="/bin/bash" or this['CommandLine']=="/bin/dash"
+    or this['CommandLine']=="/bin/fish" or this['CommandLine']=="/bin/sh" or this['CommandLine']=="/bin/zsh")
+  sigma_id: 093d68c7-762a-42f4-9f46-95e79142571a
+- name: Nohup Execution
+  query: this['Image']=="/nohup"
+  sigma_id: e4ffe466-6ff8-48d4-94bd-e32d1a6061e2
+- name: Suspicious Nohup Execution
+  query: this['Image']=="/nohup" and this['CommandLine']=="/tmp/"
+  sigma_id: 457df417-8b9d-4912-85f3-9dbda39c3645
+- name: OMIGOD SCX RunAsProvider ExecuteScript
+  query: this['User']=="root" and this['LogonId']==0 and this['CurrentDirectory']=="/var/opt/microsoft/scx/tmp"
+    and this['CommandLine']=="/etc/opt/microsoft/scx/conf/tmpdir/scx"
+  sigma_id: 6eea1bf6-f8d2-488a-a742-e6ef6c1b67db
+- name: OMIGOD SCX RunAsProvider ExecuteShellCommand
+  query: this['User']=="root" and this['LogonId']==0 and this['CurrentDirectory']=="/var/opt/microsoft/scx/tmp"
+    and this['CommandLine']=="/bin/sh"
+  sigma_id: 21541900-27a9-4454-9c4c-3f0a4240344a
+- name: Potential Perl Reverse Shell Execution
+  query: this['Image']=="/perl" and this['CommandLine']==" -e " and (this['CommandLine']=="fdopen("
+    and this['CommandLine']=="::Socket::INET" or this['CommandLine']=="Socket" and
+    this['CommandLine']=="connect" and this['CommandLine']=="open" and this['CommandLine']=="exec")
+  sigma_id: 259df6bc-003f-4306-9f54-4ff1a08fa38e
+- name: Potential PHP Reverse Shell
+  query: this['Image']=="/php" and this['CommandLine']==" -r " and this['CommandLine']=="fsockopen"
+    and (this['CommandLine']=="ash" or this['CommandLine']=="bash" or this['CommandLine']=="bsh"
+    or this['CommandLine']=="csh" or this['CommandLine']=="ksh" or this['CommandLine']=="pdksh"
+    or this['CommandLine']=="sh" or this['CommandLine']=="tcsh" or this['CommandLine']=="zsh")
+  sigma_id: c6714a24-d7d5-4283-a36b-3ffd091d5f7e
+- name: Python Spawning Pretty TTY Via PTY Module
+  query: (this['Image']=="/python" or this['Image']=="/python2" or this['Image']=="/python3"
+    or this['Image']=="/python2." or this['Image']=="/python3.") and (this['CommandLine']=="import
+    pty" or this['CommandLine']=="from pty ") and this['CommandLine']=="spawn"
+  sigma_id: c4042d54-110d-45dd-a0e1-05c47822c937
+- name: Python Reverse Shell Execution Via PTY And Socket Modules
+  query: this['Image']=="python" and this['CommandLine']==" -c " and this['CommandLine']=="import"
+    and this['CommandLine']=="pty" and this['CommandLine']=="socket" and this['CommandLine']=="spawn"
+    and this['CommandLine']==".connect"
+  sigma_id: 32e62bc7-3de0-4bb1-90af-532978fe42c0
+- name: Inline Python Execution - Spawn Shell Via OS System Library
+  query: (this['Image']=="/python" or this['Image']=="/python2" or this['Image']=="/python3"
+    or this['Image']=="/python2." or this['Image']=="/python3.") and this['CommandLine']=="
+    -c " and this['CommandLine']=="os.system(" and (this['CommandLine']=="/bin/bash"
+    or this['CommandLine']=="/bin/dash" or this['CommandLine']=="/bin/fish" or this['CommandLine']=="/bin/sh"
+    or this['CommandLine']=="/bin/zsh")
+  sigma_id: 2d2f44ff-4611-4778-a8fc-323a0e9850cc
+- name: Shell Execution via Rsync - Linux
+  query: (this['Image']=="/rsync" or this['Image']=="/rsyncd") and this['CommandLine']=="
+    -e " and (this['CommandLine']=="/ash " or this['CommandLine']=="/bash " or this['CommandLine']=="/dash
+    " or this['CommandLine']=="/csh " or this['CommandLine']=="/sh " or this['CommandLine']=="/zsh
+    " or this['CommandLine']=="/tcsh " or this['CommandLine']=="/ksh " or this['CommandLine']=="'ash
+    " or this['CommandLine']=="'bash " or this['CommandLine']=="'dash " or this['CommandLine']=="'csh
+    " or this['CommandLine']=="'sh " or this['CommandLine']=="'zsh " or this['CommandLine']=="'tcsh
+    " or this['CommandLine']=="'ksh ")
+  sigma_id: e2326866-609f-4015-aea9-7ec634e8aa04
+- name: Suspicious Invocation of Shell via Rsync
+  query: (this['ParentImage']=="/rsync" or this['ParentImage']=="/rsyncd") and (this['Image']=="/ash"
+    or this['Image']=="/bash" or this['Image']=="/csh" or this['Image']=="/dash" or
+    this['Image']=="/ksh" or this['Image']=="/sh" or this['Image']=="/tcsh" or this['Image']=="/zsh")
+    and not this['CommandLine']==" -e "
+  sigma_id: 297241f3-8108-4b3a-8c15-2dda9f844594
+- name: Potential Ruby Reverse Shell
+  query: this['Image']=="ruby" and this['CommandLine']==" -e" and this['CommandLine']=="rsocket"
+    and this['CommandLine']=="TCPSocket" and (this['CommandLine']==" ash" or this['CommandLine']=="
+    bash" or this['CommandLine']==" bsh" or this['CommandLine']==" csh" or this['CommandLine']=="
+    ksh" or this['CommandLine']==" pdksh" or this['CommandLine']==" sh" or this['CommandLine']=="
+    tcsh")
+  sigma_id: b8bdac18-c06e-4016-ac30-221553e74f59
+- name: Scheduled Cron Task/Job - Linux
+  query: this['Image']=="crontab" and this['CommandLine']=="/tmp/"
+  sigma_id: 6b14bac8-3e3a-4324-8109-42f0546a347f
+- name: Disabling Security Tools
+  query: this['Image']=="/service" and this['CommandLine']=="iptables" and this['CommandLine']=="stop"
+    or this['Image']=="/service" and this['CommandLine']=="ip6tables" and this['CommandLine']=="stop"
+    or this['Image']=="/chkconfig" and this['CommandLine']=="iptables" and this['CommandLine']=="stop"
+    or this['Image']=="/chkconfig" and this['CommandLine']=="ip6tables" and this['CommandLine']=="stop"
+    or this['Image']=="/systemctl" and this['CommandLine']=="firewalld" and this['CommandLine']=="stop"
+    or this['Image']=="/systemctl" and this['CommandLine']=="firewalld" and this['CommandLine']=="disable"
+    or this['Image']=="/service" and this['CommandLine']=="cbdaemon" and this['CommandLine']=="stop"
+    or this['Image']=="/chkconfig" and this['CommandLine']=="cbdaemon" and this['CommandLine']=="off"
+    or this['Image']=="/systemctl" and this['CommandLine']=="cbdaemon" and this['CommandLine']=="stop"
+    or this['Image']=="/systemctl" and this['CommandLine']=="cbdaemon" and this['CommandLine']=="disable"
+    or this['Image']=="/setenforce" and this['CommandLine']=="0" or this['Image']=="/systemctl"
+    and this['CommandLine']=="stop" and this['CommandLine']=="falcon-sensor" or this['Image']=="/systemctl"
+    and this['CommandLine']=="disable" and this['CommandLine']=="falcon-sensor"
+  sigma_id: e3a8a052-111f-4606-9aee-f28ebeb76776
+- name: Disable Or Stop Services
+  query: (this['Image']=="/service" or this['Image']=="/systemctl" or this['Image']=="/chkconfig")
+    and (this['CommandLine']=="stop" or this['CommandLine']=="disable")
+  sigma_id: de25eeb8-3655-4643-ac3a-b662d3f26b6b
+- name: Shell Invocation Via Ssh - Linux
+  query: this['Image']=="/ssh" and (this['CommandLine']=="ProxyCommand=;" or this['CommandLine']=="permitlocalcommand=yes"
+    or this['CommandLine']=="localhost") and (this['CommandLine']=="/bin/bash" or
+    this['CommandLine']=="/bin/dash" or this['CommandLine']=="/bin/fish" or this['CommandLine']=="/bin/sh"
+    or this['CommandLine']=="/bin/zsh" or this['CommandLine']=="sh 0<&2 1>&2" or this['CommandLine']=="sh
+    1>&2 0<&2")
+  sigma_id: 8737b7f6-8df3-4bb7-b1da-06019b99b687
+- name: Potential Linux Amazon SSM Agent Hijacking
+  query: this['Image']=="/amazon-ssm-agent" and this['CommandLine']=="-register "
+    and this['CommandLine']=="-code " and this['CommandLine']=="-id " and this['CommandLine']=="-region
+    "
+  sigma_id: f9b3edc5-3322-4fc7-8aa3-245d646cc4b7
+- name: Sudo Privilege Escalation CVE-2019-14287
+  query: this['CommandLine']==" -u#"
+  sigma_id: f74107df-b6c6-4e80-bf00-4170b658162b
+- name: Chmod Suspicious Directory
+  query: this['Image']=="/chmod" and (this['CommandLine']=="/tmp/" or this['CommandLine']=="/.Library/"
+    or this['CommandLine']=="/etc/" or this['CommandLine']=="/opt/")
+  sigma_id: 6419afd1-3742-47a5-a7e6-b50386cd15f8
+- name: Suspicious Curl Change User Agents - Linux
+  query: this['Image']=="/curl" and (this['CommandLine']==" -A " or this['CommandLine']=="
+    --user-agent ")
+  sigma_id: b86d356d-6093-443d-971c-9b07db583c68
+- name: Potentially Suspicious Execution From Tmp Folder
+  query: this['Image']=="/tmp/"
+  sigma_id: 312b42b1-bded-4441-8b58-163a3af58775
+- name: Potential Discovery Activity Using Find - Linux
+  query: this['Image']=="/find" and (this['CommandLine']=="-perm -4000" or this['CommandLine']=="-perm
+    -2000" or this['CommandLine']=="-perm 0777" or this['CommandLine']=="-perm -222"
+    or this['CommandLine']=="-perm -o w" or this['CommandLine']=="-perm -o x" or this['CommandLine']=="-perm
+    -u=s" or this['CommandLine']=="-perm -g=s")
+  sigma_id: 8344c0e5-5783-47cc-9cf9-a0f7fd03e6cf
+- name: Suspicious Git Clone - Linux
+  query: this['Image']=="/git" and this['CommandLine']==" clone " and (this['CommandLine']=="exploit"
+    or this['CommandLine']=="Vulns" or this['CommandLine']=="vulnerability" or this['CommandLine']=="RCE"
+    or this['CommandLine']=="RemoteCodeExecution" or this['CommandLine']=="Invoke-"
+    or this['CommandLine']=="CVE-" or this['CommandLine']=="poc-" or this['CommandLine']=="ProofOfConcept"
+    or this['CommandLine']=="proxyshell" or this['CommandLine']=="log4shell" or this['CommandLine']=="eternalblue"
+    or this['CommandLine']=="eternal-blue" or this['CommandLine']=="MS17-")
+  sigma_id: cfec9d29-64ec-4a0f-9ffe-0fdb856d5446
+- name: History File Deletion
+  query: (this['Image']=="/rm" or this['Image']=="/unlink" or this['Image']=="/shred")
+    and (this['CommandLine']=="/.bash_history" or this['CommandLine']=="/.zsh_history"
+    or this['CommandLine']=="_history" or this['CommandLine']==".history" or this['CommandLine']=="zhistory")
+  sigma_id: 1182f3b3-e716-4efa-99ab-d2685d04360f
+- name: Print History File Contents
+  query: (this['Image']=="/cat" or this['Image']=="/head" or this['Image']=="/tail"
+    or this['Image']=="/more") and (this['CommandLine']=="/.bash_history" or this['CommandLine']=="/.zsh_history"
+    or this['CommandLine']=="_history" or this['CommandLine']==".history" or this['CommandLine']=="zhistory")
+  sigma_id: d7821ff1-4527-4e33-9f84-d0d57fa2fb66
+- name: Linux HackTool Execution
+  query: this['Image']=="/crackmapexec" or this['Image']=="/havoc" or this['Image']=="/merlin-agent"
+    or this['Image']=="/merlinServer-Linux-x64" or this['Image']=="/msfconsole" or
+    this['Image']=="/msfvenom" or this['Image']=="/ps-empire server" or this['Image']=="/ps-empire"
+    or this['Image']=="/sliver-client" or this['Image']=="/sliver-server" or this['Image']=="/Villain.py"
+    or this['Image']=="/cobaltstrike" or this['Image']=="/teamserver" or this['Image']=="/autorecon"
+    or this['Image']=="/httpx" or this['Image']=="/legion" or this['Image']=="/naabu"
+    or this['Image']=="/netdiscover" or this['Image']=="/nuclei" or this['Image']=="/recon-ng"
+    or this['Image']=="/sniper" or this['Image']=="/dirb" or this['Image']=="/dirbuster"
+    or this['Image']=="/eyewitness" or this['Image']=="/feroxbuster" or this['Image']=="/ffuf"
+    or this['Image']=="/gobuster" or this['Image']=="/wfuzz" or this['Image']=="/whatweb"
+    or this['Image']=="/joomscan" or this['Image']=="/nikto" or this['Image']=="/wpscan"
+    or this['Image']=="/aircrack-ng" or this['Image']=="/bloodhound-python" or this['Image']=="/bpfdos"
+    or this['Image']=="/ebpfki" or this['Image']=="/evil-winrm" or this['Image']=="/hashcat"
+    or this['Image']=="/hoaxshell.py" or this['Image']=="/hydra" or this['Image']=="/john"
+    or this['Image']=="/ncrack" or this['Image']=="/nxc-ubuntu-latest" or this['Image']=="/pidhide"
+    or this['Image']=="/pspy32" or this['Image']=="/pspy32s" or this['Image']=="/pspy64"
+    or this['Image']=="/pspy64s" or this['Image']=="/setoolkit" or this['Image']=="/sqlmap"
+    or this['Image']=="/writeblocker" or this['Image']=="/linpeas"
+  sigma_id: a015e032-146d-4717-8944-7a1884122111
+- name: Interactive Bash Suspicious Children
+  query: this['ParentCommandLine']=="bash -i" and (this['CommandLine']=="-c import
+    " or this['CommandLine']=="base64" or this['CommandLine']=="pty.spawn" or this['Image']=="whoami"
+    or this['Image']=="iptables" or this['Image']=="/ncat" or this['Image']=="/nc"
+    or this['Image']=="/netcat")
+  sigma_id: ea3ecad2-db86-4a89-ad0b-132a10d2db55
+- name: Suspicious Java Children Processes
+  query: this['ParentImage']=="/java" and (this['CommandLine']=="/bin/sh" or this['CommandLine']=="bash"
+    or this['CommandLine']=="dash" or this['CommandLine']=="ksh" or this['CommandLine']=="zsh"
+    or this['CommandLine']=="csh" or this['CommandLine']=="fish" or this['CommandLine']=="curl"
+    or this['CommandLine']=="wget" or this['CommandLine']=="python")
+  sigma_id: d292e0af-9a18-420c-9525-ec0ac3936892
+- name: Linux Shell Pipe to Shell
+  query: (this['CommandLine']=="sh -c " or this['CommandLine']=="bash -c ") and (this['CommandLine']=="|
+    bash " or this['CommandLine']=="| sh " or this['CommandLine']=="|bash " or this['CommandLine']=="|sh
+    " or this['CommandLine']=="| bash" or this['CommandLine']=="| sh" or this['CommandLine']=="|bash"
+    or this['CommandLine']==" |sh")
+  sigma_id: 880973f3-9708-491c-a77b-2a35a1921158
+- name: Linux Recon Indicators
+  query: this['CommandLine']==" -name .htpasswd" or this['CommandLine']==" -perm -4000
+    "
+  sigma_id: 0cf7a157-8879-41a2-8f55-388dd23746b7
+- name: Potential Suspicious Change To Sensitive/Critical Files
+  query: ((this['Image']=="/cat" or this['Image']=="/echo" or this['Image']=="/grep"
+    or this['Image']=="/head" or this['Image']=="/more" or this['Image']=="/tail")
+    and this['CommandLine']==">" or this['Image']=="/emacs" or this['Image']=="/nano"
+    or this['Image']=="/sed" or this['Image']=="/vi" or this['Image']=="/vim") and
+    (this['CommandLine']=="/bin/login" or this['CommandLine']=="/bin/passwd" or this['CommandLine']=="/boot/"
+    or (this['CommandLine']=="/etc/" or this['CommandLine']==".conf") or this['CommandLine']=="/etc/cron."
+    or this['CommandLine']=="/etc/crontab" or this['CommandLine']=="/etc/hosts" or
+    this['CommandLine']=="/etc/init.d" or this['CommandLine']=="/etc/sudoers" or this['CommandLine']=="/opt/bin/"
+    or this['CommandLine']=="/sbin" or this['CommandLine']=="/usr/bin/" or this['CommandLine']=="/usr/local/bin/")
+  sigma_id: 86157017-c2b1-4d4a-8c33-93b8e67e4af4
+- name: Shell Execution Of Process Located In Tmp Directory
+  query: this['ParentImage']=="/tmp/" and (this['Image']=="/bash" or this['Image']=="/csh"
+    or this['Image']=="/dash" or this['Image']=="/fish" or this['Image']=="/ksh" or
+    this['Image']=="/sh" or this['Image']=="/zsh")
+  sigma_id: 2fade0b6-7423-4835-9d4f-335b39b83867
+- name: Execution Of Script Located In Potentially Suspicious Directory
+  query: (this['Image']=="/bash" or this['Image']=="/csh" or this['Image']=="/dash"
+    or this['Image']=="/fish" or this['Image']=="/ksh" or this['Image']=="/sh" or
+    this['Image']=="/zsh") and this['CommandLine']==" -c " and this['CommandLine']=="/tmp/"
+  sigma_id: 30bcce26-51c5-49f2-99c8-7b59e3af36c7
+- name: Touch Suspicious Service File
+  query: this['Image']=="/touch" and this['CommandLine']==" -t " and this['CommandLine']==".service"
+  sigma_id: 31545105-3444-4584-bebf-c466353230d2
+- name: Triple Cross eBPF Rootkit Execve Hijack
+  query: this['Image']=="/sudo" and this['CommandLine']=="execve_hijack"
+  sigma_id: 0326c3c8-7803-4a0f-8c5c-368f747f7c3e
+- name: Triple Cross eBPF Rootkit Install Commands
+  query: this['Image']=="/sudo" and this['CommandLine']==" tc " and this['CommandLine']=="
+    enp0s3 " and (this['CommandLine']==" qdisc " or this['CommandLine']==" filter
+    ")
+  sigma_id: 22236d75-d5a0-4287-bf06-c93b1770860f
+- name: User Has Been Deleted Via Userdel
+  query: this['Image']=="/userdel"
+  sigma_id: 08f26069-6f80-474b-8d1f-d971c6fedea0
+- name: User Added To Root/Sudoers Group Using Usermod
+  query: this['Image']=="/usermod" and (this['CommandLine']=="-aG root" or this['CommandLine']=="-aG
+    sudoers")
+  sigma_id: 6a50f16c-3b7b-42d1-b081-0fdd3ba70a73
+- name: Vim GTFOBin Abuse - Linux
+  query: (this['Image']=="/rvim" or this['Image']=="/vim" or this['Image']=="/vimdiff")
+    and (this['CommandLine']==" --cmd" or this['CommandLine']==" -c ") and (this['CommandLine']==":!/"
+    or this['CommandLine']==":lua " or this['CommandLine']==":py " or this['CommandLine']=="/bin/bash"
+    or this['CommandLine']=="/bin/dash" or this['CommandLine']=="/bin/fish" or this['CommandLine']=="/bin/sh"
+    or this['CommandLine']=="/bin/zsh")
+  sigma_id: 7ab8f73a-fcff-428b-84aa-6a5ff7877dea
+- name: Linux Webshell Indicators
+  query: (this['ParentImage']=="/httpd" or this['ParentImage']=="/lighttpd" or this['ParentImage']=="/nginx"
+    or this['ParentImage']=="/apache2" or this['ParentImage']=="/node" or this['ParentImage']=="/caddy"
+    or this['ParentCommandLine']=="/bin/java" and this['ParentCommandLine']=="tomcat"
+    or this['ParentCommandLine']=="/bin/java" and this['ParentCommandLine']=="websphere")
+    and (this['Image']=="/whoami" or this['Image']=="/ifconfig" or this['Image']=="/ip"
+    or this['Image']=="/bin/uname" or this['Image']=="/bin/cat" or this['Image']=="/bin/crontab"
+    or this['Image']=="/hostname" or this['Image']=="/iptables" or this['Image']=="/netstat"
+    or this['Image']=="/pwd" or this['Image']=="/route")
+  sigma_id: 818f7b24-0fba-4c49-a073-8b755573b9c7
+- name: Potential Xterm Reverse Shell
+  query: this['Image']=="xterm" and this['CommandLine']=="-display" and this['CommandLine']==":1"
+  sigma_id: 4e25af4b-246d-44ea-8563-e42aacab006b
