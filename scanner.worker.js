@@ -1,5 +1,5 @@
 import { SuperDB } from './index.js';
-import { getData } from './db.js';
+import { getData, getDataAsStream } from './db.js';
 
 let isCancelled = false;
 let superdbWorkerInstance = null;
@@ -7,8 +7,8 @@ let superdbWorkerInstance = null;
 async function initializeSuperDB(wasmPath) {
     if (superdbWorkerInstance) return true;
     if (typeof SuperDB === 'undefined') {
-         postMessage({ type: 'init_error', message: 'SuperDB class not found in worker after import.' });
-         return false;
+        postMessage({ type: 'init_error', message: 'SuperDB class not found in worker after import.' });
+        return false;
     }
     try {
         superdbWorkerInstance = await SuperDB.instantiate(wasmPath);
@@ -23,7 +23,6 @@ async function initializeSuperDB(wasmPath) {
 
 async function runScan(dataPayload) {
     const { rules, inputFormat, data, dataLocation } = dataPayload;
-    let inputData = data;
 
     if (!superdbWorkerInstance) {
         postMessage({ type: 'error', ruleName: 'Setup', message: 'SuperDB not initialized in worker.' });
@@ -31,91 +30,130 @@ async function runScan(dataPayload) {
         return;
     }
     if (!rules || rules.length === 0) {
-         postMessage({ type: 'error', ruleName: 'Setup', message: 'No rules provided to worker.' });
-         postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
+        postMessage({ type: 'error', ruleName: 'Setup', message: 'No rules provided to worker.' });
+        postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
         return;
     }
 
-    if (dataLocation && dataLocation.type === 'indexeddb' && dataLocation.key) {
-        try {
-            postMessage({ type: 'progress_detail', message: 'Loading data from DB...' });
-            inputData = await getData(dataLocation.key);
-            if (typeof inputData === 'undefined') {
-                 postMessage({ type: 'error', ruleName: 'Setup', message: 'Data not found in IndexedDB for key: ' + dataLocation.key });
-                 postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
-                 return;
-            }
-            postMessage({ type: 'progress_detail', message: 'Data loaded. Starting scan...' });
-        } catch (dbError) {
-            console.error("Worker: Failed to load data from IndexedDB:", dbError);
-            postMessage({ type: 'error', ruleName: 'Setup', message: `Failed to load data from DB: ${dbError.message}` });
-            postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
-            return;
-        }
-    } else if (!inputData) {
-         postMessage({ type: 'error', ruleName: 'Setup', message: 'No input data available for scan.' });
-         postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
-         return;
-    }
-
     isCancelled = false;
-    let hitsFound = 0;
-    let errorsOccurred = false;
+    let totalHitsFound = 0;
+    let totalErrorsOccurred = false;
     let rulesProcessed = 0;
-    const totalRules = rules.length;
 
-    postMessage({ type: 'progress', processed: 0, total: totalRules });
+    postMessage({ type: 'progress', processed: 0, total: rules.length });
 
-    for (const rule of rules) {
-        if (isCancelled) {
-            console.log("Worker: Scan cancelled.");
-            postMessage({ type: 'cancelled' });
-            break;
-        }
+    const isLargeDataFromDB = dataLocation && dataLocation.type === 'indexeddb' && dataLocation.key;
+    const CONCURRENCY_LIMIT = isLargeDataFromDB ? 50 : 100; 
 
-        rulesProcessed++;
-        postMessage({ type: 'progress', processed: rulesProcessed, total: totalRules });
-
-        try {
-            const result = await superdbWorkerInstance.run({
-                query: rule.query,
-                input: inputData,
-                inputFormat: inputFormat,
-                outputFormat: 'line'
-            });
-
-            if (result && result.trim() !== "") {
-                hitsFound++;
-                postMessage({
-                    type: 'hit',
-                    ruleName: rule.name,
-                    query: rule.query,
-                    result: result.trim()
-                });
-            }
-        } catch (error) {
-            errorsOccurred = true;
-            console.error(`Worker: Scanner rule "${rule.name}" error:`, error);
-            postMessage({
-                type: 'error',
-                ruleName: rule.name,
-                message: error.message || String(error)
-            });
-        }
+    const ruleChunks = [];
+    for (let i = 0; i < rules.length; i += CONCURRENCY_LIMIT) {
+        ruleChunks.push(rules.slice(i, i + CONCURRENCY_LIMIT));
     }
+    
+    postMessage({ type: 'progress_detail', message: `Processing in batches of ${CONCURRENCY_LIMIT}...` });
 
+    for (const ruleChunk of ruleChunks) {
+        if (isCancelled) break;
+        
+        try {
+            let batchOpts;
+            if (isLargeDataFromDB) {
+                const sourceStream = await getDataAsStream(dataLocation.key);
+                const teedStreams = [];
+                let currentStream = sourceStream;
+
+                for (let i = 0; i < ruleChunk.length; i++) {
+                    if (i < ruleChunk.length - 1) {
+                        const [s1, s2] = currentStream.tee();
+                        teedStreams.push(s1);
+                        currentStream = s2;
+                    } else {
+                        teedStreams.push(currentStream);
+                    }
+                }
+
+                batchOpts = ruleChunk.map((rule, i) => ({
+                    program: rule.query,
+                    input: teedStreams[i],
+                    inputFormat: inputFormat,
+                    outputFormat: 'line'
+                }));
+            } else {
+                if (!data) {
+                    postMessage({ type: 'error', ruleName: 'Setup', message: 'No input data available for scan.' });
+                    continue;
+                }
+                batchOpts = ruleChunk.map(rule => ({
+                    program: rule.query,
+                    input: data,
+                    inputFormat: inputFormat,
+                    outputFormat: 'line'
+                }));
+            }
+            
+            const batchResults = await superdbWorkerInstance.zqBatch(batchOpts);
+            const hits = [];
+            const errors = [];
+
+            batchResults.forEach((batchItem, i) => {
+                const rule = ruleChunk[i];
+                
+                const success = batchItem.success; 
+                const dataResult = batchItem.data;
+                const dataHasData = batchItem.hasData;
+                const errorMsg = batchItem.error;   
+                const index = batchItem.index; 
+                const query = batchItem.query; 
+
+                console.log(`--- Processing Rule: "${rule.name}" (Index: ${index}) ---`);
+                console.log(`  Success: ${success} (type: ${typeof success})`);
+                console.log(`  Has Data: ${dataHasData} (type: ${typeof dataHasData})`);
+                console.log(`  (Data length: ${dataResult ? dataResult.length : 0})`);
+                console.log(`  Error: "${errorMsg}"`);
+
+                if (success && dataResult && dataResult.trim() !== "") {
+                    console.log(`  -> Detected HIT for rule "${rule.name}".`);
+                    hits.push({ 
+                        ruleName: rule.name, 
+                        query: query, 
+                        result: `${dataResult.trim().substring(0, 100)}.... Use 'Investigate' or 'Pivot' to see fully results.`
+                    });
+                } else if (!success) {
+                    console.log(`  -> Entered FAILURE branch for rule "${rule.name}".`);
+                    console.error(`  -> Rule "${rule.name}" FAILED. Error: ${errorMsg || 'Unknown error.'}`); 
+                    errors.push({ 
+                        ruleName: rule.name, 
+                        message: errorMsg || 'Unknown error during query execution.' 
+                    });
+                } else {
+                    console.log(`  -> Rule "${rule.name}" successful but NO DATA (no hit).`);
+                }
+            });
+
+            if (hits.length > 0 || errors.length > 0) {
+                 postMessage({ type: 'scanner_batch_results', hits: hits, errors: errors });
+            }
+            totalHitsFound += hits.length;
+            if (errors.length > 0) totalErrorsOccurred = true;
+
+        } catch (e) {
+            totalErrorsOccurred = true;
+            ruleChunk.forEach(rule => {
+                postMessage({ type: 'scanner_error', error: { ruleName: rule.name, message: `Batch failed: ${e.message || String(e)}` } });
+            });
+        }
+
+        rulesProcessed += ruleChunk.length;
+        postMessage({ type: 'progress', processed: rulesProcessed, total: rules.length });
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    
     if (!isCancelled) {
-        postMessage({ type: 'complete', hitsFound: hitsFound, errorsOccurred: errorsOccurred });
+        postMessage({ type: 'complete', hitsFound: totalHitsFound, errorsOccurred: totalErrorsOccurred });
+    } else {
+        postMessage({ type: 'cancelled' });
     }
 }
-
-self.addEventListener('unhandledrejection', event => {
-    console.error("Worker: Unhandled Rejection:", event.reason);
-    postMessage({
-        type: 'critical_error',
-        message: `Unhandled promise rejection: ${event.reason?.message || event.reason}`
-    });
-});
 
 self.onmessage = async (event) => {
     try {
@@ -128,8 +166,6 @@ self.onmessage = async (event) => {
                  const initialized = await initializeSuperDB(dataPayload.wasmPath || "superdb.wasm");
                  if (initialized) {
                      await runScan(dataPayload);
-                 } else {
-                      postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
                  }
              } else {
                   await runScan(dataPayload);
@@ -145,13 +181,5 @@ self.onmessage = async (event) => {
             message: `Critical worker error: ${error.message}`,
             stack: error.stack
         });
-        postMessage({ type: 'complete', hitsFound: 0, errorsOccurred: true });
     }
 };
-
-if (typeof SuperDB === 'undefined') {
-     console.warn("Worker: SuperDB class might not be immediately available at top level.");
-} else {
-    console.log("Worker: SuperDB class found.");
-}
-

@@ -3,34 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LogTap Viewer</title>
+    <title>LogTap | Log Analysis</title>
     <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="vendor/gridjs/css/mermaid.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="style.css">
     <script src="vendor/gridjs/js/gridjs.umd.js"></script>
     <script src="vendor/js-yaml/js-yaml.min.js"></script>
-    <link rel="stylesheet" href="style.css">
 </head>
 <body class="d-flex">
 
     <aside class="sidebar p-3 d-flex flex-column" id="sidebar">
         <div class="flex-shrink-0">
-            <h1 class="text-light fs-4 mb-3">LogTap Viewer</h1>
-            <button id="addTabBtn" class="btn btn-sm w-100 mb-3 btn-addtab">+</button>
+            <h1 class="text-light fs-4 mb-3">
+                <i class="fa-solid fa-magnifying-glass-chart me-2"></i>LogTap
+            </h1>
+            <button id="addTabBtn" class="btn btn-sm w-100 mb-3 btn-addtab" title="Add New Tab"><i class="fa-solid fa-plus"></i> New Tab</button>
         </div>
 
         <div class="sidebar-content nav nav-pills flex-column mb-auto" id="logTabsContainer" role="tablist" aria-orientation="vertical">
-            </div>
+        </div>
 
         <div class="sidebar-footer flex-shrink-0">
             <hr class="text-secondary my-2">
-            <div class="mb-3">
-                <label for="querySnippets" class="form-label form-label-sm">Query Snippets</label>
-                <select id="querySnippets" class="form-select form-select-sm"></select>
-            </div>
             <div>
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <label for="queryHistorySelect" class="form-label form-label-sm mb-0">Query History</label>
-                    <button id="clearHistoryBtn" class="btn btn-outline-danger btn-sm py-0 px-1">Clear</button>
+                    <button id="clearHistoryBtn" class="btn btn-outline-danger btn-sm py-0 px-1" title="Clear History"><i class="fa-solid fa-trash-can"></i></button>
                 </div>
                 <select id="queryHistorySelect" class="form-select form-select-sm mb-2"></select>
             </div>
@@ -51,59 +50,46 @@
     <main>
         <div class="control-panel p-3 border-bottom border-secondary">
             <div class="row g-3 mb-3">
-                <div class="col-lg-6">
-                    <div class="p-3 bg-dark rounded border border-secondary-subtle h-100">
-                        <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Data Source</h3>
-                        <div class="mb-2">
-                            <label for="dataInput" class="form-label form-label-sm d-inline-flex align-items-center">
-                                Paste Data
-                                <span class="ms-1" style="cursor: help;"
-                                      data-bs-toggle="tooltip"
-                                      data-bs-placement="right"
-                                      data-bs-title="Tip: After pasting, set the correct Input Format, then run. If errors occur, try the 'Line' format.">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-question-circle text-info-emphasis" viewBox="0 0 16 16">
-                                          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                                          <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.137-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.558 5.763c.03.03.06.058.091.086l.71.71a.25.25 0 0 0 .354 0l.71-.71c.03-.028.06-.056.09-.086a.25.25 0 0 0 .026-.16V10.5a.25.25 0 0 0-.25-.25h-1.937a.25.25 0 0 0-.25.25v.063a.25.25 0 0 0 .026.16z"/>
-                                      </svg>
-                                </span>
-                            </label>
-                            <textarea id="dataInput" rows="3" class="form-control form-control-sm io-area" placeholder="Paste log data here..."></textarea>
+                <div class="col-lg-4">
+                    <div class="p-3 bg-dark rounded border border-secondary-subtle h-100 d-flex flex-column">
+                        <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1"><i class="fa-solid fa-database me-2"></i>Data Source</h3>
+                        <div class="mb-2 flex-grow-1 d-flex flex-column">
+                            <label for="dataInput" class="form-label form-label-sm">Paste Data</label>
+                            <textarea id="dataInput" rows="5" class="form-control form-control-sm io-area flex-grow-1" placeholder="Paste raw logs, JSON, CSV, or other text-based data here..."></textarea>
                         </div>
                         <div>
-                            <label for="fileInput" class="form-label form-label-sm">Upload Data File</label>
+                            <label for="fileInput" class="form-label form-label-sm">Upload Data File (evtx, csv, txt, json)</label>
                             <div class="input-group input-group-sm">
-                                <input type="file" id="fileInput" class="form-control form-control-sm"/>
-                                <button id="loadTestDataBtn" class="btn btn-outline-secondary" type="button">Load Sample EVTX Data</button>
+                                <input type="file" id="fileInput" class="form-control form-control-sm" accept=".csv,.json,.zjson,.log,.txt,.evtx"/>
+                                <button id="loadTestDataBtn" class="btn btn-outline-secondary" type="button" title="Load sample Windows Event Log data">Sample Data</button>
                             </div>
-                            <div id="fileNameDisplay" class="form-text form-text-sm mt-1">No file loaded for this tab.</div>
+                            <div id="fileNameDisplay" class="form-text form-text-sm mt-1">No file loaded.</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-6">
+
+                <div class="col-lg-4">
                      <div class="p-3 bg-dark rounded border border-secondary-subtle h-100">
-                        <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Processing & Analysis</h3>
-                        <div class="row g-2 mb-2">
+                        <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1"><i class="fa-solid fa-gears me-2"></i>Processing & Analysis</h3>
+                        <div class="row g-2 mb-3">
                             <div class="col-sm-6">
-                                <label for="inputFormat" class="form-label form-label-sm d-inline-flex align-items-center">
-                                    Input Format
-                                    <span class="ms-1" style="cursor: help;"
-                                          data-bs-toggle="tooltip"
-                                          data-bs-placement="right"
-                                          data-bs-title="Tip: If data is unstructure log or plain text (one entry per line), select 'Line' format. 'Auto-detect' might misinterpret it.">
-                                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-question-circle text-info-emphasis" viewBox="0 0 16 16">
-                                              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                                              <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.137-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.558 5.763c.03.03.06.058.091.086l.71.71a.25.25 0 0 0 .354 0l.71-.71c.03-.028.06-.056.09-.086a.25.25 0 0 0 .026-.16V10.5a.25.25 0 0 0-.25-.25h-1.937a.25.25 0 0 0-.25.25v.063a.25.25 0 0 0 .026.16z"/>
-                                          </svg>
-                                    </span>
-                                </label>
+                                <label for="inputFormat" class="form-label form-label-sm">Input Format</label>
                                 <select id="inputFormat" class="form-select form-select-sm"></select>
                             </div>
                             <div class="col-sm-6">
-                                <label for="outputFormat" class="form-label form-label-sm">Output/Export Format</label>
+                                <label for="outputFormat" class="form-label form-label-sm">Output/Export</label>
                                 <select id="outputFormat" class="form-select form-select-sm"></select>
                             </div>
                         </div>
                         <div>
+                            <h4 class="form-label-sm fw-medium mt-3 mb-1">Shaper Scripts</h4>
+                            <div class="input-group input-group-sm">
+                                <select id="shaperScriptsSelect" class="form-select"></select>
+                                <button id="applyShaperBtn" class="btn btn-info" type="button">Apply</button>
+                            </div>
+                            <div class="form-text form-text-sm mt-1">Apply a script to transform the current data in-place.</div>
+                        </div>
+                        <div class="mt-3">
                             <h4 class="form-label-sm fw-medium mt-2 mb-1">Scanner Rules</h4>
                             <div class="row g-2 align-items-end">
                                 <div class="col-sm-6">
@@ -122,62 +108,70 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="col-lg-4">
+                    <div id="scannerResultsPanel" class="p-3 border rounded border-secondary-subtle bg-dark shadow-sm h-100">
+                        <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1"><i class="fa-solid fa-bullseye me-2"></i>Scanner Hits</h3>
+                        <div id="scannerHitsOutput" class="font-monospace d-none" style="height: 250px; overflow-y: auto;">
+                        </div>                        <div id="noScannerHitsMessage" class="text-center text-body-secondary h-75 d-flex flex-column justify-content-center align-items-center">
+                            <i class="fa-solid fa-shield-halved fa-2x mb-3"></i>
+                            <h4 class="fs-6 fw-medium">Ready to Scan</h4>
+                            <p class="small">Results from the scanner will appear here.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="mb-3">
-                <label for="queryInput" class="form-label form-label-sm d-inline-flex align-items-center">
-                    <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Search Query  <a href="https://superdb.org/docs/language/overview/" target="_blank" rel=""> (SuperSQL)</a></h3>
-                    <span class="ms-1" style="cursor: help;"
-                          data-bs-toggle="tooltip"
-                          data-bs-placement="right"
-                          data-bs-title="LogTap Viewer utilizes a SuperSQL language. Inspired by the pipeline pattern of the traditional Unix shell. Like a Unix pipeline, a query is expressed as a data source followed by a number of commands.">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-question-circle text-info-emphasis" viewBox="0 0 16 16">
-                              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                              <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.11.248-.247V5.31c0-.137-.11-.247-.248-.247h-.825a.237.237 0 0 0-.241.247zm1.558 5.763c.03.03.06.058.091.086l.71.71a.25.25 0 0 0 .354 0l.71-.71c.03-.028.06-.056.09-.086a.25.25 0 0 0 .026-.16V10.5a.25.25 0 0 0-.25-.25h-1.937a.25.25 0 0 0-.25.25v.063a.25.25 0 0 0 .026.16z"/>
-                          </svg>
-                    </span>
+                <label for="queryInput" class="form-label form-label-sm d-flex align-items-center">
+                    <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1 me-2">Search Query</h3>
+                    <a href="https://superdb.org/docs/language/overview/" target="_blank" rel="noopener" class="me-2" title="Open SuperSQL Docs"><i class="fa-solid fa-up-right-from-square"></i></a>
+                    <button class="btn btn-outline-info btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#cheatsheetModal" title="SuperSQL Cheatsheet">
+                        <i class="fa-solid fa-circle-question me-1"></i> Cheatsheet
+                    </button>
                 </label>
-                <textarea id="queryInput" rows="2" class="form-control io-area shadow-sm" placeholder="e.g., 'pass | count() by field | sort field'"></textarea>
+                <textarea id="queryInput" rows="3" class="form-control io-area shadow-sm" placeholder="e.g., from pass | where contains(field, 'value') | count() by field | sort by count desc"></textarea>
             </div>
 
             <div class="d-flex flex-wrap align-items-center justify-content-start gap-2 pt-2 border-top border-secondary mt-2">
-                <button id="runQueryBtn" class="btn btn-primary btn-sm">Run Query</button>
-                <button id="runScannerBtn" class="btn btn-warning btn-sm">Run Scanner</button>
+                <button id="runQueryBtn" class="btn btn-primary btn-lg">
+                    <i class="fa-solid fa-play me-2"></i>Run Query
+                </button>
+                <button id="runScannerBtn" class="btn btn-warning btn-sm">
+                    <i class="fa-solid fa-magnifying-glass me-2"></i>Run Scanner
+                </button>
                 <button id="cancelScanBtn" class="btn btn-secondary btn-sm d-none">Cancel Scan</button>
-                <button id="exportBtn" class="btn btn-success btn-sm" disabled>Export Results</button>
+                <button id="exportBtn" class="btn btn-success btn-sm" disabled>
+                    <i class="fa-solid fa-download me-2"></i>Export Results
+                </button>
                 <div id="scanProgress" class="alert alert-info d-none ms-2 p-2 mb-0 text-sm" role="status"></div>
                 <div id="statusMessage" class="alert alert-info d-none flex-grow-1 ms-auto p-2 mb-0 text-sm" role="alert"></div>
             </div>
         </div>
 
         <div class="results-area p-3">
-            <div id="scannerResultsPanel" class="p-3 border rounded border-secondary-subtle bg-dark shadow-sm mb-3 d-none">
-                <h3 class="fs-6 fw-semibold mb-2 border-bottom border-secondary pb-1">Scanner Hits</h3>
-                <div id="scannerHitsOutput" class="font-monospace small scanner-hit-result" style="font-size: 0.8rem;">
-                    </div>
-                <p id="noScannerHitsMessage" class="text-body-secondary small mt-2 d-none">No hits found by the scanner.</p>
-            </div>
-
             <div>
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h2 class="fs-6 fw-semibold">Query Results</h2>
                     <div class="btn-group btn-group-sm" role="group" aria-label="Results Actions">
                          <button id="toggleViewBtn" class="btn btn-outline-secondary d-none">View Raw</button>
                          <button id="pivotResultsBtn" class="btn btn-outline-info d-none">Pivot Results &raquo;</button>
+                         <button id="focusModeBtn" class="btn btn-outline-secondary btn-sm"
+                                data-bs-toggle="tooltip" data-bs-placement="top">
+                            <i class="fa-solid fa-expand"></i>
+                        </button>
                     </div>
                 </div>
 
                 <div id="tableResultOutputContainer" class="d-none">
-                    </div>
+                </div>
 
                 <div id="textResultOutput" class="raw-output-wrapper border rounded bg-dark-subtle p-2 d-none">
                     <pre class="m-0 small"><code id="resultOutputCode" class="font-monospace" style="white-space: pre-wrap; word-break: break-all;"></code></pre>
                 </div>
 
                 <div id="noResultsMessage" class="text-center py-5 text-body-secondary d-none">
-                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-table mb-2" viewBox="0 0 16 16">
-                         <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2h-4v3h4zm0 4h-4v3h4zm0 4h-4v3h3a1 1 0 0 0 1-1zm-5 3v-3H6v3zm-4 0v-3H2v2a1 1 0 0 0 1 1zm-3-4h3v-3H2zm0-4h3V3H2zm4 0v3h4V3zm4 0v3h4V3z"/>
-                     </svg>
+                     <i class="fa-solid fa-table fa-2x mb-2"></i>
                     <h3 class="fs-6 fw-medium">No Results</h3>
                     <p class="small">Your query returned no data.</p>
                 </div>
@@ -185,6 +179,150 @@
         </div>
     </main>
 
+    <div class="modal fade" id="cheatsheetModal" tabindex="-1" aria-labelledby="cheatsheetModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="cheatsheetModalLabel">SuperSQL Cheatsheet</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Common commands and examples for quick reference.</p>
+                    <table class="table table-sm table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Description</th>
+                                <th>Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>where [condition]</code></td>
+                                <td>Filters records. Use operators like <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&lt;</code>.</td>
+                                <td><code>... | where status_code == 404</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>grep(pattern, field)</code></td>
+                                <td>Function to check if a field contains a substring or matches a regex/glob.</td>
+                                <td><code>... | where grep(/error/, message)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>count() by [field]</code></td>
+                                <td>Groups and counts occurrences of values in a field.</td>
+                                <td><code>... | count() by source_ip</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>sort [field] [asc|desc]</code></td>
+                                <td>Sorts the results. Default is ascending.</td>
+                                <td><code>... | sort count desc</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>cut [field1], [field2]</code></td>
+                                <td>Selects which fields to display in the output.</td>
+                                <td><code>... | cut timestamp, source_ip, url</code></td>
+                            </tr>
+                             <tr>
+                                <td><code>head [number]</code></td>
+                                <td>Limits the number of results returned from the beginning of the set.</td>
+                                <td><code>... | head 100</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>tail [number]</code></td>
+                                <td>Limits the number of results returned from the end of the set.</td>
+                                <td><code>... | tail 50</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>uniq -c</code></td>
+                                <td>Counts and shows unique adjacent lines. Often used after <code>sort</code>.</td>
+                                <td><code>... | sort request_path | uniq -c</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>put new_field := expression</code></td>
+                                <td>Adds or modifies fields based on an expression.</td>
+                                <td><code>... | put response_time_ms := response_time_s * 1000</code></td>
+                            </tr>
+                             <tr>
+                                <td><code>search [keyword or expression]</code></td>
+                                <td>Filters records based on a search expression, including keyword search.</td>
+                                <td><code>... | search "login failed" or error_code == 500</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>avg(field) by [group_by_field]</code></td>
+                                <td>Calculates the average of a numeric field, optionally grouped by another field.</td>
+                                <td><code>... | avg(response_time) by http_method</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>sum(field) by [group_by_field]</code></td>
+                                <td>Calculates the sum of a numeric field, optionally grouped.</td>
+                                <td><code>... | sum(bytes_transferred) by user_id</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>min(field)</code> / <code>max(field)</code></td>
+                                <td>Finds the minimum or maximum value of a field.</td>
+                                <td><code>... | min(timestamp)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>drop [field1], [field2]</code></td>
+                                <td>Removes specified fields from records.</td>
+                                <td><code>... | drop user_agent, referer</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>every(duration)</code></td>
+                                <td>Buckets time-series data by a specified duration (e.g., 1h, 5m). Used with <code>by</code>.</td>
+                                <td><code>... | count() by every(1h)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>type A = B</code> or <code>const X = Y</code></td>
+                                <td>Defines a custom type alias or a constant for use in the query.</td>
+                                <td><code>type ip_addr = ip<br>const suspicious_ip = 10.0.0.5<br>... | where src_ip == suspicious_ip</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>fuse</code></td>
+                                <td>Merges records with varying fields into a consistent schema, adding nulls where fields are missing.</td>
+                                <td><code>... | fuse</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>shape(this, &lt;type_def&gt;)</code></td>
+                                <td>Shapes input data to conform to a target type definition. Combines casting, filling missing fields, and reordering.</td>
+                                <td><code>... | shape(this, &lt;{ts:time,id:string,val:float64}&gt;)</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>typeof(field)</code></td>
+                                <td>Returns the data type of a field. Useful for inspection or conditional logic.</td>
+                                <td><code>... | where typeof(status_code) == &lt;string&gt;</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>over [array_field] => (sub_query)</code></td>
+                                <td>Processes each element of an array or values in a record individually.</td>
+                                <td><code>... | over user_roles => (where this == "admin")</code></td>
+                            </tr>
+                             <tr>
+                                <td><code>parse_uri(url_field)</code></td>
+                                <td>Parses a URL string into a structured record with components like scheme, host, path, query.</td>
+                                <td><code>... | put parsed_url := parse_uri(request_url) | where parsed_url.host == "example.com"</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>strftime("%Y-%m-%d", ts_field)</code></td>
+                                <td>Formats a timestamp field into a string based on the specified format.</td>
+                                <td><code>... | put day := strftime("%Y-%m-%d", event_time)</code></td>
+                            </tr>
+                             <tr>
+                                <td><code>len(field)</code></td>
+                                <td>Returns the length of a string, bytes, array, set, or number of fields in a record.</td>
+                                <td><code>... | where len(user_agent) > 100</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="wasm_exec.js"></script>
     <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="script.js"></script>
 </body>

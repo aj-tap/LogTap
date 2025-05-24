@@ -107,5 +107,28 @@ async function deleteData(key) {
     });
 }
 
-export { saveData, getData, deleteData, openDB };
+async function getDataAsStream(key) {
+    const fullData = await getData(key); // Assumes getData(key) returns the full string
+    if (typeof fullData === 'undefined') {
+      throw new Error(`Data not found in IndexedDB for key: ${key}`);
+    }
+  
+    let position = 0;
+    const chunkSize = 16 * 1024; // 16KB chunks
+  
+    return new ReadableStream({
+      pull(controller) {
+        if (position >= fullData.length) {
+          controller.close();
+          return;
+        }
+  
+        const chunk = fullData.substring(position, position + chunkSize);
+        controller.enqueue(new TextEncoder().encode(chunk));
+        position += chunkSize;
+      }
+    });
+  }
+
+export { saveData, getData, deleteData, openDB, getDataAsStream };
 

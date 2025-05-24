@@ -64,6 +64,15 @@ export class SuperDB {
   }
 
   /**
+   * Executes a batch of queries concurrently.
+   * @param {Array<Object>} batchOpts - An array of query options.
+   * @returns {Promise<any[]>} A promise that resolves to an array of results.
+   */
+  zqBatch(batchOpts) {
+    return this.instance.zqBatch(batchOpts);
+  }
+
+  /**
    * Parses the given query string and returns the result.
    * @param {string} query - The query string to parse.
    * @returns {any} The parsed result.
