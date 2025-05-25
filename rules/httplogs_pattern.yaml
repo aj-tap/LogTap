@@ -1,0 +1,213 @@
+rules:
+  # Suspicious Request Methods
+  - name: "Detect_HTTP_Method_CONNECT"
+    query: "grep(/\"[Cc][Oo][Nn][Nn][Ee][Cc][Tt]\\s+[^\\s\"]+\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+  - name: "Detect_HTTP_Method_TRACE"
+    query: "grep(/\"[Tt][Rr][Aa][Cc][Ee]\\s+[^\\s\"]+\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+  - name: "Detect_HTTP_Method_PUT_Generic" # May be legitimate, check context
+    query: "grep(/\"[Pp][Uu][Tt]\\s+[^\\s\"]+\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+  - name: "Detect_HTTP_Method_DELETE_Generic" # May be legitimate, check context
+    query: "grep(/\"[Dd][Ee][Ll][Ee][Tt][Ee]\\s+[^\\s\"]+\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+  - name: "Detect_HTTP_Method_OPTIONS_Generic" # Often used in probing
+    query: "grep(/\"[Oo][Pp][Tt][Ii][Oo][Nn][Ss]\\s+[^\\s\"]+\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+  - name: "Detect_HTTP_POST_To_Static_JS"
+    query: "grep(/\"[Pp][Oo][Ss][Tt]\\s+[^\\s\"]*\\.[Jj][Ss][^\\s\"]*\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+  - name: "Detect_HTTP_POST_To_Static_CSS"
+    query: "grep(/\"[Pp][Oo][Ss][Tt]\\s+[^\\s\"]*\\.[Cc][Ss][Ss][^\\s\"]*\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+  - name: "Detect_HTTP_POST_To_Static_Image" # e.g. .jpg, .png, .gif
+    query: "grep(/\"[Pp][Oo][Ss][Tt]\\s+[^\\s\"]*\\.(?:[Jj][Pp][Gg]|[Jj][Pp][Ee][Gg]|[Pp][Nn][Gg]|[Gg][Ii][Ff]|[Bb][Mm][Pp])\\b[^\\s\"]*\\s+[Hh][Tt][Tt][Pp]\\//, this)"
+
+  # Anomalous URIs & Query Parameters - Common Web Attacks
+  - name: "Detect_HTTP_URI_SQLi_UnionSelect"
+    query: "grep(/[Uu][Nn][Ii][Oo][Nn]\\s+[Ss][Ee][Ll][Ee][Cc][Tt]/, this)"
+  - name: "Detect_HTTP_URI_SQLi_SingleQuote_OR_1equals1"
+    query: "grep(/'\\s*[Oo][Rr]\\s+'1'\\s*=\\s*'1'/, this)"
+  - name: "Detect_HTTP_URI_SQLi_SingleQuote_Comment"
+    query: "grep(/'\\s*--/, this)"
+  - name: "Detect_HTTP_URI_SQLi_Exec_Keyword"
+    query: "grep(/\\b[Ee][Xx][Ee][Cc]\\s*\\(/, this)"
+  - name: "Detect_HTTP_URI_SQLi_Sleep_Keyword"
+    query: "grep(/\\b[Ss][Ll][Ee][Ee][Pp]\\s*\\(/, this)"
+  - name: "Detect_HTTP_URI_SQLi_Benchmark_Keyword"
+    query: "grep(/\\b[Bb][Ee][Nn][Cc][Hh][Mm][Aa][Rr][Kk]\\s*\\(/, this)"
+  - name: "Detect_HTTP_URI_SQLi_xp_cmdshell"
+    query: "grep(/[Xx][Pp]_[Cc][Mm][Dd][Ss][Hh][Ee][Ll][Ll]/, this)"
+  - name: "Detect_HTTP_URI_LFI_EtcPasswd"
+    query: "grep(/[Ee][Tt][Cc]\\/[Pp][Aa][Ss][Ss][Ww][Dd]/, this)"
+  - name: "Detect_HTTP_URI_LFI_DirectoryTraversal_Dotslash"
+    query: "grep(/\\.\\.\\\//, this)" # Basic traversal
+  - name: "Detect_HTTP_URI_LFI_DirectoryTraversal_Dotslash_Encoded" # %2e%2e%2f
+    query: "grep(/(?:%2[Ee]){2}%2[Ff]/, this)"
+  - name: "Detect_HTTP_URI_LFI_DirectoryTraversal_DotBackslash_Encoded" # %2e%2e%5c
+    query: "grep(/(?:%2[Ee]){2}%5[Cc]/, this)"
+  - name: "Detect_HTTP_URI_XSS_Script_Tag"
+    query: "grep(/<[Ss][Cc][Rr][Ii][Pp][Tt]>/, this)"
+  - name: "Detect_HTTP_URI_XSS_Script_Tag_Encoded" # %3cscript%3e
+    query: "grep(/%3[Cc][Ss][Cc][Rr][Ii][Pp][Tt]%3[Ee]/, this)"
+  - name: "Detect_HTTP_URI_XSS_OnError_Event"
+    query: "grep(/[Oo][Nn][Ee][Rr][Rr][Oo][Rr]\\s*=/, this)"
+  - name: "Detect_HTTP_URI_XSS_OnLoad_Event"
+    query: "grep(/[Oo][Nn][Ll][Oo][Aa][Dd]\\s*=/, this)"
+  - name: "Detect_HTTP_URI_XSS_Img_Src_JS"
+    query: "grep(/<[Ii][Mm][Gg]\\s+[Ss][Rr][Cc]\\s*=\\s*[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]:/, this)"
+  - name: "Detect_HTTP_URI_CmdInjection_Semicolon_Cmd"
+    query: "grep(/;\\s*(?:[Ll][Ss]|[Cc][Aa][Tt]|[Ww][Hh][Oo][Aa][Mm][Ii]|[Ii][Dd])\\b/, this)"
+  - name: "Detect_HTTP_URI_CmdInjection_Pipe_Cmd"
+    query: "grep(/\\|\\s*(?:[Ll][Ss]|[Cc][Aa][Tt]|[Ww][Hh][Oo][Aa][Mm][Ii]|[Ii][Dd])\\b/, this)"
+  - name: "Detect_HTTP_URI_CmdInjection_Backtick_Cmd"
+    query: "grep(/`\\s*(?:[Ll][Ss]|[Cc][Aa][Tt]|[Ww][Hh][Oo][Aa][Mm][Ii]|[Ii][Dd])\\s*`/, this)"
+  - name: "Detect_HTTP_URI_Param_Cmd_Equals"
+    query: "grep(/[?&][Cc][Mm][Dd]=/, this)"
+  - name: "Detect_HTTP_URI_Param_Exec_Equals"
+    query: "grep(/[?&][Ee][Xx][Ee][Cc]=/, this)"
+  - name: "Detect_HTTP_URI_Param_Query_Equals"
+    query: "grep(/[?&][Qq][Uu][Ee][Rr][Yy]=/, this)"
+  - name: "Detect_HTTP_URI_Param_Command_Equals"
+    query: "grep(/[?&][Cc][Oo][Mm][Mm][Aa][Nn][Dd]=/, this)"
+  - name: "Detect_HTTP_URI_Param_Payload_Equals"
+    query: "grep(/[?&][Pp][Aa][Yy][Ll][Oo][Aa][Dd]=/, this)"
+  - name: "Detect_HTTP_URI_Param_Input_Equals"
+    query: "grep(/[?&][Ii][Nn][Pp][Uu][Tt]=/, this)"
+  - name: "Detect_HTTP_URI_Base64_Encoded_Param" # Looks for long Base64 strings in params
+    query: "grep(/[?&][^=]+=(?:[A-Za-z0-9+\\/]{4}){8,}(?:[A-Za-z0-9+\\/]{2}==|[A-Za-z0-9+\\/]{3}=)?/, this)"
+  - name: "Detect_HTTP_URI_Long_Query_String" # Example: > 200 chars after ?
+    query: "grep(/\\?[^\\s\"]{200,}/, this)"
+  - name: "Detect_HTTP_URI_Keyword_Shell"
+    query: "grep(/[Ss][Hh][Ee][Ll][Ll]/, this)"
+  - name: "Detect_HTTP_URI_Keyword_Upload"
+    query: "grep(/[Uu][Pp][Ll][Oo][Aa][Dd]/, this)"
+  - name: "Detect_HTTP_URI_Keyword_Download"
+    query: "grep(/[Dd][Oo][Ww][Nn][Ll][Oo][Aa][Dd]/, this)"
+  - name: "Detect_HTTP_URI_Keyword_PharWrapper" # PHP Phar Deserialization
+    query: "grep(/[Pp][Hh][Aa][Rr]:\\/\\//, this)"
+
+  # Anomalous URIs - Scanning & Probing
+  - name: "Detect_HTTP_URI_Path_Admin"
+    query: "grep(/\\/[Aa][Dd][Mm][Ii][Nn](?:[\\/_]|$)/, this)"
+  - name: "Detect_HTTP_URI_Path_Login"
+    query: "grep(/\\/[Ll][Oo][Gg][Ii][Nn](?:[\\/_\\.]|$)/, this)"
+  - name: "Detect_HTTP_URI_Path_PhpMyAdmin"
+    query: "grep(/\\/[Pp][Hh][Pp][Mm][Yy][Aa][Dd][Mm][Ii][Nn]\\//, this)"
+  - name: "Detect_HTTP_URI_Path_WordpressAdmin"
+    query: "grep(/\\/[Ww][Pp]-[Aa][Dd][Mm][Ii][Nn]\\//, this)"
+  - name: "Detect_HTTP_URI_Path_WordpressLogin"
+    query: "grep(/\\/[Ww][Pp]-[Ll][Oo][Gg][Ii][Nn]\\.[Pp][Hh][Pp]/, this)"
+  - name: "Detect_HTTP_URI_Path_EnvFile"
+    query: "grep(/\\/\\.[Ee][Nn][Vv]\\b/, this)"
+  - name: "Detect_HTTP_URI_Path_GitConfig"
+    query: "grep(/\\/\\.git\\/[Cc][Oo][Nn][Ff][Ii][Gg]/, this)"
+  - name: "Detect_HTTP_URI_Path_SvnEntries"
+    query: "grep(/\\/\\.svn\\/[Ee][Nn][Tt][Rr][Ii][Ee][Ss]/, this)"
+  - name: "Detect_HTTP_URI_Path_DSStore"
+    query: "grep(/\\/\\.DS_Store\\b/, this)"
+  - name: "Detect_HTTP_URI_FileExt_Bak"
+    query: "grep(/\\.[Bb][Aa][Kk]\\b/, this)"
+  - name: "Detect_HTTP_URI_FileExt_Old"
+    query: "grep(/\\.[Oo][Ll][Dd]\\b/, this)"
+  - name: "Detect_HTTP_URI_FileExt_Sql"
+    query: "grep(/\\.[Ss][Qq][Ll]\\b/, this)"
+  - name: "Detect_HTTP_URI_FileExt_Zip"
+    query: "grep(/\\.[Zz][Ii][Pp]\\b/, this)"
+  - name: "Detect_HTTP_URI_FileExt_TarGz"
+    query: "grep(/\\.[Tt][Aa][Rr]\\.[Gg][Zz]\\b/, this)"
+  - name: "Detect_HTTP_URI_FileExt_Log"
+    query: "grep(/\\.[Ll][Oo][Gg]\\b/, this)"
+  - name: "Detect_HTTP_URI_FileExt_Txt_Sensitive" # E.g. passwords.txt, config.txt
+    query: "grep(/(?:[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd][Ss]?|[Cc][Oo][Nn][Ff][Ii][Gg]|[Ss][Ee][Cc][Rr][Ee][Tt][Ss]?)\\.[Tt][Xx][Tt]/, this)"
+  - name: "Detect_HTTP_URI_Path_CgiBin"
+    query: "grep(/\\/[Cc][Gg][Ii]-[Bb][Ii][Nn]\\//, this)"
+  - name: "Detect_HTTP_URI_Path_Jenkins"
+    query: "grep(/\\/[Jj][Ee][Nn][Kk][Ii][Nn][Ss]\\//, this)"
+  - name: "Detect_HTTP_URI_Path_TomcatManager"
+    query: "grep(/\\/[Mm][Aa][Nn][Aa][Gg][Ee][Rr]\\/[Hh][Tt][Mm][Ll]/, this)" # Tomcat
+
+  # Suspicious User-Agents
+  - name: "Detect_HTTP_UA_Missing" # Assumes UA is the last quoted field or specifically missing
+    query: "grep(/\"\\s*\"\\s*$/, this)" # Matches empty User-Agent " " at end of log line
+  - name: "Detect_HTTP_UA_Sqlmap"
+    query: "grep(/[Ss][Qq][Ll][Mm][Aa][Pp]/, this)" # In User-Agent field
+  - name: "Detect_HTTP_UA_Nmap_Scripting_Engine"
+    query: "grep(/[Nn][Mm][Aa][Pp]\\s+[Ss][Cc][Rr][Ii][Pp][Tt][Ii][Nn][Gg]\\s+[Ee][Nn][Gg][Ii][Nn][Ee]/, this)"
+  - name: "Detect_HTTP_UA_Nmap_Version_Detection"
+    query: "grep(/[Nn][Mm][Aa][Pp]\\s+[Vv][Ee][Rr][Ss][Ii][Oo][Nn]\\s+[Dd][Ee][Tt][Ee][Cc][Tt][Ii][Oo][Nn]/, this)"
+  - name: "Detect_HTTP_UA_Nikto"
+    query: "grep(/[Nn][Ii][Kk][Tt][Oo]/, this)"
+  - name: "Detect_HTTP_UA_Curl" # Can be legitimate, check context
+    query: "grep(/[Cc][Uu][Rr][Ll]\\//, this)"
+  - name: "Detect_HTTP_UA_Wget" # Can be legitimate, check context
+    query: "grep(/[Ww][Gg][Ee][Tt]\\//, this)"
+  - name: "Detect_HTTP_UA_PythonRequests" # Can be legitimate
+    query: "grep(/[Pp][Yy][Tt][Hh][Oo][Nn]-[Rr][Ee][Qq][Uu][Ee][Ss][Tt][Ss]\\//, this)"
+  - name: "Detect_HTTP_UA_PythonUrllib" # Can be legitimate
+    query: "grep(/[Pp][Yy][Tt][Hh][Oo][Nn]-[Uu][Rr][Ll][Ll][Ii][Bb]\\//, this)"
+  - name: "Detect_HTTP_UA_Java" # Can be legitimate
+    query: "grep(/[Jj][Aa][Vv][Aa]\\//, this)"
+  - name: "Detect_HTTP_UA_GoHttpClient" # Can be legitimate
+    query: "grep(/[Gg][Oo]-[Hh][Tt][Tt][Pp]-[Cc][Ll][Ii][Ee][Nn][Tt]\\//, this)"
+  - name: "Detect_HTTP_UA_PowerShell" # Often suspicious for external web server
+    query: "grep(/[Pp][Oo][Ww][Ee][Rr][Ss][Hh][Ee][Ll][Ll]/, this)"
+  - name: "Detect_HTTP_UA_HTTrack"
+    query: "grep(/[Hh][Tt][Tt][Rr][Aa][Cc][Kk]/, this)"
+  - name: "Detect_HTTP_UA_Dirb"
+    query: "grep(/[Dd][Ii][Rr][Bb]\\//, this)"
+  - name: "Detect_HTTP_UA_Dirbuster"
+    query: "grep(/[Dd][Ii][Rr][Bb][Uu][Ss][Tt][Ee][Rr]/, this)"
+  - name: "Detect_HTTP_UA_Gobuster"
+    query: "grep(/[Gg][Oo][Bb][Uu][Ss][Tt][Ee][Rr]/, this)"
+  - name: "Detect_HTTP_UA_Feroxbuster"
+    query: "grep(/[Ff][Ee][Rr][Oo][Xx][Bb][Uu][Ss][Tt][Ee][Rr]/, this)"
+  - name: "Detect_HTTP_UA_Metasploit"
+    query: "grep(/[Mm][Ee][Tt][Aa][Ss][Pp][Ll][Oo][Ii][Tt]/, this)"
+  - name: "Detect_HTTP_UA_Havij"
+    query: "grep(/[Hh][Aa][Vv][Ii][Jj]/, this)"
+  - name: "Detect_HTTP_UA_LibwwwPerl"
+    query: "grep(/[Ll][Ii][Bb][Ww][Ww][Ww]-[Pp][Ee][Rr][Ll]/, this)"
+  - name: "Detect_HTTP_UA_Morfeus" # Morfeus Scanner
+    query: "grep(/[Mm][Oo][Rr][Ff][Ee][Uu][Ss]\\s[Nn][Ee][Tt][Ww][Oo][Rr][Kk]\\s[Ss][Cc][Aa][Nn][Nn][Ee][Rr]/, this)"
+  - name: "Detect_HTTP_UA_ZGrab"
+    query: "grep(/[Zz][Gg][Rr][Aa][Bb]/, this)"
+  - name: "Detect_HTTP_UA_Masscan"
+    query: "grep(/[Mm][Aa][Ss][Ss][Cc][Aa][Nn]/, this)"
+
+  # Suspicious Status Codes (Context is key, these are just flags)
+  # These rules typically need aggregation in a SIEM. Simple grep is for presence.
+  - name: "Detect_HTTP_Status_400_BadRequest"
+    query: "grep(/\"\\s+400\\s+/, this)"
+  - name: "Detect_HTTP_Status_401_Unauthorized"
+    query: "grep(/\"\\s+401\\s+/, this)"
+  - name: "Detect_HTTP_Status_403_Forbidden"
+    query: "grep(/\"\\s+403\\s+/, this)"
+  - name: "Detect_HTTP_Status_404_NotFound"
+    query: "grep(/\"\\s+404\\s+/, this)"
+  - name: "Detect_HTTP_Status_405_MethodNotAllowed"
+    query: "grep(/\"\\s+405\\s+/, this)"
+  - name: "Detect_HTTP_Status_500_InternalServerError"
+    query: "grep(/\"\\s+500\\s+/, this)"
+  - name: "Detect_HTTP_Status_502_BadGateway"
+    query: "grep(/\"\\s+502\\s+/, this)"
+  - name: "Detect_HTTP_Status_503_ServiceUnavailable"
+    query: "grep(/\"\\s+503\\s+/, this)"
+
+  # Suspicious Headers (Harder to grep generically without field parsing)
+  # These are conceptual; actual implementation depends on log format and grep capabilities.
+  # Assuming header might appear in the log line if verbose logging is on.
+  - name: "Detect_HTTP_Header_XC2Beacon"
+    query: "grep(/[Xx]-[Cc]2-[Bb][Ee][Aa][Cc][Oo][Nn]:/, this)"
+  - name: "Detect_HTTP_Header_XShellCmd"
+    query: "grep(/[Xx]-[Ss][Hh][Ee][Ll][Ll]-[Cc][Mm][Dd]:/, this)"
+  - name: "Detect_HTTP_Header_Authorization_Basic_CommonDecoded" # e.g. admin:admin -> Basic YWRtaW46YWRtaW4=
+    query: "grep(/[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]:\\s+[Bb][Aa][Ss][Ii][Cc]\\s+(?:[YWRtaW46YWRtaW4=]|[Rr][Oo][Oo][TdDoxcm9vdA==])/, this)"
+  - name: "Detect_HTTP_Header_ContentType_OctetStream_To_Script" # e.g. POSTing binary to .php
+    query: "grep(/\"[Pp][Oo][Ss][Tt]\\s+[^\\s\"]*\\.(?:[Pp][Hh][Pp]|[Aa][Ss][Pp][Xx]?|[Jj][Ss][Pp])\\b[^\\s\"]*\\s+[Hh][Tt][Tt][Pp]\\/[^\\s\"]*\"\\s+\\d{3}\\s+\\d+\\s+\"[^\\s\"]*\"\\s+\"[^\\s\"]*\"\\s+.*[Cc][Oo][Nn][Tt][Ee][Nn][Tt]-[Tt][Yy][Pp][Ee]:\\s*[Aa][Pp][Pp][Ll][Ii][Cc][Aa][Tt][Ii][Oo][Nn]\\/[Oo][Cc][Tt][Ee][Tt]-[Ss][Tt][Rr][Ee][Aa][Mm]/, this)"
+
+  # Common C2 URI Paths (Some overlap with C2 keyword rules, but specific to HTTP context)
+  - name: "Detect_HTTP_URI_Path_C2_Gate_PHP"
+    query: "grep(/\\/[Gg][Aa][Tt][Ee]\\.[Pp][Hh][Pp]/, this)"
+  - name: "Detect_HTTP_URI_Path_C2_Admin_Get_PHP"
+    query: "grep(/\\/[Aa][Dd][Mm][Ii][Nn]\\/[Gg][Ee][Tt]\\.[Pp][Hh][Pp]/, this)"
+  - name: "Detect_HTTP_URI_Path_C2_Login_Process_PHP"
+    query: "grep(/\\/[Ll][Oo][Gg][Ii][Nn]_[Pp][Rr][Oo][Cc][Ee][Ss][Ss]\\.[Pp][Hh][Pp]/, this)"
+  - name: "Detect_HTTP_URI_Path_C2_Invoke_Command"
+    query: "grep(/\\/[Ii][Nn][Vv][Oo][Kk][Ee]-[Cc][Oo][Mm][Mm][Aa][Nn][Dd]/, this)"
+  - name: "Detect_HTTP_URI_Path_C2_Beacon_ASPX"
+    query: "grep(/\\/[Bb][Ee][Aa][Cc][Oo][Nn]\\.[Aa][Ss][Pp][Xx]/, this)"

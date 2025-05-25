@@ -54,7 +54,9 @@ const dom = {
     addTabBtn: document.getElementById('addTabBtn'),
     cancelScanBtn: document.getElementById('cancelScanBtn'),
     scanProgress: document.getElementById('scanProgress'),
-    focusModeBtn: document.getElementById('focusModeBtn')
+    focusModeBtn: document.getElementById('focusModeBtn'),
+    rowDetailsModal: document.getElementById('rowDetailsModal'),
+    rowDetailsModalBody: document.getElementById('rowDetailsModalBody')
 };
 let superdbInstance = null;
 let tabsState = [];
@@ -65,6 +67,7 @@ let scannerWorker = null;
 const LARGE_DATA_THRESHOLD = 1 * 1024 * 1024;
 let goEvtx;
 let evtxWasmReady = false;
+let detailsModalInstance = null;
 
 const config = {
     inputFormats: [
@@ -465,6 +468,25 @@ function parseResultForTable(resultText, actualOutputFormat) {
         return null;
     }
 }
+function showRowDetails(row, columns) {
+    if (!detailsModalInstance || !dom.rowDetailsModalBody) return;
+
+    let content = '<dl class="row">';
+    // Start from index 1 to skip the "Details" button column itself
+    for (let i = 1; i < columns.length; i++) {
+        const columnName = columns[i].name;
+        // The 'row' object from gridjs contains cells, access data via `row.cells[i].data`
+        const cellData = row.cells[i] ? row.cells[i].data : '(empty)';
+        const escapedData = String(cellData).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        
+        content += `<dt class="col-sm-3 text-truncate">${columnName}</dt>`;
+        content += `<dd class="col-sm-9"><pre class="m-0" style="white-space: pre-wrap; word-break: break-all;"><code>${escapedData}</code></pre></dd>`;
+    }
+    content += '</dl>';
+
+    dom.rowDetailsModalBody.innerHTML = content;
+    detailsModalInstance.show();
+}
 function displayTableWithGridJs(parsedData, containerElement, tab) {
     if (tab.gridInstance) {
         try {
@@ -491,15 +513,35 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
 
     containerElement.innerHTML = '';
     containerElement.className = 'gridjs-dark-theme'; 
+    
     const gridColumns = headers.map(header => ({
         name: String(header),
         id: String(header).toLowerCase().replace(/\s+/g, '_')
     }));
+    
+    // Add the "Details" button column to the beginning
+    gridColumns.unshift({
+        name: 'Details',
+        id: '_details_button',
+        width: '80px',
+        sort: false,
+        formatter: (cell, row) => {
+            return gridjs.h('button', {
+                className: 'btn btn-sm btn-outline-info py-0 px-1',
+                title: 'Show row details',
+                onClick: () => showRowDetails(row, gridColumns)
+            }, gridjs.html('<i class="fa-solid fa-circle-info"></i>'));
+        }
+    });
+
+    // *** THIS IS THE FIX ***
+    // Prepend a null to each data row to match the new "Details" column
+    const dataWithPlaceholder = dataRows.map(row => [null, ...row]);
 
     try {
         tab.gridInstance = new gridjs.Grid({
             columns: gridColumns,
-            data: dataRows,
+            data: dataWithPlaceholder,
             search: {
                 debounceTimeout: 250
             },
@@ -649,9 +691,9 @@ function setupEventListeners() {
         const file = event.target.files[0];
         if (file) {
             const oldTabName = activeTab.name;
-            activeTab.name = file.name; 
+            activeTab.name = file.name;
             if (oldTabName !== activeTab.name) renderTabs();
-
+    
             if (file.name.toLowerCase().endsWith('.evtx')) {
                 if (!evtxWasmReady) {
                     showAppMessage("EVTX converter is not ready. Please try again.", "error", true);
@@ -664,9 +706,42 @@ function setupEventListeners() {
                         const evtxData = new Uint8Array(e.target.result);
                         const jsonResult = await goEvtxToJSON(evtxData);
                         await handleNewData(activeTab, jsonResult, file.name.replace(/\.evtx$/i, '.json'));
-                        activeTab.inputFormat = 'json'; 
+                        activeTab.inputFormat = 'json';
                         dom.inputFormatSelect.value = 'json';
                         showAppMessage("EVTX file successfully converted and loaded.", "success");
+    
+                        // --- BEGIN: Automatically apply the shaper ---
+                        showAppMessage("Automatically applying EVTX cleanup shaper...", 'info', true);
+                        try {
+                            const response = await fetch(`shapers/windows_evtx_json.yaml`);
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status} fetching windows_evtx_json.yaml`);
+                            }
+                            const yamlContent = await response.text();
+                            const selectedShaper = jsyaml.load(yamlContent);
+    
+                            if (!selectedShaper || !selectedShaper.query || !selectedShaper.inputFormat || !selectedShaper.outputFormat) {
+                                throw new Error(`Invalid shaper file format for windows_evtx_json.yaml.`);
+                            }
+    
+                            const result = await superdbInstance.run({
+                                query: selectedShaper.query,
+                                input: jsonResult,
+                                inputFormat: selectedShaper.inputFormat,
+                                outputFormat: selectedShaper.outputFormat
+                            });
+    
+                            await handleNewData(activeTab, result, `${activeTab.name} (Shaped)`);
+                            activeTab.inputFormat = selectedShaper.outputFormat;
+                            dom.inputFormatSelect.value = selectedShaper.outputFormat;
+                            activeTab.query = 'pass';
+                            dom.queryInput.value = 'pass';
+                            showAppMessage(`EVTX cleanup shaper applied successfully.`, 'success');
+                        } catch (error) {
+                            showAppMessage(`Error auto-applying shaper: ${error.message}`, 'error', true);
+                        }
+                        // --- END: Automatically apply the shaper ---
+    
                     } catch (error) {
                         showAppMessage(`Error converting EVTX file: ${error.message}`, 'error', true);
                     }
@@ -688,12 +763,14 @@ function setupEventListeners() {
                     showAppMessage(`Error reading data file: ${file.name}.`, 'error', true);
                     activeTab.dataSummary = "File load error.";
                     dom.fileNameDisplay.textContent = activeTab.dataSummary;
-                    activeTab.dataLocation = { type: 'error' };
+                    activeTab.dataLocation = {
+                        type: 'error'
+                    };
                 };
                 reader.readAsText(file);
             }
         }
-        dom.fileInput.value = ""; 
+        dom.fileInput.value = "";
     });
     dom.loadTestDataBtn.addEventListener('click', async () => {
         const activeTab = getActiveTabState();
@@ -1328,6 +1405,9 @@ async function initializeApp() {
              showAppMessage(`Failed to initialize local database: ${dbError}. Large file support disabled.`, 'warning', true);
         }
         await initializeEvtxWasm();
+        if (dom.rowDetailsModal && typeof bootstrap !== 'undefined') {
+            detailsModalInstance = new bootstrap.Modal(dom.rowDetailsModal);
+        }
         populateSelect(dom.inputFormatSelect, config.inputFormats, 'auto');
         populateSelect(dom.outputFormatSelect, config.outputFormats, 'zjson');
         await initializeShaperScriptsSelect();

@@ -1,0 +1,4 @@
+name: "Windows EVTX Json"
+query: "over this | yield {...this.Event.System, ...this.Event.EventData} | fuse"
+inputFormat: "json"
+outputFormat: "zjson"

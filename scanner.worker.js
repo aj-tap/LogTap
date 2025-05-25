@@ -43,7 +43,7 @@ async function runScan(dataPayload) {
     postMessage({ type: 'progress', processed: 0, total: rules.length });
 
     const isLargeDataFromDB = dataLocation && dataLocation.type === 'indexeddb' && dataLocation.key;
-    const CONCURRENCY_LIMIT = isLargeDataFromDB ? 50 : 100; 
+    const CONCURRENCY_LIMIT = isLargeDataFromDB ? 50 : 150; 
 
     const ruleChunks = [];
     for (let i = 0; i < rules.length; i += CONCURRENCY_LIMIT) {

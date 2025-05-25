@@ -1,13 +1,8 @@
-/* Base Layout & Theming */
 html,
 body {
     height: 100%;
     background-color: #111827;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-}
-
-body {
-    display: flex;
 }
 
 main {
@@ -25,10 +20,9 @@ main {
     padding: 1rem;
 }
 
-/* Sidebar */
 .sidebar {
-    width: 280px;
     background-color: #1a2433;
+    border-right: 1px solid #273344;
 }
 
 .sidebar-content {
@@ -41,21 +35,6 @@ main {
     padding-top: 0.5rem;
 }
 
-/* Responsive Layout with Bootstrap Breakpoints */
-@media (min-width: 992px) {
-    main {
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
-    .sidebar {
-        border-right: 1px solid #273344;
-        height: 100vh;
-    }
-}
-
-/* Focus Mode */
 body.focus-mode .control-panel,
 body.focus-mode .sidebar,
 body.focus-mode .control-panel-header {
@@ -67,8 +46,6 @@ body.focus-mode main {
     height: 100vh;
 }
 
-
-/* Custom Scrollbar Styling */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -93,8 +70,6 @@ body.focus-mode main {
     background: transparent;
 }
 
-
-/* Input/Text Areas */
 .io-area {
     font-family: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     font-size: 0.875rem;
@@ -113,7 +88,6 @@ body.focus-mode main {
     outline: none;
 }
 
-
 .gridjs-dark-theme .gridjs-wrapper {
     border-radius: var(--bs-border-radius);
     border: 1px solid #334155;
@@ -124,11 +98,10 @@ body.focus-mode main {
     color: #e0e0e0;
 }
 
-/* --- Shared Cell & Header Styles --- */
 .gridjs-dark-theme .gridjs-th,
 .gridjs-dark-theme .gridjs-td {
     padding: 0.75rem 1rem;
-    border: none; /* Reset all borders first */
+    border: none;
     border-bottom: 1px solid #273344;
     background-color: transparent;
     white-space: nowrap;
@@ -136,7 +109,6 @@ body.focus-mode main {
     text-overflow: ellipsis;
 }
 
-/* --- Header Specific Styles --- */
 .gridjs-dark-theme .gridjs-th {
     background-color: #273344;
     color: #f8f9fa;
@@ -144,14 +116,12 @@ body.focus-mode main {
     border-bottom-color: #475569; 
 }
 
-/* --- Cell Specific Styles --- */
 .gridjs-dark-theme .gridjs-td {
     color: #000000; 
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* --- Row States --- */
 .gridjs-dark-theme .gridjs-tr:hover .gridjs-td {
     background-color: inherit;
 }
@@ -164,7 +134,6 @@ body.focus-mode main {
     border-bottom: none;
 }
 
-/* --- Footer & Pagination --- */
 .gridjs-dark-theme .gridjs-footer {
     background-color: #1e293b;
     border-top: 1px solid #334155; 
@@ -191,13 +160,11 @@ body.focus-mode main {
     font-weight: 600;
 }
 
-/* --- Search Input --- */
 .gridjs-dark-theme .gridjs-input {
     background-color: #273344;
     border: 1px solid #475569;
     color: #e0e0e0;
     border-radius: var(--bs-border-radius);
-    /* Using outline for focus is more performant than box-shadow */
     outline-offset: 2px;
     outline: 2px solid transparent;
     transition: outline-color 0.15s ease-in-out;
@@ -206,10 +173,9 @@ body.focus-mode main {
 .gridjs-dark-theme .gridjs-input:focus {
     border-color: #38bdf8;
     outline-color: rgba(56, 189, 248, 0.4);
-    box-shadow: none; /* Remove the expensive box-shadow */
+    box-shadow: none;
 }
 
-/* --- Sorter Styles --- */
 .gridjs-dark-theme .gridjs-head button {
     color: #adb5bd;
 }
@@ -218,7 +184,6 @@ body.focus-mode main {
     color: #f8f9fa;
 }
 
-/* Sidebar Navigation & Buttons */
 .sidebar .nav-pills .nav-link {
     border-radius: var(--bs-border-radius);
     margin-bottom: 3px;
@@ -251,8 +216,6 @@ body.focus-mode main {
     color: #e0e0e0;
 }
 
-
-/* General Button Styling */
 .btn {
     border-width: 1px;
 }
@@ -271,8 +234,6 @@ body.focus-mode main {
     --bs-btn-active-border-color: var(--bs-danger);
 }
 
-
-/* Scanner Results */
 .scanner-hit-query code,
 .scanner-hit-result pre {
     background-color: rgba(0, 0, 0, 0.2);

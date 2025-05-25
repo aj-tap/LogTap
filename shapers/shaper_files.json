@@ -1,4 +1,5 @@
 [
-    "windows_evtx_to_csv.yaml",
-    "linux_syslog_to_csv.yaml"
+    "windows_evtx_json.yaml",
+    "Linux_syslog.yaml",
+    "microsoft_xdr.yaml"
 ]
