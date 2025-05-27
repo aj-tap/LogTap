@@ -69,6 +69,13 @@ const dom = {
     toggleGraphBtn: document.getElementById('toggleGraphBtn'),
     graphContainer: document.getElementById('graphContainer'),
     cyContainer: document.getElementById('cy'),
+    helpBtn: document.getElementById('helpBtn'),
+    tourOverlay: document.getElementById('tourOverlay'),
+    tourTooltip: document.getElementById('tourTooltip'),
+    tourContent: document.getElementById('tourContent'),
+    tourPrev: document.getElementById('tourPrev'),
+    tourNext: document.getElementById('tourNext'),
+    tourEnd: document.getElementById('tourEnd'),
 };
 
 let superdbInstance = null;
@@ -83,6 +90,39 @@ let evtxWasmReady = false;
 let detailsModalInstance = null;
 let timelineChartInstance = null;
 let cy = null; 
+let currentTourStep = 0;
+
+const tourSteps = [
+    {
+        element: '#dataInput',
+        content: '<strong>Data Source:</strong> This is where you can paste your raw log data. You can also upload files using the "Upload Data File" button below. The "Sample Data" button will load some sample Windows Event Log data for you to play with.'
+    },
+    {
+        element: '.col-12.col-md-6.col-xl-4:nth-child(2) > .p-3',
+        content: `<strong>Processing & Analysis:</strong> This section helps you prepare and analyze your data.
+                  <ul>
+                      <li><b>Input/Output Format:</b> Specify the format of your input data, or leave it as 'Auto-detect'. Choose the format for your exported results.</li>
+                      <li><b>Shaper Scripts:</b> These are powerful SuperSQL queries that transform and shape your data. Use them for cleaning messy logs, like removing spaces from field names, dropping unnecessary columns, or parsing unstructured data into a clean, usable format.</li>
+                      <li><b>Scanner Rules:</b> Load predefined or custom sets of rules (in YAML format) to automatically scan your data for specific patterns, threats, or interesting events.</li>
+                  </ul>`
+    },
+    {
+        element: '#queryInput',
+        content: '<strong>Search Query:</strong> Write your SuperSQL queries here. SuperSQL allows you to filter, aggregate, and transform your data. Check out the "Cheatsheet" for a quick reference on how to use it.'
+    },
+    {
+        element: '#runQueryBtn',
+        content: '<strong>Run Query:</strong> Once you have your data loaded and a query written, click this button to execute the query and see the results below.'
+    },
+    {
+        element: '#scannerResultsPanel',
+        content: '<strong>Scanner Hits:</strong> After running the scanner, any matches to your loaded rules will appear here. You can then pivot these results to a new tab for deeper investigation.'
+    },
+    {
+        element: '#tableResultOutputContainer',
+        content: '<strong>Query Results:</strong> Your query results will be displayed here. You can switch between a table view and a raw text view. You can also pivot the results to a new tab for further analysis.'
+    }
+];
 
 const config = {
     inputFormats: [
@@ -1040,6 +1080,11 @@ function setupEventListeners() {
             }
         });
     }
+
+    dom.helpBtn.addEventListener('click', startTour);
+    dom.tourNext.addEventListener('click', () => showTourStep(currentTourStep + 1));
+    dom.tourPrev.addEventListener('click', () => showTourStep(currentTourStep - 1));
+    dom.tourEnd.addEventListener('click', endTour);
 }
 
 async function runQueryHandler() {
@@ -1227,7 +1272,7 @@ function handleWorkerMessage(event) {
                         hitDiv.className = "mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0";
                         hitDiv.innerHTML = `
                             <div class="d-flex justify-content-between align-items-start">
-                                <strong class="text-info d-block mb-1 small me-3 text-truncate" title="Rule: ${hit.ruleName}">Hit for Rule: "${hit.ruleName}"</strong>
+                                <strong class="text-info d-block mb-1 small me-3 text-truncate" title="Rule: ${hit.ruleName}">"${hit.ruleName}"</strong>
                                 <div class="flex-shrink-0">
                                     <button class="btn btn-outline-primary btn-sm py-0 px-1 investigate-button"
                                             data-rule-query="${encodeURIComponent(hit.query)}"
@@ -1740,7 +1785,7 @@ function renderLateralMovementGraph(records) {
         const ip = rec.IpAddress || rec.WorkstationName || rec.Workstation || rec.Address || rec.param1; 
         const service = rec.ServiceName;
         const logonType = rec.LogonType;
-        let edgeLabel = `EID: ${eventId}`; // Default simplified label
+        let edgeLabel = `EID: ${eventId}`;
 
         switch(eventId) {
             case '4624': 
@@ -1749,7 +1794,7 @@ function renderLateralMovementGraph(records) {
                 addNode(computer, computer, 'computer');
                 addNode(user, user, 'user');
                 let logonClass4624 = 'logon-success';
-                if (logonType === '10') { // RDP
+                if (logonType === '10') {
                     logonClass4624 = 'rdp-success';
                 }
                 elements.push({
@@ -1965,6 +2010,50 @@ async function initializeEvtxWasm() {
         console.error("Failed to load or instantiate evtx-convert.wasm:", error);
         showAppMessage("Critical Error: EVTX converter WASM failed to load.", "error", true);
     }
+}
+
+function showTourStep(stepIndex) {
+    if (stepIndex < 0 || stepIndex >= tourSteps.length) {
+        endTour();
+        return;
+    }
+    const prevStep = tourSteps[currentTourStep];
+    const prevElement = document.querySelector(prevStep.element);
+    if (prevElement) {
+        prevElement.classList.remove('tour-highlight');
+    }
+
+    currentTourStep = stepIndex;
+    const step = tourSteps[stepIndex];
+    const element = document.querySelector(step.element);
+
+    if (element) {
+        element.classList.add('tour-highlight');
+        const rect = element.getBoundingClientRect();
+        dom.tourTooltip.style.display = 'block';
+        dom.tourContent.innerHTML = step.content;
+        const top = rect.bottom + 10;
+        const left = rect.left;
+        dom.tourTooltip.style.top = `${top}px`;
+        dom.tourTooltip.style.left = `${left}px`;
+    }
+    dom.tourPrev.disabled = stepIndex === 0;
+    dom.tourNext.textContent = stepIndex === tourSteps.length - 1 ? 'Finish' : 'Next';
+}
+
+function startTour() {
+    dom.tourOverlay.style.display = 'block';
+    showTourStep(0);
+}
+
+function endTour() {
+    const step = tourSteps[currentTourStep];
+    const element = document.querySelector(step.element);
+    if (element) {
+        element.classList.remove('tour-highlight');
+    }
+    dom.tourOverlay.style.display = 'none';
+    dom.tourTooltip.style.display = 'none';
 }
 
 async function initializeApp() {
