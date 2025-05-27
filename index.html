@@ -6,10 +6,14 @@
     <title>LogTap | Log Analysis</title>
     <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="vendor/gridjs/css/mermaid.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="style.css">
     <script src="vendor/gridjs/js/gridjs.umd.js"></script>
     <script src="vendor/js-yaml/js-yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="vendor/cytoscape/cytoscape.min.js"></script>
 </head>
 <body>
     <div class="container-fluid">
@@ -57,7 +61,7 @@
                                 <div>
                                     <label for="fileInput" class="form-label form-label-sm">Upload Data File (evtx, csv, txt, json)</label>
                                     <div class="input-group input-group-sm">
-                                        <input type="file" id="fileInput" class="form-control form-control-sm" accept=".csv,.json,.zjson,.log,.txt,.evtx"/>
+                                        <input type="file" id="fileInput" class="form-control form-control-sm" accept=".csv,.json,.zjson,.log,.txt,.evtx" multiple/>
                                         <button id="loadTestDataBtn" class="btn btn-outline-secondary" type="button" title="Load sample Windows Event Log data">Sample Data</button>
                                     </div>
                                     <div id="fileNameDisplay" class="form-text form-text-sm mt-1">No file loaded.</div>
@@ -147,16 +151,40 @@
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h2 class="fs-6 fw-semibold">Query Results</h2>
                             <div class="btn-group btn-group-sm" role="group" aria-label="Results Actions">
+                                 <button id="toggleTimelineBtn" class="btn btn-outline-secondary d-none" title="Toggle Timeline View"><i class="fa-solid fa-chart-line"></i> Timeline</button>
+                                 <button id="toggleGraphBtn" class="btn btn-outline-secondary d-none" title="Toggle Graph View"><i class="fa-solid fa-project-diagram"></i> Visualize</button>
                                  <button id="toggleViewBtn" class="btn btn-outline-secondary d-none">View Raw</button>
                                  <button id="pivotResultsBtn" class="btn btn-outline-info d-none">Pivot Results &raquo;</button>
-                                 <button id="focusModeBtn" class="btn btn-outline-secondary btn-sm"
-                                        data-bs-toggle="tooltip" data-bs-placement="top">
+                                 <button id="focusModeBtn" class="btn btn-outline-secondary btn-sm" title="Toggle Focus Mode" data-bs-toggle="tooltip" data-bs-placement="top">
                                     <i class="fa-solid fa-expand"></i>
                                 </button>
                             </div>
                         </div>
-                        <div id="tableResultOutputContainer" class="d-none">
+                        
+                        <div id="timelineContainer" class="p-3 border rounded border-secondary-subtle bg-dark shadow-sm mb-3 d-none">
+                            <div class="row g-2 align-items-center mb-3">
+                                <div class="col-md-5">
+                                    <label for="timelineFieldSelect" class="form-label form-label-sm">Timestamp Field</label>
+                                    <select id="timelineFieldSelect" class="form-select form-select-sm"></select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="timelineIntervalInput" class="form-label form-label-sm">Interval (e.g., 30s, 1h, 1d)</label>
+                                    <input type="text" id="timelineIntervalInput" class="form-control form-control-sm" value="1h">
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button id="generateTimelineBtn" class="btn btn-info btn-sm w-100">Generate Timeline</button>
+                                </div>
+                            </div>
+                            <div id="timelineChartWrapper" class="mt-2 d-none" style="height: 300px; position: relative;">
+                                 <canvas id="timelineChart"></canvas>
+                            </div>
+                             <div class="text-muted small mt-2">Drag on the chart to zoom. Double-click to reset zoom.</div>
                         </div>
+                        <div id="graphContainer" class="p-3 border rounded border-secondary-subtle bg-dark shadow-sm mb-3 d-none" style="height: 65vh; position: relative;">
+                            <div id="cy" style="width: 100%; height: 100%;"></div>
+                        </div>
+                        <div id="tableResultOutputContainer" class="d-none">
+                            </div>
                         <div id="textResultOutput" class="raw-output-wrapper border rounded bg-dark-subtle p-2 d-none">
                             <pre class="m-0 small"><code id="resultOutputCode" class="font-monospace" style="white-space: pre-wrap; word-break: break-all;"></code></pre>
                         </div>
@@ -170,6 +198,7 @@
             </main>
         </div>
     </div>
+
     <div class="modal fade" id="cheatsheetModal" tabindex="-1" aria-labelledby="cheatsheetModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
@@ -261,7 +290,7 @@
                             <tr>
                                 <td><code>every(duration)</code></td>
                                 <td>Buckets time-series data by a specified duration (e.g., 1h, 5m). Used with <code>by</code>.</td>
-                                <td><code>... | count() by every(1h)</code></td>
+                                <td><code>... | count() by every(1h) ts</code></td>
                             </tr>
                             <tr>
                                 <td><code>type A = B</code> or <code>const X = Y</code></td>
@@ -312,6 +341,7 @@
             </div>
         </div>
     </div>
+
     <div class="modal fade" id="rowDetailsModal" tabindex="-1" aria-labelledby="rowDetailsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
@@ -327,6 +357,7 @@
             </div>
         </div>
     </div>
+
     <script src="wasm_exec.js"></script>
     <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script type="module" src="script.js"></script>

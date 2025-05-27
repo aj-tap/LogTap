@@ -1,4 +1,4 @@
 name: "Windows EVTX Json"
-query: "over this | yield {...this.Event.System, ...this.Event.EventData} | fuse"
+query: "over this | yield {...this.Event.System, ...this.Event.EventData} | fuse | ts:=time(TimeCreated.SystemTime)"
 inputFormat: "json"
 outputFormat: "zjson"

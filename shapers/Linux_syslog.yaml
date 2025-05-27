@@ -1,4 +1,0 @@
-name: "Linux Syslog"
-query: "yield grok('%{SYSLOGTIMESTAMP:timestamp} %{HOSTNAME:hostname} %{GREEDYDATA:message}', this)"
-inputFormat: "line"
-outputFormat: "zjson"

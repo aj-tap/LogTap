@@ -1,4 +1,5 @@
 import { saveData, getData, deleteData, openDB, getDataAsStream } from './db.js';
+
 let SuperDB;
 try {
     SuperDB = (await import("./index.js")).SuperDB;
@@ -20,6 +21,7 @@ try {
         throw new Error("SuperDB Wasm module failed to load. App cannot start.");
     }
 }
+
 const dom = {
     sidebar: document.getElementById('sidebar'),
     queryInput: document.getElementById('queryInput'),
@@ -56,8 +58,19 @@ const dom = {
     scanProgress: document.getElementById('scanProgress'),
     focusModeBtn: document.getElementById('focusModeBtn'),
     rowDetailsModal: document.getElementById('rowDetailsModal'),
-    rowDetailsModalBody: document.getElementById('rowDetailsModalBody')
+    rowDetailsModalBody: document.getElementById('rowDetailsModalBody'),
+    timelineContainer: document.getElementById('timelineContainer'),
+    timelineFieldSelect: document.getElementById('timelineFieldSelect'),
+    timelineIntervalInput: document.getElementById('timelineIntervalInput'),
+    generateTimelineBtn: document.getElementById('generateTimelineBtn'),
+    timelineChartWrapper: document.getElementById('timelineChartWrapper'),
+    timelineChart: document.getElementById('timelineChart'),
+    toggleTimelineBtn: document.getElementById('toggleTimelineBtn'),
+    toggleGraphBtn: document.getElementById('toggleGraphBtn'),
+    graphContainer: document.getElementById('graphContainer'),
+    cyContainer: document.getElementById('cy'),
 };
+
 let superdbInstance = null;
 let tabsState = [];
 let activeTabId = null;
@@ -68,6 +81,8 @@ const LARGE_DATA_THRESHOLD = 1 * 1024 * 1024;
 let goEvtx;
 let evtxWasmReady = false;
 let detailsModalInstance = null;
+let timelineChartInstance = null;
+let cy = null; 
 
 const config = {
     inputFormats: [
@@ -81,6 +96,7 @@ const config = {
         { value: "tsv", text: "TSV" }, { value: "zson", text: "ZSON" }
     ]
 };
+
 function showAppMessage(message, type = 'info', isSticky = false) {
     if (!dom.statusMessage) return;
     dom.statusMessage.textContent = message;
@@ -99,9 +115,11 @@ function showAppMessage(message, type = 'info', isSticky = false) {
         }, 5000);
     }
 }
+
 function hideAppMessage() {
     if (dom.statusMessage) dom.statusMessage.classList.add('d-none');
 }
+
 function populateSelect(selectElement, options, selectedValue, valueKey = 'value', textKey = 'text') {
     if (!selectElement) return;
     selectElement.innerHTML = '';
@@ -113,20 +131,24 @@ function populateSelect(selectElement, options, selectedValue, valueKey = 'value
     });
     if (selectedValue !== undefined) selectElement.value = selectedValue;
 }
+
 function createNewTabState(nameSuffix = tabsState.length + 1) {
     const newTabId = `tab-${nextTabId++}`;
     return {
         id: newTabId, name: `Log ${nameSuffix}`, isActive: false,
-        rawData: null,
-        dataLocation: { type: 'empty' },
-        dataSummary: 'No data loaded.',
+        rawData: null, dataLocation: { type: 'empty' }, dataSummary: 'No data loaded.',
         query: "pass", inputFormat: "auto", outputFormat: "zjson",
         currentRawOutput: null, gridInstance: null,
         scannerRules: [], scannerRuleFileName: "No scanner rules loaded.",
         predefinedRulesSelectValue: "", scannerHitsHTML: "",
+        timelineVisible: false, selectedTimelineField: '', timelineInterval: '1h',
+        timelineChartDataCache: null,
+        graphVisible: false,
     };
 }
+
 function renderTabs() {
+    if (!dom.logTabsContainer) return;
     dom.logTabsContainer.innerHTML = '';
     tabsState.forEach(tab => {
         const navLink = document.createElement('button');
@@ -155,9 +177,11 @@ function renderTabs() {
         dom.logTabsContainer.appendChild(navLink);
     });
 }
+
 function getActiveTabState() {
     return tabsState.find(tab => tab.id === activeTabId);
 }
+
 function updateResultDisplay(tab) {
     if (!tab) return;
     dom.tableResultOutputContainer.classList.add('d-none');
@@ -165,10 +189,16 @@ function updateResultDisplay(tab) {
     dom.noResultsMessage.classList.add('d-none');
     dom.toggleViewBtn.classList.add('d-none');
     dom.pivotResultsBtn.classList.add('d-none');
+    dom.toggleGraphBtn.classList.add('d-none');
     dom.exportBtn.disabled = true;
     const viewRawText = "View Raw";
     const viewTableText = "View Table";
     const hasResults = tab.currentRawOutput && tab.currentRawOutput.trim() !== "";
+
+    if (hasResults) {
+        dom.toggleGraphBtn.classList.remove('d-none');
+    }
+
     if (tab.gridInstance) {
         dom.tableResultOutputContainer.classList.remove('d-none');
         dom.toggleViewBtn.textContent = viewRawText;
@@ -188,7 +218,29 @@ function updateResultDisplay(tab) {
     } else {
         dom.noResultsMessage.classList.remove('d-none');
     }
+    const hasGridResults = !!tab.gridInstance;
+    updateTimelineToggleButton(tab);
+    if (!hasGridResults && tab.timelineVisible) {
+        tab.timelineVisible = false;
+        dom.timelineContainer.classList.add('d-none');
+        if (timelineChartInstance && activeTabId === tab.id) {
+            timelineChartInstance.destroy();
+            timelineChartInstance = null;
+        }
+        tab.timelineChartDataCache = null;
+    } else if (hasGridResults) {
+        populateTimelineFieldSelect(tab);
+        if (tab.timelineVisible && tab.timelineChartDataCache) {
+             renderTimelineChart(tab, tab.timelineChartDataCache.labels, tab.timelineChartDataCache.datasets);
+        } else if (tab.timelineVisible && !tab.timelineChartDataCache) {
+            dom.timelineChartWrapper.classList.add('d-none');
+        }
+    }
+     dom.timelineContainer.classList.toggle('d-none', !tab.timelineVisible || !hasGridResults);
+     updateGraphToggleButton(tab);
+     dom.graphContainer.classList.toggle('d-none', !tab.graphVisible);
 }
+
 async function loadTabData(tabId) {
     const tab = tabsState.find(t => t.id === tabId);
     if (!tab) { return; }
@@ -202,7 +254,6 @@ async function loadTabData(tabId) {
     populateSelect(dom.outputFormatSelect, config.outputFormats, tab.outputFormat);
     dom.fileNameDisplay.textContent = tab.dataSummary;
     dom.scannerRuleFileNameDisplay.textContent = tab.scannerRuleFileName;
-
     if (dom.predefinedRulesSelect.options.length <= 1 && dom.predefinedRulesSelect.firstChild?.value === "") {
         await initializePredefinedRulesSelect(tab.predefinedRulesSelectValue);
     } else {
@@ -211,7 +262,6 @@ async function loadTabData(tabId) {
     dom.resultOutputCode.textContent = '';
     if (tab.gridInstance) { try { tab.gridInstance.destroy(); tab.gridInstance = null; } catch(e) {} }
     dom.tableResultOutputContainer.innerHTML = '';
-    updateResultDisplay(tab);
     dom.scannerHitsOutput.innerHTML = tab.scannerHitsHTML || '';
     const hasHits = tab.scannerHitsHTML && tab.scannerHitsHTML.trim() !== '';
     dom.scannerResultsPanel.classList.remove('d-none'); 
@@ -219,7 +269,23 @@ async function loadTabData(tabId) {
     dom.noScannerHitsMessage.classList.toggle('d-none', hasHits); 
     const hasData = tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb';
     dom.runScannerBtn.disabled = !(tab.scannerRules && tab.scannerRules.length > 0 && superdbInstance && hasData);
+    dom.timelineIntervalInput.value = tab.timelineInterval;
+    if (tab.gridInstance) {
+        populateTimelineFieldSelect(tab);
+    } else {
+        dom.timelineFieldSelect.innerHTML = '<option value="">Run query for table results</option>';
+    }
+    if (timelineChartInstance && activeTabId !== tab.id) {
+        timelineChartInstance.destroy();
+        timelineChartInstance = null;
+    }
+    if (cy && activeTabId !== tab.id) {
+        cy.destroy();
+        cy = null;
+    }
+    updateResultDisplay(tab);
 }
+
 function saveActiveTabData() {
     const activeTab = getActiveTabState();
     if (!activeTab) return;
@@ -230,7 +296,12 @@ function saveActiveTabData() {
     activeTab.inputFormat = dom.inputFormatSelect.value;
     activeTab.outputFormat = dom.outputFormatSelect.value;
     activeTab.predefinedRulesSelectValue = dom.predefinedRulesSelect.value;
+    activeTab.timelineVisible = !dom.timelineContainer.classList.contains('d-none');
+    activeTab.graphVisible = !dom.graphContainer.classList.contains('d-none');
+    activeTab.selectedTimelineField = dom.timelineFieldSelect.value;
+    activeTab.timelineInterval = dom.timelineIntervalInput.value;
 }
+
 async function switchTab(tabId) {
     if (activeTabId === tabId && tabsState.find(t => t.id === tabId && t.isActive)) return;
     if(activeTabId) saveActiveTabData();
@@ -239,6 +310,7 @@ async function switchTab(tabId) {
     renderTabs();
     await loadTabData(tabId);
 }
+
 function addTab() {
     if(activeTabId) saveActiveTabData();
     const newTab = createNewTabState();
@@ -249,6 +321,7 @@ function addTab() {
     }
     return newTab;
 }
+
 async function closeTab(tabIdToClose) {
     if (tabsState.length <= 1) {
         showAppMessage("Cannot close the last tab.", "warning");
@@ -258,14 +331,19 @@ async function closeTab(tabIdToClose) {
     if (tabIndex === -1) return;
     const tabToClose = tabsState[tabIndex];
     if (tabToClose.dataLocation?.type === 'indexeddb' && tabToClose.dataLocation.key) {
-        try {
-            await deleteData(tabToClose.dataLocation.key);
-        } catch (dbError) {
-            showAppMessage(`Error deleting stored data for closed tab: ${dbError.message}`, 'error');
-        }
+        try { await deleteData(tabToClose.dataLocation.key); } 
+        catch (dbError) { showAppMessage(`Error deleting stored data for closed tab: ${dbError.message}`, 'error'); }
     }
     if (tabToClose.gridInstance) {
         try { tabToClose.gridInstance.destroy(); } catch(e) { }
+    }
+    if (timelineChartInstance && activeTabId === tabIdToClose) {
+        timelineChartInstance.destroy();
+        timelineChartInstance = null;
+    }
+    if (cy && activeTabId === tabIdToClose) {
+        cy.destroy();
+        cy = null;
     }
     tabsState.splice(tabIndex, 1);
     if (scannerWorker && scannerWorker.tabId === tabIdToClose) {
@@ -283,6 +361,7 @@ async function closeTab(tabIdToClose) {
         renderTabs();
     }
 }
+
 function loadQueryHistory() {
     const history = JSON.parse(localStorage.getItem('zqQueryHistory') || '[]');
     dom.queryHistorySelect.innerHTML = '';
@@ -300,6 +379,7 @@ function loadQueryHistory() {
         dom.queryHistorySelect.appendChild(option);
     });
 }
+
 function saveQueryToHistory(query) {
     if (!query || !query.trim()) return;
     let history = JSON.parse(localStorage.getItem('zqQueryHistory') || '[]');
@@ -309,11 +389,13 @@ function saveQueryToHistory(query) {
     localStorage.setItem('zqQueryHistory', JSON.stringify(history));
     loadQueryHistory();
 }
+
 function clearQueryHistory() {
     localStorage.removeItem('zqQueryHistory');
     loadQueryHistory();
     showAppMessage('Query history shredded, Gutmann style (35x).', 'info');
 }
+
 function parseAndSetScannerRules(yamlContent, fileName, tab) {
     try {
         const rulesData = jsyaml.load(yamlContent);
@@ -338,6 +420,7 @@ function parseAndSetScannerRules(yamlContent, fileName, tab) {
     const hasData = tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb';
     dom.runScannerBtn.disabled = !(tab.scannerRules.length > 0 && superdbInstance && hasData);
 }
+
 async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
     try {
         if (!filePath || filePath.startsWith("rules/Select")) {
@@ -359,6 +442,7 @@ async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
         dom.runScannerBtn.disabled = !(tab.scannerRules.length > 0 && superdbInstance && hasData);
     }
 }
+
 function parseCsvLine(text) {
     const result = [];
     let currentField = '';
@@ -382,6 +466,7 @@ function parseCsvLine(text) {
     result.push(currentField);
     return result;
 }
+
 function parseResultForTable(resultText, actualOutputFormat) {
     const lines = resultText.trim().split('\n').filter(line => line.trim() !== '');
     if (lines.length === 0) return null;
@@ -468,58 +553,110 @@ function parseResultForTable(resultText, actualOutputFormat) {
         return null;
     }
 }
+
 function showRowDetails(row, columns) {
     if (!detailsModalInstance || !dom.rowDetailsModalBody) return;
-
     let content = '<dl class="row">';
-    // Start from index 1 to skip the "Details" button column itself
-    for (let i = 1; i < columns.length; i++) {
+    const startIndex = (columns[0] && columns[0].id === '_details_button') ? 1 : 0;
+    for (let i = startIndex; i < columns.length; i++) {
         const columnName = columns[i].name;
-        // The 'row' object from gridjs contains cells, access data via `row.cells[i].data`
-        const cellData = row.cells[i] ? row.cells[i].data : '(empty)';
-        const escapedData = String(cellData).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        
-        content += `<dt class="col-sm-3 text-truncate">${columnName}</dt>`;
-        content += `<dd class="col-sm-9"><pre class="m-0" style="white-space: pre-wrap; word-break: break-all;"><code>${escapedData}</code></pre></dd>`;
+        const cellData = row.cells[i] ? row.cells[i].data : '';
+        const escapedDisplayData = String(cellData)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+
+        const encodedCellData = encodeURIComponent(cellData);
+        const dropdownValueText = escapedDisplayData.length > 20 ? escapedDisplayData.substring(0, 17) + '...' : escapedDisplayData;
+
+        content += `<dt class="col-sm-3 text-truncate" title="${columnName}">${columnName}</dt>`;
+        content += `<dd class="col-sm-9">
+                        <div class="d-flex w-100 justify-content-between align-items-start">
+                            <pre class="m-0 flex-grow-1" style="white-space: pre-wrap; word-break: break-all;"><code>${escapedDisplayData}</code></pre>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-1 ms-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Create filter from this value">
+                                    <i class="fa-solid fa-filter"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-dark">
+                                    <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-value="${encodedCellData}" data-op="==">Filter == <span class="text-info">"${dropdownValueText}"</span></a></li>
+                                    <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-value="${encodedCellData}" data-op="!=">Filter != <span class="text-info">"${dropdownValueText}"</span></a></li>
+                                    <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-op="count_by_sort">Count by <span class="text-info">"${columnName}"</span></a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item filter-action" href="#" data-value="${encodedCellData}" data-op="search">New search for <span class="text-info">"${dropdownValueText}"</span></a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </dd>`;
     }
     content += '</dl>';
-
     dom.rowDetailsModalBody.innerHTML = content;
     detailsModalInstance.show();
 }
-function displayTableWithGridJs(parsedData, containerElement, tab) {
-    if (tab.gridInstance) {
-        try {
-            tab.gridInstance.destroy();
-        } catch (e) {
-            console.error("Error destroying previous grid instance:", e);
-        } finally {
-            tab.gridInstance = null;
+
+function createQueryFromDetail(op, column, encodedValue) {
+    const activeTab = getActiveTabState();
+    if (!activeTab) return;
+
+    let newQueryPart = '';
+
+    if (op === 'count_by_sort') {
+        if (column) {
+            newQueryPart = `count() by this['${column}'] | sort -r`;
+        }
+    } else {
+        const value = decodeURIComponent(encodedValue);
+        const valueForQuery = value.replace(/'/g, "\\'");
+        const quotedValue = `'${valueForQuery}'`;
+
+        if (op === 'search') {
+            newQueryPart = `search ${quotedValue}`;
+        } else if (column) { 
+            newQueryPart = `this['${column}'] ${op} ${quotedValue}`;
         }
     }
 
+    if (!newQueryPart) return;
+
+    let currentQuery = dom.queryInput.value.trim();
+    if (currentQuery && currentQuery.toLowerCase() !== 'pass') {
+        if (currentQuery.endsWith('|')) {
+            dom.queryInput.value = `${currentQuery} ${newQueryPart}`;
+        } else {
+            dom.queryInput.value = `${currentQuery} | ${newQueryPart}`;
+        }
+    } else {
+        dom.queryInput.value = newQueryPart;
+    }
+    activeTab.query = dom.queryInput.value;
+    showAppMessage('Query updated. Click "Run Query" to execute.', 'info', true);
+    dom.queryInput.focus();
+    dom.queryInput.selectionStart = dom.queryInput.selectionEnd = dom.queryInput.value.length;
+}
+
+
+function displayTableWithGridJs(parsedData, containerElement, tab) {
+    if (tab.gridInstance) {
+        try { tab.gridInstance.destroy(); }
+        catch (e) { console.warn("Error destroying previous grid instance:", e); }
+        finally { tab.gridInstance = null; }
+    }
     if (!parsedData || !parsedData.headers || parsedData.headers.length === 0 || !parsedData.dataRows) {
         containerElement.classList.add('d-none');
         containerElement.innerHTML = '';
         return null;
     }
-
     if (typeof gridjs === 'undefined') {
         showAppMessage("Error: Table library (Grid.js) not loaded.", "error", true);
         return null;
     }
-
     const { headers, dataRows } = parsedData;
-
     containerElement.innerHTML = '';
     containerElement.className = 'gridjs-dark-theme'; 
-    
     const gridColumns = headers.map(header => ({
         name: String(header),
         id: String(header).toLowerCase().replace(/\s+/g, '_')
     }));
-    
-    // Add the "Details" button column to the beginning
     gridColumns.unshift({
         name: 'Details',
         id: '_details_button',
@@ -533,32 +670,20 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
             }, gridjs.html('<i class="fa-solid fa-circle-info"></i>'));
         }
     });
-
-    // *** THIS IS THE FIX ***
-    // Prepend a null to each data row to match the new "Details" column
     const dataWithPlaceholder = dataRows.map(row => [null, ...row]);
-
     try {
         tab.gridInstance = new gridjs.Grid({
             columns: gridColumns,
             data: dataWithPlaceholder,
-            search: {
-                debounceTimeout: 250
-            },
+            search: { debounceTimeout: 250 },
             sort: true,
-            pagination: {
-                enabled: true,
-                limit: 100,
-                summary: true
-            },
+            pagination: { enabled: true, limit: 100, summary: true },
             resizable: true,
             fixedHeader: true,
             height: '60vh',
         }).render(containerElement);
-
         containerElement.classList.remove('d-none');
         return tab.gridInstance;
-
     } catch (gridError) {
         showAppMessage(`Error displaying results table: ${gridError.message}`, 'error', true);
         containerElement.innerHTML = `<div class="alert alert-danger">Failed to render results table.</div>`;
@@ -566,16 +691,14 @@ function displayTableWithGridJs(parsedData, containerElement, tab) {
         return null;
     }
 }
+
 async function handleNewData(tab, data, sourceName) {
     const dataSize = (typeof data === 'string') ? data.length : 0;
     const isLarge = dataSize > LARGE_DATA_THRESHOLD;
     const displaySize = (dataSize / (1024 * 1024)).toFixed(2) + ' MB';
     const summary = `${sourceName} (${displaySize})`;
     if (tab.dataLocation?.type === 'indexeddb' && tab.dataLocation.key) {
-        try {
-            await deleteData(tab.dataLocation.key);
-        } catch (e) {
-        }
+        try { await deleteData(tab.dataLocation.key); } catch (e) { }
     }
     tab.dataSummary = summary;
     dom.fileNameDisplay.textContent = summary;
@@ -589,14 +712,11 @@ async function handleNewData(tab, data, sourceName) {
             await saveData(tab.id, data);
             tab.dataLocation = { type: 'indexeddb', key: tab.id };
             showAppMessage(`Data "${sourceName}" (${displaySize}) stored successfully.`, 'success');
-            const hasRules = tab.scannerRules && tab.scannerRules.length > 0;
-            dom.runScannerBtn.disabled = !(hasRules && superdbInstance);
         } catch (dbError) {
             showAppMessage(`Failed to store large data: ${dbError.message}`, 'error', true);
             tab.dataLocation = { type: 'error' };
             tab.dataSummary = `Error storing ${sourceName}`;
             dom.fileNameDisplay.textContent = tab.dataSummary;
-            dom.runScannerBtn.disabled = true;
         }
     } else {
         tab.rawData = data;
@@ -605,32 +725,48 @@ async function handleNewData(tab, data, sourceName) {
         dom.dataInput.placeholder = "Paste log data here...";
         dom.dataInput.disabled = false;
         showAppMessage(`Data "${sourceName}" loaded into memory.`, 'info');
-        const hasRules = tab.scannerRules && tab.scannerRules.length > 0;
-        dom.runScannerBtn.disabled = !(hasRules && superdbInstance);
     }
+    if (timelineChartInstance && activeTabId === tab.id) {
+        timelineChartInstance.destroy();
+        timelineChartInstance = null;
+    }
+    if (cy && activeTabId === tab.id) {
+        cy.destroy();
+        cy = null;
+    }
+    tab.timelineChartDataCache = null;
+    tab.selectedTimelineField = '';
+    if (activeTabId === tab.id) {
+        dom.timelineChartWrapper.classList.add('d-none');
+        dom.timelineContainer.classList.add('d-none');
+        dom.graphContainer.classList.add('d-none');
+        tab.timelineVisible = false;
+        tab.graphVisible = false;
+        updateTimelineToggleButton(tab);
+        updateGraphToggleButton(tab);
+    }
+    const hasRules = tab.scannerRules && tab.scannerRules.length > 0;
+    dom.runScannerBtn.disabled = !(hasRules && superdbInstance && (tab.dataLocation?.type === 'memory' || tab.dataLocation?.type === 'indexeddb'));
 }
+
 async function applyShaperScriptHandler() {
     const activeTab = getActiveTabState();
     if (!activeTab || !superdbInstance) {
         showAppMessage(superdbInstance ? "No active tab." : "SuperDB not ready.", 'error', true);
         return;
     }
-
     const hasData = activeTab.dataLocation?.type === 'memory' || activeTab.dataLocation?.type === 'indexeddb';
     if (!hasData) {
         showAppMessage("No data loaded to apply a shaper script to.", "warning", true);
         return;
     }
-
     const selectedShaperFile = dom.shaperScriptsSelect.value;
     if (!selectedShaperFile) {
         showAppMessage("Please select a valid shaper script to apply.", "warning");
         return;
     }
-    
     dom.applyShaperBtn.disabled = true;
     dom.applyShaperBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Applying...';
-
     try {
         const response = await fetch(`shapers/${selectedShaperFile}`);
         if (!response.ok) {
@@ -638,44 +774,32 @@ async function applyShaperScriptHandler() {
         }
         const yamlContent = await response.text();
         const selectedShaper = jsyaml.load(yamlContent);
-
         if (!selectedShaper || !selectedShaper.query || !selectedShaper.inputFormat || !selectedShaper.outputFormat) {
-            throw new Error(`Invalid shaper file format for ${selectedShaperFile}.`);
+            throw new Error(`Invalid shaper file format for ${selectedShaperFile}. Expected query, inputFormat, and outputFormat.`);
         }
-        
         showAppMessage(`Applying shaper: "${selectedShaper.name || selectedShaperFile}"...`, 'info', true);
-
         let inputForWasm = null;
         let dataLoadError = null;
         if (activeTab.dataLocation?.type === 'indexeddb' && activeTab.dataLocation.key) {
-            try {
-                inputForWasm = await getDataAsStream(activeTab.dataLocation.key);
-            } catch (dbError) {
-                dataLoadError = `Failed to stream data from DB: ${dbError.message}`;
-            }
+            try { inputForWasm = await getDataAsStream(activeTab.dataLocation.key); }
+            catch (dbError) { dataLoadError = `Failed to stream data from DB: ${dbError.message}`; }
         } else if (activeTab.dataLocation?.type === 'memory') {
             inputForWasm = activeTab.rawData;
         }
-
         if (dataLoadError) throw new Error(dataLoadError);
-
         const result = await superdbInstance.run({
             query: selectedShaper.query,
             input: inputForWasm,
             inputFormat: selectedShaper.inputFormat,
             outputFormat: selectedShaper.outputFormat
         });
-
         const originalFileName = activeTab.name.split(' (')[0].replace(/\.(json|csv|log|txt|evtx|zjson|tsv|zson)$/i, '');
         await handleNewData(activeTab, result, `${originalFileName} (Shaped)`);
-        
         activeTab.inputFormat = selectedShaper.outputFormat;
         dom.inputFormatSelect.value = selectedShaper.outputFormat;
         activeTab.query = 'pass';
         dom.queryInput.value = 'pass';
-        
         showAppMessage(`Shaper "${selectedShaper.name}" applied. Data transformed to ${selectedShaper.outputFormat.toUpperCase()}.`, 'success');
-
     } catch (error) {
         showAppMessage(`Error applying shaper: ${error.message}`, 'error', true);
     } finally {
@@ -683,116 +807,136 @@ async function applyShaperScriptHandler() {
         dom.applyShaperBtn.textContent = 'Apply';
     }
 }
+
+function lockUI(isLocked, message = '') {
+    const elementsToDisable = [
+        dom.runQueryBtn, dom.exportBtn, dom.runScannerBtn, dom.addTabBtn,
+        dom.loadTestDataBtn, dom.loadPredefinedRuleBtn, dom.applyShaperBtn,
+        dom.fileInput, dom.dataInput, dom.queryInput, dom.shaperScriptsSelect
+    ];
+    elementsToDisable.forEach(el => { if (el) el.disabled = isLocked; });
+
+    if (isLocked) {
+        showAppMessage(message, 'info', true);
+    } else {
+        hideAppMessage();
+    }
+}
+
+async function applyEvtxCleaner(jsonData) {
+    if (!superdbInstance) throw new Error("SuperDB is not ready.");
+    try {
+        showAppMessage("Applying EVTX cleanup shaper...", 'info', true);
+        const response = await fetch(`shapers/windows_evtx_json.yaml`);
+        if (!response.ok) throw new Error(`HTTP ${response.status} while fetching shaper`);
+        const yamlContent = await response.text();
+        const shaper = jsyaml.load(yamlContent);
+        if (!shaper || !shaper.query) throw new Error(`Invalid shaper file format.`);
+
+        return await superdbInstance.run({
+            query: shaper.query,
+            input: jsonData,
+            inputFormat: shaper.inputFormat,
+            outputFormat: shaper.outputFormat
+        });
+    } catch (shaperError) {
+        throw new Error(`Failed to apply EVTX cleaner: ${shaperError.message}`);
+    }
+}
+
+async function processEvtxFiles(files, activeTab) {
+    lockUI(true, "Processing EVTX files...");
+    try {
+        if (!evtxWasmReady) {
+            throw new Error("EVTX converter is not ready. Please try again.");
+        }
+
+        const conversionPromises = Array.from(files).map((file, i) =>
+            new Promise(async (resolve, reject) => {
+                try {
+                    showAppMessage(`Reading ${file.name} (${i + 1}/${files.length})...`, 'info', true);
+                    const fileBuffer = await file.arrayBuffer();
+                    const evtxData = new Uint8Array(fileBuffer);
+                    showAppMessage(`Converting ${file.name} (${i + 1}/${files.length})...`, 'info', true);
+                    const jsonResult = await goEvtxToJSON(evtxData);
+                    resolve(jsonResult);
+                } catch (error) {
+                    reject(new Error(`Failed to process ${file.name}: ${error.message}`));
+                }
+            })
+        );
+
+        const results = await Promise.all(conversionPromises);
+        const combinedJsonString = results.join('\n');
+        const shapedResult = await applyEvtxCleaner(combinedJsonString);
+        const tabName = files.length > 1 ? `${files.length}_evtx_files.json` : files[0].name.replace(/\.evtx$/i, '.json');
+        const oldTabName = activeTab.name;
+        activeTab.name = tabName;
+        if (oldTabName !== activeTab.name) renderTabs();
+
+        await handleNewData(activeTab, shapedResult, `${tabName} (Shaped)`);
+        activeTab.inputFormat = 'zjson'; 
+        if(dom.inputFormatSelect) dom.inputFormatSelect.value = 'zjson';
+        activeTab.query = 'pass';
+        if(dom.queryInput) dom.queryInput.value = 'pass';
+        showAppMessage(`Successfully processed and cleaned ${files.length} EVTX file(s).`, 'success');
+
+    } catch (error) {
+        showAppMessage(`Error during EVTX processing: ${error.message}`, 'error', true);
+    } finally {
+        lockUI(false);
+    }
+}
+
 function setupEventListeners() {
     dom.applyShaperBtn.addEventListener('click', applyShaperScriptHandler);
+
     dom.fileInput.addEventListener('change', async (event) => {
         const activeTab = getActiveTabState();
         if (!activeTab) return;
-        const file = event.target.files[0];
-        if (file) {
-            const oldTabName = activeTab.name;
-            activeTab.name = file.name;
-            if (oldTabName !== activeTab.name) renderTabs();
-    
-            if (file.name.toLowerCase().endsWith('.evtx')) {
-                if (!evtxWasmReady) {
-                    showAppMessage("EVTX converter is not ready. Please try again.", "error", true);
-                    return;
-                }
-                showAppMessage("Converting EVTX file to JSON... This may take a moment.", "info", true);
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const evtxFiles = Array.from(files).filter(file => file.name.toLowerCase().endsWith('.evtx'));
+        const otherFiles = Array.from(files).filter(file => !file.name.toLowerCase().endsWith('.evtx'));
+
+        if (evtxFiles.length > 0) {
+            await processEvtxFiles(evtxFiles, activeTab);
+        }
+
+        if (otherFiles.length > 0) {
+            showAppMessage(`Processing ${otherFiles.length} other file(s).`, 'info');
+            for (const file of otherFiles) {
+                const newTab = (otherFiles.length > 1 || evtxFiles.length > 0) ? addTab() : activeTab;
+                newTab.name = file.name;
+                renderTabs();
+                
                 const reader = new FileReader();
                 reader.onload = async (e) => {
-                    try {
-                        const evtxData = new Uint8Array(e.target.result);
-                        const jsonResult = await goEvtxToJSON(evtxData);
-                        await handleNewData(activeTab, jsonResult, file.name.replace(/\.evtx$/i, '.json'));
-                        activeTab.inputFormat = 'json';
-                        dom.inputFormatSelect.value = 'json';
-                        showAppMessage("EVTX file successfully converted and loaded.", "success");
-    
-                        // --- BEGIN: Automatically apply the shaper ---
-                        showAppMessage("Automatically applying EVTX cleanup shaper...", 'info', true);
-                        try {
-                            const response = await fetch(`shapers/windows_evtx_json.yaml`);
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status} fetching windows_evtx_json.yaml`);
-                            }
-                            const yamlContent = await response.text();
-                            const selectedShaper = jsyaml.load(yamlContent);
-    
-                            if (!selectedShaper || !selectedShaper.query || !selectedShaper.inputFormat || !selectedShaper.outputFormat) {
-                                throw new Error(`Invalid shaper file format for windows_evtx_json.yaml.`);
-                            }
-    
-                            const result = await superdbInstance.run({
-                                query: selectedShaper.query,
-                                input: jsonResult,
-                                inputFormat: selectedShaper.inputFormat,
-                                outputFormat: selectedShaper.outputFormat
-                            });
-    
-                            await handleNewData(activeTab, result, `${activeTab.name} (Shaped)`);
-                            activeTab.inputFormat = selectedShaper.outputFormat;
-                            dom.inputFormatSelect.value = selectedShaper.outputFormat;
-                            activeTab.query = 'pass';
-                            dom.queryInput.value = 'pass';
-                            showAppMessage(`EVTX cleanup shaper applied successfully.`, 'success');
-                        } catch (error) {
-                            showAppMessage(`Error auto-applying shaper: ${error.message}`, 'error', true);
-                        }
-                        // --- END: Automatically apply the shaper ---
-    
-                    } catch (error) {
-                        showAppMessage(`Error converting EVTX file: ${error.message}`, 'error', true);
-                    }
-                };
-                reader.onerror = () => {
-                    showAppMessage(`Error reading EVTX file: ${file.name}.`, 'error', true);
-                };
-                reader.readAsArrayBuffer(file);
-            } else {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        await handleNewData(activeTab, e.target.result, file.name);
-                    } catch (error) {
-                        showAppMessage(`Error processing file data: ${error.message}`, 'error', true);
-                    }
+                    await handleNewData(newTab, e.target.result, file.name);
                 };
                 reader.onerror = () => {
                     showAppMessage(`Error reading data file: ${file.name}.`, 'error', true);
-                    activeTab.dataSummary = "File load error.";
-                    dom.fileNameDisplay.textContent = activeTab.dataSummary;
-                    activeTab.dataLocation = {
-                        type: 'error'
-                    };
                 };
                 reader.readAsText(file);
             }
         }
         dom.fileInput.value = "";
     });
+
     dom.loadTestDataBtn.addEventListener('click', async () => {
         const activeTab = getActiveTabState();
-        if (!activeTab) {
-            showAppMessage("No active tab to load data into.", "warning");
-            return;
-        }
-        const testDataPath = 'test_data.csv';
+        if (!activeTab) { showAppMessage("No active tab.", "warning"); return; }
+        const testDataPath = 'test_data.zjson';
         try {
             showAppMessage(`Loading ${testDataPath}...`, 'info');
             const response = await fetch(testDataPath);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status} while fetching ${testDataPath}`);
-            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const csvData = await response.text();
-            const oldTabName = activeTab.name;
-            activeTab.name = testDataPath;
-            if (oldTabName !== activeTab.name) renderTabs();
+            activeTab.name = testDataPath; renderTabs();
             await handleNewData(activeTab, csvData, testDataPath);
-            dom.inputFormatSelect.value = 'csv';
-            activeTab.inputFormat = 'csv';
-            showAppMessage(`${testDataPath} loaded successfully. Input format set to CSV.`, 'success');
+            activeTab.inputFormat = 'zjson'; dom.inputFormatSelect.value = 'zjson';
+            showAppMessage(`${testDataPath} loaded. Format set to zjson.`, 'success');
         } catch (error) {
             showAppMessage(`Failed to load ${testDataPath}: ${error.message}`, 'error', true);
             activeTab.dataSummary = `Failed to load ${testDataPath}.`;
@@ -807,8 +951,7 @@ function setupEventListeners() {
          }
     });
     dom.dataInput.addEventListener('paste', async (event) => {
-        const activeTab = getActiveTabState();
-        if (!activeTab) return;
+        const activeTab = getActiveTabState(); if (!activeTab) return;
         event.preventDefault();
         const pastedData = (event.clipboardData || window.clipboardData).getData('text');
         await handleNewData(activeTab, pastedData, 'Pasted Data');
@@ -821,8 +964,8 @@ function setupEventListeners() {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => { parseAndSetScannerRules(e.target.result, file.name, activeTab); };
-            reader.onerror = (e) => {
+            reader.onload = (e) => parseAndSetScannerRules(e.target.result, file.name, activeTab);
+            reader.onerror = () => {
                 showAppMessage(`Error reading rule file: ${file.name}.`, 'error', true);
                 activeTab.scannerRuleFileName = "Rule file load error.";
                 dom.scannerRuleFileNameDisplay.textContent = activeTab.scannerRuleFileName;
@@ -840,7 +983,7 @@ function setupEventListeners() {
             loadScannerRulesFromFile(filePath, selectedOptionText, activeTab);
             activeTab.predefinedRulesSelectValue = selectedFileName;
         } else {
-            showAppMessage('Please select a predefined rule set to load.', 'warning');
+            showAppMessage('Please select a predefined rule set.', 'warning');
         }
     });
     dom.queryHistorySelect.addEventListener('change', (event) => {
@@ -859,27 +1002,46 @@ function setupEventListeners() {
     dom.toggleViewBtn.addEventListener('click', toggleResultsViewHandler);
     dom.pivotResultsBtn.addEventListener('click', handlePivotResultsToNewTab);
     dom.cancelScanBtn.addEventListener('click', cancelScanHandler);
-
     if (dom.focusModeBtn) {
         dom.focusModeBtn.addEventListener('click', toggleFocusModeHandler);
     }
-
+    if (dom.toggleTimelineBtn) dom.toggleTimelineBtn.addEventListener('click', toggleTimelineVisibilityHandler);
+    if (dom.toggleGraphBtn) dom.toggleGraphBtn.addEventListener('click', toggleGraphVisibilityHandler);
+    if (dom.generateTimelineBtn) dom.generateTimelineBtn.addEventListener('click', generateTimelineChartHandler);
+    if (dom.timelineFieldSelect) {
+        dom.timelineFieldSelect.addEventListener('change', () => {
+            const activeTab = getActiveTabState();
+            if (activeTab) {
+                activeTab.selectedTimelineField = dom.timelineFieldSelect.value;
+            }
+        });
+    }
     dom.scannerHitsOutput.addEventListener('click', (event) => {
         const pivotButton = event.target.closest('.pivot-button');
         if (pivotButton) {
-            const ruleName = pivotButton.dataset.ruleName;
-            const ruleQuery = pivotButton.dataset.ruleQuery;
-            const sourceTabId = pivotButton.dataset.sourceTabId;
+            const { ruleName, ruleQuery, sourceTabId } = pivotButton.dataset;
             handlePivotToNewTab(sourceTabId, ruleName, ruleQuery);
             return;
         }
         const investigateButton = event.target.closest('.investigate-button');
         if (investigateButton) {
-            const ruleQuery = investigateButton.dataset.ruleQuery;
-            handleInvestigateInPlace(ruleQuery);
+            handleInvestigateInPlace(investigateButton.dataset.ruleQuery);
         }
     });
+
+    if (dom.rowDetailsModalBody) {
+        dom.rowDetailsModalBody.addEventListener('click', (event) => {
+            const target = event.target.closest('.filter-action');
+            if (target) {
+                event.preventDefault();
+                const { column, value, op } = target.dataset;
+                createQueryFromDetail(op, column, value);
+                detailsModalInstance.hide();
+            }
+        });
+    }
 }
+
 async function runQueryHandler() {
     const activeTab = getActiveTabState();
     if (!activeTab || !superdbInstance) {
@@ -890,35 +1052,32 @@ async function runQueryHandler() {
     let dataLoadError = null;
     if (activeTab.dataLocation?.type === 'indexeddb' && activeTab.dataLocation.key) {
         showAppMessage("Preparing large data stream for query...", 'info', true);
-        try {
-            inputForWasm = await getDataAsStream(activeTab.dataLocation.key);
-            hideAppMessage();
-        } catch (dbError) {
-            dataLoadError = `Failed to stream data from DB: ${dbError.message}`;
-        }
+        try { inputForWasm = await getDataAsStream(activeTab.dataLocation.key); hideAppMessage(); }
+        catch (dbError) { dataLoadError = `Failed to stream data from DB: ${dbError.message}`; }
     } else if (activeTab.dataLocation?.type === 'memory') {
         inputForWasm = activeTab.rawData;
     }
-    if (dataLoadError) {
-         showAppMessage(dataLoadError, 'error', true);
-         return;
-    }
-
+    if (dataLoadError) { showAppMessage(dataLoadError, 'error', true); return; }
     if (!inputForWasm && activeTab.dataLocation?.type === 'empty') {
-        if (query !== 'pass') {
-            showAppMessage("No data available to run the query.", 'warning');
-            return;
+        if (query.toLowerCase() !== 'pass' && query !== '') { 
+            showAppMessage("No data available to run the query.", "warning"); return;
         }
-        inputForWasm = '';
+        inputForWasm = ''; 
     }
-
     saveQueryToHistory(query);
     if (!query && inputForWasm) { query = "pass"; activeTab.query = "pass"; dom.queryInput.value = "pass"; }
     if (!query && !inputForWasm && activeTab.dataLocation?.type === 'empty') { query = "pass"; activeTab.query = "pass"; dom.queryInput.value = "pass"; inputForWasm = "";}
-
-
     activeTab.currentRawOutput = null;
     if (activeTab.gridInstance) { try {activeTab.gridInstance.destroy();} catch(e){} activeTab.gridInstance = null; }
+    if (timelineChartInstance && activeTabId === activeTab.id) {
+        timelineChartInstance.destroy();
+        timelineChartInstance = null;
+    }
+    if (cy && activeTabId === activeTab.id) {
+        cy.destroy();
+        cy = null;
+    }
+    activeTab.timelineChartDataCache = null;
     updateResultDisplay(activeTab);
     dom.runQueryBtn.disabled = true;
     dom.runScannerBtn.disabled = true;
@@ -935,7 +1094,7 @@ async function runQueryHandler() {
         const tableData = parseResultForTable(result, activeTab.outputFormat);
         if (tableData && tableData.headers && tableData.headers.length > 0) {
             displayTableWithGridJs(tableData, dom.tableResultOutputContainer, activeTab);
-        } else {
+        } else { 
             if (activeTab.gridInstance) { try {activeTab.gridInstance.destroy();} catch(e){} activeTab.gridInstance = null; }
         }
         updateResultDisplay(activeTab);
@@ -948,9 +1107,10 @@ async function runQueryHandler() {
         dom.runQueryBtn.disabled = false;
         const hasData = activeTab.dataLocation?.type === 'memory' || activeTab.dataLocation?.type === 'indexeddb';
         dom.runScannerBtn.disabled = !(activeTab.scannerRules && activeTab.scannerRules.length > 0 && superdbInstance && hasData);
-        dom.runQueryBtn.textContent = 'Run Query';
+        dom.runQueryBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Run Query';
     }
 }
+
 function toggleResultsViewHandler() {
     const activeTab = getActiveTabState();
     if (!activeTab || !activeTab.currentRawOutput) return;
@@ -967,6 +1127,7 @@ function toggleResultsViewHandler() {
     }
     updateResultDisplay(activeTab);
 }
+
 function toggleFocusModeHandler() {
     document.body.classList.toggle('focus-mode');
     const icon = dom.focusModeBtn.querySelector('i');
@@ -979,7 +1140,9 @@ function toggleFocusModeHandler() {
         icon.classList.remove('fa-compress');
         icon.classList.add('fa-expand');
     }
+    window.dispatchEvent(new Event('resize'));
 }
+
 async function exportResultsHandler() {
     const activeTab = getActiveTabState();
     if (!activeTab || !activeTab.currentRawOutput) {
@@ -1012,6 +1175,7 @@ async function exportResultsHandler() {
         showAppMessage(`Export error: ${error.message}`, 'error', true);
     }
 }
+
 function terminateScannerWorker() {
     if (scannerWorker) {
         scannerWorker.terminate();
@@ -1025,14 +1189,13 @@ function terminateScannerWorker() {
         dom.runScannerBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass me-2"></i>Run Scanner';
     }
 }
+
 function handleWorkerMessage(event) {
     const { type, ...data } = event.data;
     const activeTab = getActiveTabState();
     if (!scannerWorker || !activeTab || activeTab.id !== scannerWorker.tabId) {
         if (type.includes('complete') || type.includes('error') || type === 'cancelled') {
-             if(scannerWorker && type !== 'cancelled') {
-                terminateScannerWorker();
-             }
+             if(scannerWorker && type !== 'cancelled') terminateScannerWorker();
         }
         return;
     }
@@ -1044,8 +1207,7 @@ function handleWorkerMessage(event) {
                  dom.runScannerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Scanning...';
             }
             break;
-        case 'init_error':
-        case 'critical_error':
+        case 'init_error': case 'critical_error':
             const errorPrefix = type === 'init_error' ? 'Scanner Worker Init Error' : 'Scanner Worker Critical Error';
             showAppMessage(`${errorPrefix}: ${data.message}`, 'error', true);
             terminateScannerWorker();
@@ -1056,89 +1218,35 @@ function handleWorkerMessage(event) {
         case 'progress_detail':
             dom.scanProgress.textContent = data.message || 'Scanning...';
             break;
-        case 'scanner_hit':
-            if (activeTab && data.hit) {
-                const hit = data.hit;
-                const trimmedResult = typeof hit.result === 'string' ? hit.result.trim() : '';
-                if (hit.result && typeof hit.result === 'string' && trimmedResult && trimmedResult !== "[]" && trimmedResult !== "{}") {
-                    const hitDiv = document.createElement('div');
-                    hitDiv.className = "mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0";
-                    hitDiv.innerHTML = `
-                        <div class="d-flex justify-content-between align-items-start">
-                            <strong class="text-info d-block mb-1 small">Hit for Rule: "${hit.ruleName}"</strong>
-                            <div>
-                                <button class="btn btn-outline-primary btn-sm py-0 px-1 investigate-button"
-                                        data-rule-query="${encodeURIComponent(hit.query)}"
-                                        title="Load rule query in the editor and run it in the current tab">
-                                    Investigate
-                                </button>
-                                <button class="btn btn-outline-info btn-sm py-0 px-1 ms-1 pivot-button"
-                                        data-rule-name="${hit.ruleName}"
-                                        data-rule-query="${encodeURIComponent(hit.query)}"
-                                        data-source-tab-id="${activeTab.id}"
-                                        title="Run this rule query in a new tab">
-                                    Pivot &raquo;
-                                </button>
-                            </div>
-                        </div>
-                        <p class="mb-1 small text-body-secondary scanner-hit-query">Query: <code class="text-light small">${hit.query}</code></p>
-                        <div class="scanner-hit-result">
-                            <pre class="small m-0"><code>${hit.result.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
-                        </div>`;
-                    dom.noScannerHitsMessage.classList.add('d-none');
-                    dom.scannerHitsOutput.classList.remove('d-none');
-                    dom.scannerHitsOutput.appendChild(hitDiv);
-                    dom.scannerHitsOutput.scrollTop = dom.scannerHitsOutput.scrollHeight;
-                    activeTab.scannerHitsHTML = dom.scannerHitsOutput.innerHTML;
-                }
-            }
-            break;
-        case 'scanner_error':
-             if (activeTab && data.error) {
-                const error = data.error;
-                const errorDiv = document.createElement('div');
-                errorDiv.className = "mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0 text-danger";
-                errorDiv.innerHTML = `<strong>Error for Rule: "${error.ruleName}"</strong><br><small class="small">${error.message.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</small>`;
-                dom.noScannerHitsMessage.classList.add('d-none');
-                dom.scannerHitsOutput.classList.remove('d-none');
-                dom.scannerHitsOutput.appendChild(errorDiv);
-                dom.scannerHitsOutput.scrollTop = dom.scannerHitsOutput.scrollHeight;
-                activeTab.scannerHitsHTML = dom.scannerHitsOutput.innerHTML;
-             }
-            break;
         case 'scanner_batch_results':
             if (activeTab) {
-                let displayedHits = 0;
                 (data.hits || []).forEach(hit => {
                     const trimmedResult = typeof hit.result === 'string' ? hit.result.trim() : '';
                     if (hit.result && typeof hit.result === 'string' && trimmedResult && trimmedResult !== "[]" && trimmedResult !== "{}") {
-                        displayedHits++;
                         const hitDiv = document.createElement('div');
                         hitDiv.className = "mb-3 pb-3 border-bottom border-secondary-subtle last:border-bottom-0";
                         hitDiv.innerHTML = `
                             <div class="d-flex justify-content-between align-items-start">
-
-    <strong class="text-info d-block mb-1 small me-3">Hit for Rule: "${hit.ruleName}"</strong>
-
-    <div class="flex-shrink-0">
-        <button class="btn btn-outline-primary btn-sm py-0 px-1 investigate-button"
-                data-rule-query="${encodeURIComponent(hit.query)}"
-                title="Load rule query in the editor and run it in the current tab">
-            Investigate
-        </button>
-        <button class="btn btn-outline-info btn-sm py-0 px-1 ms-1 pivot-button"
-                data-rule-name="${hit.ruleName}"
-                data-rule-query="${encodeURIComponent(hit.query)}"
-                data-source-tab-id="${activeTab.id}"
-                title="Run this rule query in a new tab">
-            Pivot &raquo;
-        </button>
-    </div>
-</div>
-
-<div class="scanner-hit-result">
-    <pre class="small m-0"><code>${hit.result.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
-</div>`;
+                                <strong class="text-info d-block mb-1 small me-3 text-truncate" title="Rule: ${hit.ruleName}">Hit for Rule: "${hit.ruleName}"</strong>
+                                <div class="flex-shrink-0">
+                                    <button class="btn btn-outline-primary btn-sm py-0 px-1 investigate-button"
+                                            data-rule-query="${encodeURIComponent(hit.query)}"
+                                            title="Load rule query in the editor and run it in the current tab">
+                                        Investigate
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm py-0 px-1 ms-1 pivot-button"
+                                            data-rule-name="${hit.ruleName}"
+                                            data-rule-query="${encodeURIComponent(hit.query)}"
+                                            data-source-tab-id="${activeTab.id}"
+                                            title="Run this rule query in a new tab">
+                                        Pivot &raquo;
+                                    </button>
+                                </div>
+                            </div>
+                            <p class="mb-1 small text-body-secondary scanner-hit-query text-truncate" title="Query: ${hit.query}">Query: <code class="text-light small">${hit.query}</code></p>
+                            <div class="scanner-hit-result">
+                                <pre class="small m-0"><code>${hit.result.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>
+                            </div>`;
                         dom.scannerHitsOutput.appendChild(hitDiv);
                     }
                 });
@@ -1166,18 +1274,16 @@ function handleWorkerMessage(event) {
                     dom.noScannerHitsMessage.classList.remove('d-none');
                     dom.scannerHitsOutput.classList.add('d-none');
                 }
-
                 if (data.hitsFound === 0 && !data.errorsOccurred) {
-                    showAppMessage(`Scanner finished. No hits found. ${data.isStreamed ? "(Streamed)" : "(Batched)"}`, 'success');
+                    showAppMessage(`Scanner finished. No hits found.`, 'success');
                 } else if (data.hitsFound > 0 && dom.scannerHitsOutput.children.length > 0) {
-                    showAppMessage(`Scanner finished. Displaying ${dom.scannerHitsOutput.children.length} hit(s). ${data.errorsOccurred ? 'Some rules had errors.' : ''} ${data.isStreamed ? "(Streamed)" : "(Batched)"}`, data.errorsOccurred ? 'warning' : 'success');
+                    showAppMessage(`Scanner finished. Displaying ${dom.scannerHitsOutput.children.length} hit(s). ${data.errorsOccurred ? 'Some rules had errors.' : ''}`, data.errorsOccurred ? 'warning' : 'success');
                 } else if (data.hitsFound > 0 && dom.scannerHitsOutput.children.length === 0) {
-                    showAppMessage(`Scanner finished. ${data.hitsFound} potential hit(s) found by worker, but none met display criteria. ${data.errorsOccurred ? 'Some rules had errors.' : ''} ${data.isStreamed ? "(Streamed)" : "(Batched)"}`, data.errorsOccurred ? 'warning' : 'info');
-                }
-                 else if (data.errorsOccurred) {
-                    showAppMessage(`Scanner finished with errors. See details. ${data.isStreamed ? "(Streamed)" : "(Batched)"}`, 'error');
+                    showAppMessage(`Scanner finished. ${data.hitsFound} potential hit(s) found by worker, but none met display criteria. ${data.errorsOccurred ? 'Some rules had errors.' : ''}`, data.errorsOccurred ? 'warning' : 'info');
+                } else if (data.errorsOccurred) {
+                    showAppMessage(`Scanner finished with errors. See details.`, 'error');
                  } else {
-                      showAppMessage(`Scanner finished. ${data.isStreamed ? "(Streamed)" : "(Batched)"}`, 'info');
+                      showAppMessage(`Scanner finished.`, 'info');
                  }
             }
             terminateScannerWorker();
@@ -1185,20 +1291,18 @@ function handleWorkerMessage(event) {
         default:
     }
 }
+
 function runScannerHandler() {
     const activeTab = getActiveTabState();
     if (!activeTab || !superdbInstance) {
-        showAppMessage(superdbInstance ? "No active tab." : "SuperDB not ready.", 'error', true);
-        return;
+        showAppMessage(superdbInstance ? "No active tab." : "SuperDB not ready.", 'error', true); return;
     }
     if (!activeTab.scannerRules || activeTab.scannerRules.length === 0) {
-        showAppMessage("No scanner rules loaded. Upload or select predefined rules.", 'warning', true);
-        return;
+        showAppMessage("No scanner rules loaded. Upload or select predefined rules.", 'warning', true); return;
     }
     const hasData = activeTab.dataLocation?.type === 'memory' || activeTab.dataLocation?.type === 'indexeddb';
     if (!hasData) {
-        showAppMessage("No data available to scan. Paste or upload data first.", 'warning', true);
-        return;
+        showAppMessage("No data available to scan. Paste or upload data first.", 'warning', true); return;
     }
     terminateScannerWorker();
     activeTab.scannerHitsHTML = '';
@@ -1224,14 +1328,12 @@ function runScannerHandler() {
         startData.data = activeTab.rawData;
     } else {
         showAppMessage("Invalid data state for scanning.", 'error', true);
-        terminateScannerWorker();
-        return;
+        terminateScannerWorker(); return;
     }
     try {
         scannerWorker = new Worker('scanner.worker.js', { type: 'module' });
         scannerWorker.onerror = (error) => {
-            const errorMessage = `Scanner Worker failed: ${error.message || 'Unknown error'}. Check console.`;
-            showAppMessage(errorMessage, 'error', true);
+            showAppMessage(`Scanner Worker failed: ${error.message || 'Unknown error'}. Check console.`, 'error', true);
             terminateScannerWorker();
         };
         scannerWorker.onmessage = handleWorkerMessage;
@@ -1243,34 +1345,32 @@ function runScannerHandler() {
         terminateScannerWorker();
     }
 }
+
 function cancelScanHandler() {
     if (scannerWorker) {
         showAppMessage("Attempting to cancel scan...", "warning");
         scannerWorker.postMessage({ type: 'cancel' });
     }
 }
+
 function handleInvestigateInPlace(encodedRuleQuery) {
     const activeTab = getActiveTabState();
     if (!activeTab) {
-        showAppMessage("Cannot investigate, no active tab found.", "error", true);
-        return;
+        showAppMessage("Cannot investigate, no active tab found.", "error", true); return;
     }
     const ruleQuery = decodeURIComponent(encodedRuleQuery);
     dom.queryInput.value = ruleQuery;
     activeTab.query = ruleQuery;
     dom.shaperScriptsSelect.value = "";
     showAppMessage(`Query loaded into editor. Running...`, 'info');
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-        mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
     runQueryHandler();
 }
+
 function handlePivotToNewTab(sourceTabId, ruleName, encodedRuleQuery) {
     const sourceTab = tabsState.find(tab => tab.id === sourceTabId);
     if (!sourceTab) {
-        showAppMessage("Could not find the original tab data for pivoting.", "error", true);
-        return;
+        showAppMessage("Could not find original tab data for pivoting.", "error", true); return;
     }
     const ruleQuery = decodeURIComponent(encodedRuleQuery);
     const newTab = addTab();
@@ -1285,19 +1385,15 @@ function handlePivotToNewTab(sourceTabId, ruleName, encodedRuleQuery) {
         newTab.rawData = sourceTab.rawData;
     }
     switchTab(newTabId).then(() => {
-        setTimeout(() => {
-            if (activeTabId === newTabId) {
-                 runQueryHandler();
-            }
-        }, 50);
+        setTimeout(() => { if (activeTabId === newTabId) runQueryHandler(); }, 50);
     });
     showAppMessage(`Pivoted to new tab with query for rule "${ruleName}".`, 'info');
 }
+
 async function handlePivotResultsToNewTab() {
     const sourceTab = getActiveTabState();
     if (!sourceTab || !sourceTab.currentRawOutput || !sourceTab.currentRawOutput.trim()) {
-        showAppMessage("No results available to pivot.", "warning");
-        return;
+        showAppMessage("No results available to pivot.", "warning"); return;
     }
     const newTab = addTab();
     const newTabId = newTab.id;
@@ -1308,36 +1404,516 @@ async function handlePivotResultsToNewTab() {
     newTab.dataSummary = `Pivoted from ${sourceTab.name}`;
     await handleNewData(newTab, sourceTab.currentRawOutput, `Pivoted from ${sourceTab.name}`);
     await switchTab(newTabId);
-    setTimeout(() => {
-        if (activeTabId === newTabId) {
-             runQueryHandler();
-        }
-    }, 50);
+    setTimeout(() => { if (activeTabId === newTabId) runQueryHandler(); }, 50);
     showAppMessage(`Pivoted results from tab "${sourceTab.name}" to new tab.`, 'info');
 }
+
+function formatDateForZQ(dateInput) {
+    const date = new Date(dateInput);
+    return date.toISOString();
+}
+
+function populateTimelineFieldSelect(tab) {
+    if (!tab || !dom.timelineFieldSelect) return;
+    dom.timelineFieldSelect.innerHTML = '';
+    if (tab.gridInstance && tab.gridInstance.config && tab.gridInstance.config.columns) {
+        const columns = tab.gridInstance.config.columns;
+        const potentialFields = columns.slice(columns[0]?.id === '_details_button' ? 1 : 0);
+        if (potentialFields.length === 0) {
+            const option = document.createElement('option');
+            option.value = ""; option.textContent = "No fields available";
+            dom.timelineFieldSelect.appendChild(option);
+            return;
+        }
+        let selectedFound = false;
+        potentialFields.forEach(col => {
+            if (col.name) {
+                const option = document.createElement('option');
+                option.value = col.name;
+                option.textContent = col.name;
+                if (tab.selectedTimelineField === col.name) {
+                    option.selected = true;
+                    selectedFound = true;
+                }
+                dom.timelineFieldSelect.appendChild(option);
+            }
+        });
+        if (!selectedFound && dom.timelineFieldSelect.options.length > 0) {
+            let defaultSelection = Array.from(dom.timelineFieldSelect.options).find(opt =>
+                ['ts', 'timestamp', 'time', '_ts', 'eventtime', 'date', 'creationtime', 'eventcreationtime','systemtime'].includes(opt.value.toLowerCase())
+            );
+            if (defaultSelection) {
+                defaultSelection.selected = true;
+                tab.selectedTimelineField = defaultSelection.value;
+            } else {
+                 dom.timelineFieldSelect.options[0].selected = true;
+                 tab.selectedTimelineField = dom.timelineFieldSelect.options[0].value;
+            }
+        } else if (dom.timelineFieldSelect.options.length === 0) {
+             const option = document.createElement('option');
+            option.value = ""; option.textContent = "No fields in table";
+            dom.timelineFieldSelect.appendChild(option);
+        }
+        if (tab.selectedTimelineField) {
+            dom.timelineFieldSelect.value = tab.selectedTimelineField;
+        }
+    } else {
+        const option = document.createElement('option');
+        option.value = ""; option.textContent = "Run query for table results";
+        dom.timelineFieldSelect.appendChild(option);
+    }
+}
+
+function updateTimelineToggleButton(tab) {
+    if (!tab || !dom.toggleTimelineBtn) return;
+    const hasGridResults = !!tab.gridInstance;
+    dom.toggleTimelineBtn.classList.toggle('d-none', !hasGridResults);
+    if (hasGridResults) {
+        dom.toggleTimelineBtn.innerHTML = tab.timelineVisible ?
+            '<i class="fa-solid fa-chart-line"></i> Hide Timeline' :
+            '<i class="fa-solid fa-chart-line"></i> Show Timeline';
+    }
+}
+
+async function toggleTimelineVisibilityHandler() {
+    const activeTab = getActiveTabState();
+    if (!activeTab) return;
+    if (!activeTab.gridInstance) {
+        showAppMessage("Timeline requires table results. Please run a query that produces a table.", "warning");
+        activeTab.timelineVisible = false;
+        dom.timelineContainer.classList.add('d-none');
+        updateTimelineToggleButton(activeTab);
+        return;
+    }
+    activeTab.timelineVisible = !activeTab.timelineVisible;
+    dom.timelineContainer.classList.toggle('d-none', !activeTab.timelineVisible);
+    updateTimelineToggleButton(activeTab);
+    if (activeTab.timelineVisible) {
+        populateTimelineFieldSelect(activeTab);
+        if (activeTab.timelineChartDataCache) {
+            renderTimelineChart(activeTab, activeTab.timelineChartDataCache.labels, activeTab.timelineChartDataCache.datasets);
+        } else {
+            dom.timelineChartWrapper.classList.add('d-none');
+        }
+    }
+}
+
+async function generateTimelineChartHandler() {
+    const activeTab = getActiveTabState();
+    if (!activeTab || !superdbInstance) {
+        showAppMessage("Cannot generate timeline. System not ready.", "error"); return;
+    }
+    const timestampField = dom.timelineFieldSelect.value;
+    const interval = dom.timelineIntervalInput.value.trim();
+    if (!timestampField) {
+        showAppMessage("Please select a timestamp field for the timeline.", "warning"); return;
+    }
+    if (!interval) {
+        showAppMessage("Please enter a valid interval (e.g., 1h, 10m, 1d).", "warning"); return;
+    }
+    let inputForWasm = null;
+    let dataLoadError = null;
+    if (activeTab.dataLocation?.type === 'indexeddb' && activeTab.dataLocation.key) {
+        showAppMessage("Preparing data stream for timeline...", 'info', true);
+        try { inputForWasm = await getDataAsStream(activeTab.dataLocation.key); hideAppMessage();}
+        catch (dbError) { dataLoadError = `Failed to stream data from DB for timeline: ${dbError.message}`; }
+    } else if (activeTab.dataLocation?.type === 'memory') {
+        inputForWasm = activeTab.rawData;
+    }
+    if (dataLoadError) { showAppMessage(dataLoadError, 'error', true); return; }
+    if (!inputForWasm && activeTab.dataLocation?.type !== 'empty') {
+        showAppMessage("No data available in the current tab to generate a timeline.", "warning"); return;
+    }
+    if (!inputForWasm && activeTab.dataLocation?.type === 'empty') {
+        inputForWasm = '';
+    }
+    const timelineQuery = `ts:=time(this['${timestampField}'])| count() by every(${interval})| sort ts`;
+    const inputFormatForTimeline = activeTab.inputFormat;
+    dom.generateTimelineBtn.disabled = true;
+    dom.generateTimelineBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+    hideAppMessage();
+    try {
+        const result = await superdbInstance.run({
+            query: timelineQuery,
+            input: inputForWasm,
+            inputFormat: inputFormatForTimeline,
+            outputFormat: "zjson"
+        });
+        const lines = result.trim().split('\n').filter(line => line.trim() !== '');
+        const labels = [];
+        const dataCounts = [];
+        if (lines.length === 0) {
+            showAppMessage("Timeline query returned no data.", "info");
+            if (timelineChartInstance && activeTabId === activeTab.id) { timelineChartInstance.destroy(); timelineChartInstance = null; }
+            dom.timelineChartWrapper.classList.add('d-none');
+            activeTab.timelineChartDataCache = null;
+            return;
+        }
+        lines.forEach(line => {
+            try {
+                const record = JSON.parse(line);
+                if (record.value && Array.isArray(record.value) && record.value.length === 2) {
+                    labels.push(new Date(record.value[0]));
+                    dataCounts.push(parseInt(record.value[1], 10));
+                }
+            } catch (e) { console.warn("Skipping unparseable line for timeline:", line, e); }
+        });
+        if (labels.length === 0) {
+             showAppMessage("No valid data points found for the timeline after parsing.", "warning");
+             if (timelineChartInstance && activeTabId === activeTab.id) { timelineChartInstance.destroy(); timelineChartInstance = null; }
+             dom.timelineChartWrapper.classList.add('d-none');
+             activeTab.timelineChartDataCache = null;
+             return;
+        }
+        const chartDatasets = [{
+            label: `Count per ${interval} (Field: ${timestampField})`,
+            data: dataCounts,
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1,
+            fill: true,
+        }];
+        renderTimelineChart(activeTab, labels, chartDatasets);
+        activeTab.timelineChartDataCache = { labels, datasets: chartDatasets };
+        showAppMessage("Timeline generated.", "success");
+    } catch (error) {
+        showAppMessage(`Error generating timeline: ${error.message}`, 'error', true);
+        if (timelineChartInstance && activeTabId === activeTab.id) { timelineChartInstance.destroy(); timelineChartInstance = null; }
+        dom.timelineChartWrapper.classList.add('d-none');
+        activeTab.timelineChartDataCache = null;
+    } finally {
+        dom.generateTimelineBtn.disabled = false;
+        dom.generateTimelineBtn.innerHTML = 'Generate Timeline';
+    }
+}
+
+function renderTimelineChart(tab, labels, datasets) {
+    if (timelineChartInstance && activeTabId === tab.id) {
+        timelineChartInstance.destroy();
+    } else if (timelineChartInstance && activeTabId !== tab.id) {
+    }
+    timelineChartInstance = null;
+    if (!dom.timelineChart) {
+        console.error("Timeline chart canvas element not found."); return;
+    }
+    const ctx = dom.timelineChart.getContext('2d');
+    timelineChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels: labels, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: { tooltipFormat: 'MMM dd, HH:mm:ss' },
+                    title: { display: true, text: 'Timestamp', color: '#adb5bd'},
+                    ticks: { color: '#adb5bd' }, 
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                y: {
+                    title: { display: true, text: 'Count', color: '#adb5bd' },
+                    beginAtZero: true,
+                    ticks: { color: '#adb5bd', precision: 0 }, 
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#adb5bd' } },
+                tooltip: { mode: 'index', intersect: false },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'x',
+                        onPanComplete: function({chart}) {
+                        }
+                    },
+                    zoom: {
+                        wheel: { enabled: false }, 
+                        drag: { enabled: true, modifierKey: null },
+                        mode: 'x',
+                        onZoomComplete: function({chart}) {
+                            const activeTab = getActiveTabState();
+                            const timestampField = activeTab ? activeTab.selectedTimelineField : null;
+
+                            if (!activeTab || !timestampField) {
+                                console.warn("Timeline zoom: No active tab or timestamp field selected.");
+                                return;
+                            }
+                            const {min, max} = chart.scales.x;
+                            const startTime = formatDateForZQ(min);
+                            const endTime = formatDateForZQ(max);
+                            const timeRangeQuery = `this['${timestampField}'] >= time(${startTime}) and this['${timestampField}'] <= time(${endTime})`;
+                            let currentQuery = dom.queryInput.value.trim();
+                            if (currentQuery && currentQuery.toLowerCase() !== 'pass') {
+                                dom.queryInput.value = `${timeRangeQuery} | ${currentQuery}`;
+                            } else {
+                                dom.queryInput.value = timeRangeQuery;
+                            }
+                            activeTab.query = dom.queryInput.value;
+                            showAppMessage(`Query updated with time range: ${startTime} to ${endTime}. Click 'Run Query'.`, 'info', true);
+                        }
+                    }
+                }
+            }
+        }
+    });
+    dom.timelineChartWrapper.classList.remove('d-none');
+    tab.timelineVisible = true;
+    updateTimelineToggleButton(tab);
+}
+
+function toggleGraphVisibilityHandler() {
+    const activeTab = getActiveTabState();
+    if (!activeTab || !activeTab.currentRawOutput) {
+        showAppMessage("No data to visualize. Please run a query first.", "warning");
+        return;
+    }
+    
+    if (typeof window.cytoscape === 'undefined') { 
+        showAppMessage("Visualization library (Cytoscape.js) is not loaded.", "error", true);
+        console.error("Cytoscape library not found on window object."); 
+        return;
+    }
+
+    activeTab.graphVisible = !activeTab.graphVisible;
+    dom.graphContainer.classList.toggle('d-none', !activeTab.graphVisible);
+    updateGraphToggleButton(activeTab);
+
+    if (activeTab.graphVisible) {
+        if (cy) { 
+            cy.resize();
+            cy.fit();
+            return;
+        }
+        try {
+            const records = parseResultForTable(activeTab.currentRawOutput, 'zjson');
+            if (!records || !records.dataRows || records.dataRows.length === 0) {
+                 showAppMessage("Could not parse records for graph visualization.", "warning", true);
+                 return;
+            }
+            const zjsonObjects = records.dataRows.map(row => {
+                const obj = {};
+                records.headers.forEach((h, i) => obj[h] = row[i]);
+                return obj;
+            });
+            renderLateralMovementGraph(zjsonObjects);
+        } catch (error) {
+            showAppMessage(`Error rendering graph: ${error.message}`, "error", true);
+            console.error("Graph rendering error:", error);
+            activeTab.graphVisible = false;
+            dom.graphContainer.classList.add('d-none');
+            updateGraphToggleButton(activeTab);
+        }
+    }
+}
+
+function renderLateralMovementGraph(records) {
+    if (typeof window.cytoscape === 'undefined') {
+         showAppMessage("Visualization library (Cytoscape.js) not loaded. Cannot render graph.", "error", true);
+         console.error("Cytoscape is not defined when trying to render.");
+         return;
+    }
+
+    if (cy) {
+        cy.destroy();
+        cy = null; 
+    }
+
+    const elements = [];
+    const existingNodes = new Set();
+
+    const addNode = (id, label, type, data = {}) => {
+        if (id && !existingNodes.has(id)) {
+            elements.push({
+                group: 'nodes',
+                data: { id: String(id), label: String(label), type: String(type), ...data }
+            });
+            existingNodes.add(String(id));
+        }
+    };
+    
+    records.forEach(rec => {
+        const eventId = String(rec.EventID);
+        const computer = rec.Computer || rec.EventHostname || 'Unknown Host';
+        const user = rec.TargetUserName || rec.UserID || rec.User || rec.param3;
+        const ip = rec.IpAddress || rec.WorkstationName || rec.Workstation || rec.Address || rec.param1; 
+        const service = rec.ServiceName;
+        const logonType = rec.LogonType;
+        let edgeLabel = `EID: ${eventId}`; // Default simplified label
+
+        switch(eventId) {
+            case '4624': 
+                if (!ip || ip === '-' || !user || user === '-') return;
+                addNode(ip, ip, 'ip');
+                addNode(computer, computer, 'computer');
+                addNode(user, user, 'user');
+                let logonClass4624 = 'logon-success';
+                if (logonType === '10') { // RDP
+                    logonClass4624 = 'rdp-success';
+                }
+                elements.push({
+                    group: 'edges',
+                    data: {
+                        id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
+                        source: ip,
+                        target: computer,
+                        label: edgeLabel,
+                        class: logonClass4624,
+                    }
+                });
+                break;
+
+            case '4625': 
+                if (!ip || ip === '-' || !user || user === '-') return;
+                addNode(ip, ip, 'ip');
+                addNode(computer, computer, 'computer');
+                addNode(user, user, 'user');
+                elements.push({
+                    group: 'edges',
+                    data: {
+                        id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
+                        source: ip,
+                        target: computer,
+                        label: edgeLabel, 
+                        class: 'logon-fail', 
+                    }
+                });
+                break;
+            
+            case '21': 
+            case '22': 
+            case '1149': 
+                if (!ip || ip === '-' || !user || user === '-') return;
+                addNode(ip, ip, 'ip');
+                addNode(computer, computer, 'computer');
+                addNode(user, user, 'user');
+                elements.push({
+                    group: 'edges',
+                    data: {
+                        id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
+                        source: ip,
+                        target: computer,
+                        label: edgeLabel,
+                        class: 'rdp-success',
+                    }
+                });
+                break;
+
+            case '4768': 
+            case '4776': 
+                 if (!ip || ip === '-' || !user || user === '-') return;
+                 addNode(ip, ip, 'ip');
+                 addNode(computer, computer, 'computer');
+                 addNode(user, user, 'user');
+                 elements.push({
+                     group: 'edges',
+                     data: {
+                         id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
+                         source: ip,
+                         target: computer,
+                         label: edgeLabel,
+                         class: 'auth',
+                     }
+                 });
+                break;
+
+            case '4769': 
+                if (!user || !service || service === '-' || user === '-') return;
+                addNode(user, user, 'user');
+                addNode(service, service, 'service');
+                 elements.push({
+                     group: 'edges',
+                     data: {
+                         id: `${user}-${service}-${eventId}-${rec.EventRecordID || Math.random()}`,
+                         source: user,
+                         target: service,
+                         label: edgeLabel,
+                         class: 'ticket-request',
+                     }
+                 });
+                break;
+        }
+    });
+    
+    if (elements.filter(el => el.group === 'nodes').length === 0) { 
+        showAppMessage("No recognizable events or entities found in the data for graph visualization. Supported events include common logon, auth, and RDP activities.", "info", true);
+        return;
+    }
+
+    cy = window.cytoscape({ 
+        container: dom.cyContainer,
+        elements: elements,
+        style: [
+            {
+                selector: 'node',
+                style: { 'background-color': '#666', 'label': 'data(label)', 'color': '#fff', 'text-valign': 'bottom', 'text-halign': 'center', 'font-size': '10px', 'text-wrap': 'wrap', 'text-max-width': '80px', 'min-zoomed-font-size': '8px'}
+            },
+            { selector: 'node[type="computer"]', style: { 'background-color': '#4a90e2', 'shape': 'rectangle' } },
+            { selector: 'node[type="user"]', style: { 'background-color': '#f5a623' } },
+            { selector: 'node[type="ip"]', style: { 'background-color': '#50e3c2', 'shape': 'diamond' } },
+            { selector: 'node[type="service"]', style: { 'background-color': '#bd10e0', 'shape': 'hexagon' } },
+            {
+                selector: 'edge',
+                style: { 'width': 2, 'label': 'data(label)', 'line-color': '#ccc', 'target-arrow-color': '#ccc', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'font-size': '8px', 'color': '#ccc', 'text-rotation': 'autorotate', 'text-margin-y': -10, 'min-zoomed-font-size': '6px' }
+            },
+            { selector: '.logon-success', style: { 'line-color': '#28a745', 'target-arrow-color': '#28a745' } },
+            { selector: '.rdp-success', style: { 'line-color': '#0dcaf0', 'target-arrow-color': '#0dcaf0' } }, 
+            { selector: '.logon-fail', style: { 'line-color': '#dc3545', 'target-arrow-color': '#dc3545', 'line-style': 'dashed' } },
+            { selector: '.auth', style: { 'line-color': '#17a2b8', 'target-arrow-color': '#17a2b8' } },
+            { selector: '.ticket-request', style: { 'line-color': '#ffc107', 'target-arrow-color': '#ffc107' } }
+        ],
+        layout: {
+            name: 'cose',
+            idealEdgeLength: 120, 
+            nodeOverlap: 25, 
+            refresh: 20, 
+            fit: true, 
+            padding: 30, 
+            randomize: false, 
+            componentSpacing: 120, 
+            nodeRepulsion: 450000, 
+            edgeElasticity: 120, 
+            nestingFactor: 5, 
+            gravity: 80, 
+            numIter: 1000, 
+            initialTemp: 200, 
+            coolingFactor: 0.95, 
+            minTemp: 1.0
+        }
+    });
+}
+
+function updateGraphToggleButton(tab) {
+    if (!tab || !dom.toggleGraphBtn) return;
+    const hasResults = tab.currentRawOutput && tab.currentRawOutput.trim() !== "";
+    dom.toggleGraphBtn.classList.toggle('d-none', !hasResults);
+    if (hasResults) {
+        dom.toggleGraphBtn.innerHTML = tab.graphVisible ?
+            '<i class="fa-solid fa-project-diagram"></i> Hide Graph' :
+            '<i class="fa-solid fa-project-diagram"></i> Visualize';
+    }
+}
+
 function prettifyRuleName(filename) {
     if (!filename) return "";
     return filename
-        .replace(/\.yaml$/i, '')
-        .replace(/\.yml$/i, '')
-        .replace(/_/g, ' ')
-        .replace(/-/g, ' ')
+        .replace(/\.yaml$/i, '').replace(/\.yml$/i, '')
+        .replace(/_/g, ' ').replace(/-/g, ' ')
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
 }
+
 async function initializeShaperScriptsSelect() {
     const placeholder = [{ name: "Select a shaper...", path: "" }];
     try {
         const response = await fetch('shapers/shaper_files.json');
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: Could not load shaper_files.json`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const shaperFiles = await response.json();
         if (Array.isArray(shaperFiles) && shaperFiles.length > 0) {
             const options = shaperFiles.map(filename => ({
-                path: filename,
-                name: prettifyRuleName(filename)
+                path: filename, name: prettifyRuleName(filename)
             }));
             populateSelect(dom.shaperScriptsSelect, placeholder.concat(options), "", 'path', 'name');
         } else {
@@ -1349,31 +1925,30 @@ async function initializeShaperScriptsSelect() {
         showAppMessage(`Failed to load shaper scripts: ${error.message}`, 'error', true);
     }
 }
+
 async function initializePredefinedRulesSelect(selectedValue = "") {
     dom.loadPredefinedRuleBtn.disabled = true;
     const placeholder = [{ name: "Select a predefined set...", path: "" }];
     try {
         const response = await fetch('rules/rule_files.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status} - Could not load rule_files.json`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const ruleFiles = await response.json();
         if (Array.isArray(ruleFiles) && ruleFiles.length > 0) {
             const options = ruleFiles.map(filename => ({
-                path: filename,
-                name: prettifyRuleName(filename)
+                path: filename, name: prettifyRuleName(filename)
             }));
             populateSelect(dom.predefinedRulesSelect, placeholder.concat(options), selectedValue, 'path', 'name');
             dom.loadPredefinedRuleBtn.disabled = false;
         } else {
-            populateSelect(dom.predefinedRulesSelect, placeholder.concat([{ name: "No rules found in manifest.", path: "" }]), "", 'path', 'name');
-            showAppMessage("No predefined rules found or manifest is empty.", "warning");
+            populateSelect(dom.predefinedRulesSelect, placeholder.concat([{ name: "No rules found.", path: "" }]), "", 'path', 'name');
+            showAppMessage("No predefined rules found in manifest.", "warning");
         }
     } catch (error) {
         populateSelect(dom.predefinedRulesSelect, placeholder.concat([{ name: "Error loading rules.", path: "" }]), "", 'path', 'name');
         showAppMessage(`Failed to load predefined rules: ${error.message}`, 'error', true);
     }
 }
+
 async function initializeEvtxWasm() {
     if (typeof Go === 'undefined') {
         console.error("wasm_exec.js not loaded, EVTX conversion disabled.");
@@ -1391,19 +1966,23 @@ async function initializeEvtxWasm() {
         showAppMessage("Critical Error: EVTX converter WASM failed to load.", "error", true);
     }
 }
+
 async function initializeApp() {
     if (!SuperDB) {
+        console.error("SuperDB module not available. Application cannot initialize.");
         return;
     }
     try {
+        if (typeof Chart !== 'undefined' && typeof ChartZoom !== 'undefined') {
+            Chart.register(ChartZoom);
+        } else {
+            console.error("Chart or ChartZoom plugin not loaded. Zoom functionality will be unavailable.");
+            showAppMessage("Timeline zoom plugin failed to load.", "warning", true);
+        }
         [dom.runQueryBtn, dom.exportBtn, dom.runScannerBtn, dom.addTabBtn, dom.loadTestDataBtn, dom.loadPredefinedRuleBtn, dom.applyShaperBtn].forEach(btn => { if(btn) btn.disabled = true; });
         dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Initializing...';
         showAppMessage('Igniting Wasm engines... Stand by.', 'info', true);
-        try {
-            await openDB();
-        } catch (dbError) {
-             showAppMessage(`Failed to initialize local database: ${dbError}. Large file support disabled.`, 'warning', true);
-        }
+        await openDB();
         await initializeEvtxWasm();
         if (dom.rowDetailsModal && typeof bootstrap !== 'undefined') {
             detailsModalInstance = new bootstrap.Modal(dom.rowDetailsModal);
@@ -1423,12 +2002,11 @@ async function initializeApp() {
         tooltipTriggerList.map(function (tooltipTriggerEl) {
           if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip !== 'undefined') {
              return new bootstrap.Tooltip(tooltipTriggerEl);
-          } else {
-             return null;
           }
+          return null;
         });
     } catch (error) {
-        showAppMessage(`Critical Error: SuperDB instantiation failed: ${error.message || String(error)}. Check Wasm files.`, 'error', true);
+        showAppMessage(`Critical Error: App initialization failed: ${error.message || String(error)}. Check Wasm files.`, 'error', true);
         if (dom.runQueryBtn) {
             dom.runQueryBtn.textContent = 'Load Failed';
             dom.runQueryBtn.classList.remove('btn-primary');

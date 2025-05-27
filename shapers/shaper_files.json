@@ -1,5 +1,5 @@
 [
     "windows_evtx_json.yaml",
-    "Linux_syslog.yaml",
-    "microsoft_xdr.yaml"
+    "Linux_syslog_parser.yaml",
+    "microsoft_xdr_rename_fieldname.yaml"
 ]
