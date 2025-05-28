@@ -1,687 +1,1490 @@
 rules:
+- name: Mimikatz Use
+  query: (grep('dpapi::masterkey', this) or grep('eo.oe.kiwi', this) or grep('event::clear',
+    this) or grep('event::drop', this) or grep('gentilkiwi.com', this) or grep('kerberos::golden',
+    this) or grep('kerberos::ptc', this) or grep('kerberos::ptt', this) or grep('kerberos::tgt',
+    this) or grep('Kiwi Legit Printer', this) or grep('lsadump::', this) or grep('mimidrv.sys',
+    this) or grep('\\mimilib.dll', this) or grep('misc::printnightmare', this) or
+    grep('misc::shadowcopies', this) or grep('misc::skeleton', this) or grep('privilege::backup',
+    this) or grep('privilege::debug', this) or grep('privilege::driver', this) or
+    grep('sekurlsa::', this)) and not this['EventID']=='15'
+  sigma_id: 06d71506-7beb-4f22-8888-e2e5e2ca7fd8
+- name: Relevant Anti-Virus Signature Keywords In Application Log
+  query: (grep('Adfind', this) or grep('ASP/BackDoor ', this) or grep('ATK/', this)
+    or grep('Backdoor.ASP', this) or grep('Backdoor.Cobalt', this) or grep('Backdoor.JSP',
+    this) or grep('Backdoor.PHP', this) or grep('Blackworm', this) or grep('Brutel',
+    this) or grep('BruteR', this) or grep('Chopper', this) or grep('Cobalt', this)
+    or grep('COBEACON', this) or grep('Cometer', this) or grep('CRYPTES', this) or
+    grep('Cryptor', this) or grep('Destructor', this) or grep('DumpCreds', this) or
+    grep('Exploit.Script.CVE', this) or grep('FastReverseProxy', this) or grep('Filecoder',
+    this) or grep('GrandCrab ', this) or grep('HackTool', this) or grep('HKTL', this)
+    or grep('HTool-', this) or grep('/HTool', this) or grep('.HTool', this) or grep('IISExchgSpawnCMD',
+    this) or grep('Impacket', this) or grep('JSP/BackDoor ', this) or grep('Keylogger',
+    this) or grep('Koadic', this) or grep('Krypt', this) or grep('Lazagne', this)
+    or grep('Metasploit', this) or grep('Meterpreter', this) or grep('MeteTool', this)
+    or grep('mikatz', this) or grep('Mimikatz', this) or grep('Mpreter', this) or
+    grep('MsfShell', this) or grep('Nighthawk', this) or grep('Packed.Generic.347',
+    this) or grep('PentestPowerShell', this) or grep('Phobos', this) or grep('PHP/BackDoor
+    ', this) or grep('Potato', this) or grep('PowerSploit', this) or grep('PowerSSH',
+    this) or grep('PshlSpy', this) or grep('PSWTool', this) or grep('PWCrack', this)
+    or grep('PWDump', this) or grep('Ransom', this) or grep('Rozena', this) or grep('Ryzerlo',
+    this) or grep('Sbelt', this) or grep('Seatbelt', this) or grep('SecurityTool ',
+    this) or grep('SharpDump', this) or grep('Shellcode', this) or grep('Sliver',
+    this) or grep('Splinter', this) or grep('Swrort', this) or grep('Tescrypt', this)
+    or grep('TeslaCrypt', this) or grep('TurtleLoader', this) or grep('Valyria', this)
+    or grep('Webshell', this)) and not (grep('anti_ransomware_service.exe', this)
+    or grep('Anti-Ransomware', this) or grep('Crack', this) or grep('cyber-protect-service.exe',
+    this) or grep('encryptor', this) or grep('Keygen', this) or this['Level']=='4'
+    or this['Provider_Name']=='Microsoft-Windows-RestartManager')
+  sigma_id: 78bc5783-81d9-4d73-ac97-59f6db4f72a8
+- name: Microsoft Malware Protection Engine Crash
+  query: this['Provider_Name']=='Application Error' and this['EventID']=='1000' and
+    this['Data']=='MsMpEng.exe' and this['Data']=='mpengine.dll'
+  sigma_id: 545a5da6-f103-4919-a519-e9aec1026ee4
+- name: Potential Credential Dumping Via WER - Application
+  query: this['Provider_Name']=='Application Error' and this['EventID']=='1000' and
+    this['AppName']=='lsass.exe' and this['ExceptionCode']=='c0000001'
+  sigma_id: a18e0862-127b-43ca-be12-1a542c75c7c5
+- name: Ntdsutil Abuse
+  query: this['Provider_Name']=='ESENT' and (this['EventID'] in [216, 325, 326, 327])
+    and this['Data']=='ntds.dit'
+  sigma_id: e6e88853-5f20-4c4a-8d26-cd469fd8d31f
+- name: Dump Ntds.dit To Suspicious Location
+  query: this['Provider_Name']=='ESENT' and this['EventID']=='325' and this['Data']=='ntds.dit'
+    and (this['Data']==':\\ntds.dit' or this['Data']=='\\Appdata\\' or this['Data']=='\\Desktop\\'
+    or this['Data']=='\\Downloads\\' or this['Data']=='\\Perflogs\\' or this['Data']=='\\Temp\\'
+    or this['Data']=='\\Users\\Public\\')
+  sigma_id: 94dc4390-6b7c-4784-8ffc-335334404650
+- name: Audit CVE Event
+  query: (this['Provider_Name'] in ['Microsoft-Windows-Audit-CVE', 'Audit-CVE']) and
+    this['EventID']=='1'
+  sigma_id: 48d91a3a-2363-43ba-a456-ca71ac3da5c2
+- name: Backup Catalog Deleted
+  query: this['EventID']=='524' and this['Provider_Name']=='Microsoft-Windows-Backup'
+  sigma_id: 9703792d-fd9a-456d-a672-ff92efe4806a
+- name: Restricted Software Access By SRP
+  query: this['Provider_Name']=='Microsoft-Windows-SoftwareRestrictionPolicies' and
+    (this['EventID'] in [865, 866, 867, 868, 882])
+  sigma_id: b4c8da4a-1c12-46b0-8a2b-0a8521d03442
+- name: MSI Installation From Suspicious Locations
+  query: this['Provider_Name']=='MsiInstaller' and (this['EventID'] in [1040, 1042])
+    and (this['Data']==':\\Windows\\TEMP\\' or this['Data']=='\\' or this['Data']=='\\Desktop\\'
+    or this['Data']=='\\PerfLogs\\' or this['Data']=='\\Users\\Public\\') and not
+    (this['Data']=='\\AppData\\Local\\Temp\\WinGet\\' or this['Data']=='C:\\Windows\\TEMP\\UpdHealthTools.msi')
+  sigma_id: c7c8aa1c-5aff-408e-828b-998e3620b341
+- name: MSI Installation From Web
+  query: this['Provider_Name']=='MsiInstaller' and (this['EventID'] in [1040, 1042])
+    and this['Data']=='://'
+  sigma_id: 5594e67a-7f92-4a04-b65d-1a42fd824a60
+- name: Atera Agent Installation
+  query: this['EventID']=='1033' and this['Provider_Name']=='MsiInstaller' and this['Message']=='AteraAgent'
+  sigma_id: 87261fb2-69d0-42fe-b9de-88c6b5f65a43
+- name: MSSQL Add Account To Sysadmin Role
+  query: this['Provider_Name']=='MSSQL' and this['EventID']=='33205' and this['Data']=='object_name:sysadmin'
+    and this['Data']=='statement:alter server role [sysadmin] add member '
+  sigma_id: 08200f85-2678-463e-9c32-88dce2f073d1
+- name: MSSQL Disable Audit Settings
+  query: this['Provider_Name']=='MSSQL' and this['EventID']=='33205' and (this['Data']=='statement:ALTER
+    SERVER AUDIT' or this['Data']=='statement:DROP SERVER AUDIT')
+  sigma_id: 350dfb37-3706-4cdc-9e2e-5e24bc3a46df
+- name: MSSQL Server Failed Logon From External Network
+  query: 'this[''Provider_Name'']==''MSSQL'' and this[''EventID'']==''18456'' and
+    not (this[''Data'']==''CLIENT: 10.'' or this[''Data'']==''CLIENT: 172.16.'' or
+    this[''Data'']==''CLIENT: 172.17.'' or this[''Data'']==''CLIENT: 172.18.'' or
+    this[''Data'']==''CLIENT: 172.19.'' or this[''Data'']==''CLIENT: 172.20.'' or
+    this[''Data'']==''CLIENT: 172.21.'' or this[''Data'']==''CLIENT: 172.22.'' or
+    this[''Data'']==''CLIENT: 172.23.'' or this[''Data'']==''CLIENT: 172.24.'' or
+    this[''Data'']==''CLIENT: 172.25.'' or this[''Data'']==''CLIENT: 172.26.'' or
+    this[''Data'']==''CLIENT: 172.27.'' or this[''Data'']==''CLIENT: 172.28.'' or
+    this[''Data'']==''CLIENT: 172.29.'' or this[''Data'']==''CLIENT: 172.30.'' or
+    this[''Data'']==''CLIENT: 172.31.'' or this[''Data'']==''CLIENT: 192.168.'' or
+    this[''Data'']==''CLIENT: 127.'' or this[''Data'']==''CLIENT: 169.254.'')'
+  sigma_id: ebfe73c2-5bc9-4ed9-aaa8-8b54b2b4777d
+- name: MSSQL SPProcoption Set
+  query: this['Provider_Name']=='MSSQL' and this['EventID']=='33205' and this['Data']=='object_name:sp_procoption'
+    and this['Data']=='statement:EXEC'
+  sigma_id: b3d57a5c-c92e-4b48-9a79-5f124b7cf964
+- name: MSSQL XPCmdshell Suspicious Execution
+  query: this['Provider_Name']=='MSSQL' and this['EventID']=='33205' and this['Data']=='object_name:xp_cmdshell'
+    and this['Data']=='statement:EXEC'
+  sigma_id: 7f103213-a04e-4d59-8261-213dddf22314
+- name: MSSQL XPCmdshell Option Change
+  query: this['Provider_Name']=='MSSQL' and this['EventID']=='15457' and this['Data']=='xp_cmdshell'
+  sigma_id: d08dd86f-681e-4a00-a92c-1db218754417
+- name: Microsoft Malware Protection Engine Crash - WER
+  query: this['Provider_Name']=='Windows Error Reporting' and this['EventID']=='1001'
+    and this['Data']=='MsMpEng.exe' and this['Data']=='mpengine.dll'
+  sigma_id: 6c82cf5c-090d-4d57-9188-533577631108
+- name: File Was Not Allowed To Run
+  query: this['EventID'] in [8004, 8007, 8022, 8025]
+  sigma_id: 401e5d00-b944-11ea-8f9a-00163ecd60ae
+- name: Deployment AppX Package Was Blocked By AppLocker
+  query: this['EventID']=='412'
+  sigma_id: 6ae53108-c3a0-4bee-8f45-c7591a2c337f
+- name: Potential Malicious AppX Package Installation Attempts
+  query: (this['EventID'] in [400, 401]) and this['PackageFullName']=='3669e262-ec02-4e9d-bcb4-3d008b4afac9'
+  sigma_id: 09d3b48b-be17-47f5-bf4e-94e7e75d09ce
+- name: Deployment Of The AppX Package Was Blocked By The Policy
+  query: this['EventID'] in [441, 442, 453, 454]
+  sigma_id: e021bbb5-407f-41f5-9dc9-1864c45a7a51
+- name: Suspicious AppX Package Installation Attempt
+  query: this['EventID']=='401' and this['ErrorCode']=='0x80073cff'
+  sigma_id: 898d5fc9-fbc3-43de-93ad-38e97237c344
+- name: Suspicious Remote AppX Package Locations
+  query: this['EventID']=='854' and (this['Path']=='.githubusercontent.com' or this['Path']=='anonfiles.com'
+    or this['Path']=='cdn.discordapp.com' or this['Path']=='ddns.net' or this['Path']=='dl.dropboxusercontent.com'
+    or this['Path']=='ghostbin.co' or this['Path']=='glitch.me' or this['Path']=='gofile.io'
+    or this['Path']=='hastebin.com' or this['Path']=='mediafire.com' or this['Path']=='mega.nz'
+    or this['Path']=='onrender.com' or this['Path']=='pages.dev' or this['Path']=='paste.ee'
+    or this['Path']=='pastebin.com' or this['Path']=='pastebin.pl' or this['Path']=='pastetext.net'
+    or this['Path']=='privatlab.com' or this['Path']=='privatlab.net' or this['Path']=='send.exploit.in'
+    or this['Path']=='sendspace.com' or this['Path']=='storage.googleapis.com' or
+    this['Path']=='storjshare.io' or this['Path']=='supabase.co' or this['Path']=='temp.sh'
+    or this['Path']=='transfer.sh' or this['Path']=='trycloudflare.com' or this['Path']=='ufile.io'
+    or this['Path']=='w3spaces.com' or this['Path']=='workers.dev')
+  sigma_id: 8b48ad89-10d8-4382-a546-50588c410f0d
+- name: Suspicious AppX Package Locations
+  query: this['EventID']=='854' and (this['Path']=='C:\\Users\\Public\\' or this['Path']=='/users/public/'
+    or this['Path']=='C:\\PerfLogs\\' or this['Path']=='C:/perflogs/' or this['Path']=='\\Desktop\\'
+    or this['Path']=='/desktop/' or this['Path']=='\\Downloads\\' or this['Path']=='/Downloads/'
+    or this['Path']=='C:\\Windows\\Temp\\' or this['Path']=='C:/Windows/Temp/' or
+    this['Path']=='\\AppdData\\Local\\Temp\\' or this['Path']=='/AppdData/Local/Temp/')
+  sigma_id: 5cdeaf3d-1489-477c-95ab-c318559fc051
+- name: Uncommon AppX Package Locations
+  query: this['EventID']=='854' and not (this['Path']=='C:\\Program Files\\WindowsApps\\'
+    or this['Path']=='C:\\Program Files (x86)\\' or this['Path']=='C:\\Windows\\SystemApps\\'
+    or this['Path']=='C:\\Windows\\PrintDialog\\' or this['Path']=='C:\\Windows\\ImmersiveControlPanel\\'
+    or this['Path']=='x-windowsupdate://' or this['Path']=='file:///C:/Program%20Files'
+    or this['Path']=='https://statics.teams.cdn.live.net/' or this['Path']=='https://statics.teams.cdn.office.net/'
+    or this['Path']=='microsoft.com' or this['Path']=='https://installer.teams.static.microsoft/')
+  sigma_id: c977cb50-3dff-4a9f-b873-9290f56132f1
+- name: Suspicious Digital Signature Of AppX Package
+  query: this['EventID']=='157' and this['subjectName']=='CN=Foresee Consulting Inc.,
+    O=Foresee Consulting Inc., L=North York, S=Ontario, C=CA, SERIALNUMBER=1004913-1,
+    OID.1.3.6.1.4.1.311.60.2.1.3=CA, OID.2.5.4.15=Private Organization'
+  sigma_id: b5aa7d60-c17e-4538-97de-09029d6cd76b
+- name: BITS Transfer Job Downloading File Potential Suspicious Extension
+  query: this['EventID']=='16403' and (this['LocalName']=='.bat' or this['LocalName']=='.dll'
+    or this['LocalName']=='.exe' or this['LocalName']=='.hta' or this['LocalName']=='.ps1'
+    or this['LocalName']=='.psd1' or this['LocalName']=='.sh' or this['LocalName']=='.vbe'
+    or this['LocalName']=='.vbs') and not (this['LocalName']=='\\AppData\\' and this['RemoteName']=='.com')
+  sigma_id: b85e5894-9b19-4d86-8c87-a2f3b81f0521
+- name: BITS Transfer Job Download From File Sharing Domains
+  query: this['EventID']=='16403' and (this['RemoteName']=='.githubusercontent.com'
+    or this['RemoteName']=='anonfiles.com' or this['RemoteName']=='cdn.discordapp.com'
+    or this['RemoteName']=='ddns.net' or this['RemoteName']=='dl.dropboxusercontent.com'
+    or this['RemoteName']=='ghostbin.co' or this['RemoteName']=='glitch.me' or this['RemoteName']=='gofile.io'
+    or this['RemoteName']=='hastebin.com' or this['RemoteName']=='mediafire.com' or
+    this['RemoteName']=='mega.nz' or this['RemoteName']=='onrender.com' or this['RemoteName']=='pages.dev'
+    or this['RemoteName']=='paste.ee' or this['RemoteName']=='pastebin.com' or this['RemoteName']=='pastebin.pl'
+    or this['RemoteName']=='pastetext.net' or this['RemoteName']=='pixeldrain.com'
+    or this['RemoteName']=='privatlab.com' or this['RemoteName']=='privatlab.net'
+    or this['RemoteName']=='send.exploit.in' or this['RemoteName']=='sendspace.com'
+    or this['RemoteName']=='storage.googleapis.com' or this['RemoteName']=='storjshare.io'
+    or this['RemoteName']=='supabase.co' or this['RemoteName']=='temp.sh' or this['RemoteName']=='transfer.sh'
+    or this['RemoteName']=='trycloudflare.com' or this['RemoteName']=='ufile.io' or
+    this['RemoteName']=='w3spaces.com' or this['RemoteName']=='workers.dev')
+  sigma_id: d635249d-86b5-4dad-a8c7-d7272b788586
+- name: BITS Transfer Job Download From Direct IP
+  query: this['EventID']=='16403' and (this['RemoteName']=='http://1' or this['RemoteName']=='http://2'
+    or this['RemoteName']=='http://3' or this['RemoteName']=='http://4' or this['RemoteName']=='http://5'
+    or this['RemoteName']=='http://6' or this['RemoteName']=='http://7' or this['RemoteName']=='http://8'
+    or this['RemoteName']=='http://9' or this['RemoteName']=='https://1' or this['RemoteName']=='https://2'
+    or this['RemoteName']=='https://3' or this['RemoteName']=='https://4' or this['RemoteName']=='https://5'
+    or this['RemoteName']=='https://6' or this['RemoteName']=='https://7' or this['RemoteName']=='https://8'
+    or this['RemoteName']=='https://9') and not (this['RemoteName']=='://10.' or this['RemoteName']=='://192.168.'
+    or this['RemoteName']=='://172.16.' or this['RemoteName']=='://172.17.' or this['RemoteName']=='://172.18.'
+    or this['RemoteName']=='://172.19.' or this['RemoteName']=='://172.20.' or this['RemoteName']=='://172.21.'
+    or this['RemoteName']=='://172.22.' or this['RemoteName']=='://172.23.' or this['RemoteName']=='://172.24.'
+    or this['RemoteName']=='://172.25.' or this['RemoteName']=='://172.26.' or this['RemoteName']=='://172.27.'
+    or this['RemoteName']=='://172.28.' or this['RemoteName']=='://172.29.' or this['RemoteName']=='://172.30.'
+    or this['RemoteName']=='://172.31.' or this['RemoteName']=='://127.' or this['RemoteName']=='://169.254.'
+    or this['RemoteName']=='https://7-' or this['RemoteName']=='http://7-')
+  sigma_id: 90f138c1-f578-4ac3-8c49-eecfd847c8b7
+- name: BITS Transfer Job With Uncommon Or Suspicious Remote TLD
+  query: this['EventID']=='16403' and not (this['RemoteName']=='.azureedge.net/' or
+    this['RemoteName']=='.com/' or this['RemoteName']=='.sfx.ms/' or this['RemoteName']=='download.mozilla.org/'
+    or this['RemoteName']=='cdn.onenote.net/' or this['RemoteName']=='cdn.office.net/')
+  sigma_id: 6d44fb93-e7d2-475c-9d3d-54c9c1e33427
+- name: BITS Transfer Job Download To Potential Suspicious Folder
+  query: this['EventID']=='16403' and (this['LocalName']=='\\Desktop\\' or this['LocalName']=='C:\\Users\\Public\\'
+    or this['LocalName']=='C:\\PerfLogs\\')
+  sigma_id: f8a56cb7-a363-44ed-a82f-5926bb44cd05
+- name: Certificate Private Key Acquired
+  query: this['EventID']=='70'
+  sigma_id: e2b5163d-7deb-4566-9af3-40afea6858c3
+- name: Certificate Exported From Local Certificate Store
+  query: this['EventID']=='1007'
+  sigma_id: 58c0bff0-40a0-46e8-b5e8-b734b84d2017
+- name: CodeIntegrity - Disallowed File For Protected Processes Has Been Blocked
+  query: this['EventID']=='3104'
+  sigma_id: 5daf11c3-022b-4969-adb9-365e6c078c7c
+- name: CodeIntegrity - Blocked Image/Driver Load For Policy Violation
+  query: this['EventID']=='3077'
+  sigma_id: e4be5675-4a53-426a-8c81-a8bb2387e947
+- name: CodeIntegrity - Blocked Driver Load With Revoked Certificate
+  query: this['EventID']=='3023'
+  sigma_id: 9b72b82d-f1c5-4632-b589-187159bc6ec1
+- name: CodeIntegrity - Revoked Kernel Driver Loaded
+  query: this['EventID'] in [3021, 3022]
+  sigma_id: 320fccbf-5e32-4101-82b8-2679c5f007c6
+- name: CodeIntegrity - Blocked Image Load With Revoked Certificate
+  query: this['EventID']=='3036'
+  sigma_id: 6f156c48-3894-4952-baf0-16193e9067d2
+- name: CodeIntegrity - Revoked Image Loaded
+  query: this['EventID'] in [3032, 3035]
+  sigma_id: 881b7725-47cc-4055-8000-425823344c59
+- name: CodeIntegrity - Unsigned Kernel Module Loaded
+  query: this['EventID']=='3001'
+  sigma_id: 951f8d29-f2f6-48a7-859f-0673ff105e6f
+- name: CodeIntegrity - Unsigned Image Loaded
+  query: this['EventID']=='3037'
+  sigma_id: c92c24e7-f595-493f-9c98-53d5142f5c18
+- name: CodeIntegrity - Unmet WHQL Requirements For Loaded Kernel Module
+  query: (this['EventID'] in [3082, 3083]) and not (this['FileNameBuffer'] in ['system32\\drivers\\vsock.sys',
+    'System32\\drivers\\vmci.sys'])
+  sigma_id: 2f8cd7a0-9d5a-4f62-9f8b-2c951aa0dd1f
+- name: Loading Diagcab Package From Remote Path
+  query: this['EventID']=='101' and this['PackagePath']=='\\'
+  sigma_id: 50cb47b8-2c33-4b23-a2e9-4600657d9746
+- name: Suspicious Cobalt Strike DNS Beaconing - DNS Client
+  query: this['EventID']=='3008' and (this['QueryName']=='aaa.stage.' or this['QueryName']=='post.1'
+    or this['QueryName']=='.stage.123456.')
+  sigma_id: 0d18728b-f5bf-4381-9dcf-915539fff6c2
+- name: DNS Query for Anonfiles.com Domain - DNS Client
+  query: this['EventID']=='3008' and this['QueryName']=='.anonfiles.com'
+  sigma_id: 29f171d7-aa47-42c7-9c7b-3c87938164d9
+- name: DNS Query To MEGA Hosting Website - DNS Client
+  query: this['EventID']=='3008' and this['QueryName']=='userstorage.mega.co.nz'
+  sigma_id: 66474410-b883-415f-9f8d-75345a0a66a6
+- name: DNS Query To Put.io - DNS Client
+  query: this['EventID']=='3008' and (this['QueryName']=='api.put.io' or this['QueryName']=='upload.put.io')
+  sigma_id: 8b69fd42-9dad-4674-abef-7fdef43ef92a
+- name: Query Tor Onion Address - DNS Client
+  query: this['EventID']=='3008' and this['QueryName']=='.onion'
+  sigma_id: 8384bd26-bde6-4da9-8e5d-4174a7a47ca2
+- name: Failed DNS Zone Transfer
+  query: this['EventID']=='6004'
+  sigma_id: 6d444368-6da1-43fe-b2fc-44202430480e
+- name: DNS Server Error Failed Loading the ServerLevelPluginDLL
+  query: this['EventID'] in [150, 770, 771]
+  sigma_id: cbe51394-cd93-4473-b555-edf0144952d9
+- name: Uncommon New Firewall Rule Added In Windows Firewall Exception List
+  query: (this['EventID'] in [2004, 2071, 2097]) and not (this['Action']=='2' or this['ApplicationPath']=='C:\\Program
+    Files (x86)\\' or this['ApplicationPath']=='C:\\Program Files\\' or this['ApplicationPath']=='C:\\Windows\\System32\\'
+    or this['ApplicationPath']=='C:\\Windows\\SysWOW64\\' or this['ApplicationPath']=='C:\\Windows\\WinSxS\\'
+    or this['ApplicationPath']=='C:\\PerfLogs\\' or this['ApplicationPath']=='C:\\Temp\\'
+    or this['ApplicationPath']=='C:\\Tmp\\' or this['ApplicationPath']=='C:\\Users\\Public\\'
+    or this['ApplicationPath']=='C:\\Windows\\Tasks\\' or this['ApplicationPath']=='C:\\Windows\\Temp\\'
+    or this['ApplicationPath']=='\\AppData\\Local\\Temp\\' or this['ApplicationPath']==null)
+    and not (this['ModifyingApplication']=='C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\'
+    and this['ModifyingApplication']=='\\MsMpEng.exe' or (this['ModifyingApplication']
+    in ['C:\\Windows\\System32\\svchost.exe', 'C:\\Windows\\System32\\dllhost.exe'])
+    and false)
+  sigma_id: cde0a575-7d3d-4a49-9817-b8004a7bf105
+- name: New Firewall Rule Added In Windows Firewall Exception List For Potential Suspicious
+    Application
+  query: (this['EventID'] in [2004, 2071, 2097]) and (this['ApplicationPath']==':\\PerfLogs\\'
+    or this['ApplicationPath']==':\\Temp\\' or this['ApplicationPath']==':\\Tmp\\'
+    or this['ApplicationPath']==':\\Users\\Public\\' or this['ApplicationPath']==':\\Windows\\Tasks\\'
+    or this['ApplicationPath']==':\\Windows\\Temp\\' or this['ApplicationPath']=='\\AppData\\Local\\Temp\\')
+    and not this['Action']=='2'
+  sigma_id: 9e2575e7-2cb9-4da1-adc8-ed94221dca5e
+- name: New Firewall Rule Added In Windows Firewall Exception List Via WmiPrvSE.EXE
+  query: (this['EventID'] in [2004, 2071, 2097]) and this['Action']=='3' and this['ModifyingApplication']==':\\Windows\\System32\\wbem\\WmiPrvSE.exe'
+  sigma_id: eca81e8d-09e1-4d04-8614-c91f44fd0519
+- name: All Rules Have Been Deleted From The Windows Firewall Configuration
+  query: (this['EventID'] in [2033, 2059]) and not this['ModifyingApplication']==':\\Windows\\System32\\svchost.exe'
+    and not (this['ModifyingApplication']==':\\ProgramData\\Microsoft\\Windows Defender\\Platform\\'
+    and this['ModifyingApplication']=='\\MsMpEng.exe')
+  sigma_id: 79609c82-a488-426e-abcf-9f341a39365d
+- name: A Rule Has Been Deleted From The Windows Firewall Exception List
+  query: (this['EventID'] in [2006, 2052]) and not (this['ModifyingApplication']=='C:\\Program
+    Files (x86)\\' or this['ModifyingApplication']=='C:\\Program Files\\' or this['ModifyingApplication']=='C:\\Windows\\WinSxS\\'
+    or this['ModifyingApplication']=='C:\\Windows\\System32\\svchost.exe' or this['ModifyingApplication']==null
+    or false) and not (this['ModifyingApplication']=='C:\\ProgramData\\Microsoft\\Windows
+    Defender\\Platform\\' and this['ModifyingApplication']=='\\MsMpEng.exe')
+  sigma_id: c187c075-bb3e-4c62-b4fa-beae0ffc211f
+- name: ETW Logging/Processing Option Disabled On IIS Server
+  query: this['EventID']=='29' and this['Configuration']=='@logTargetW3C' and this['OldValue']=='ETW'
+    and not this['NewValue']=='ETW'
+  sigma_id: a5b40a90-baf5-4bf7-a6f7-373494881d22
+- name: HTTP Logging Disabled On IIS Server
+  query: this['EventID']=='29' and this['Configuration']=='/system.webServer/httpLogging/@dontLog'
+    and this['NewValue']=='true'
+  sigma_id: e8ebd53a-30c2-45bd-81bb-74befba07bdb
+- name: New Module Module Added To IIS Server
+  query: this['EventID']=='29' and this['Configuration']=='/system.webServer/modules/add'
+    and not (this['NewValue'] in ['AnonymousAuthenticationModule', 'CustomErrorModule',
+    'DefaultDocumentModule', 'DirectoryListingModule', 'FileCacheModule', 'HttpCacheModule',
+    'HttpLoggingModule', 'ProtocolSupportModule', 'RequestFilteringModule', 'StaticCompressionModule',
+    'StaticFileModule', 'TokenCacheModule', 'UriCacheModule'] or false)
+  sigma_id: dd857d3e-0c6e-457b-9b48-e82ae7f86bd7
+- name: Potential Active Directory Reconnaissance/Enumeration Via LDAP
+  query: 'this[''EventID'']==''30'' and (this[''SearchFilter'']==''(groupType:1.2.840.113556.1.4.803:=2147483648)''
+    or this[''SearchFilter'']==''(groupType:1.2.840.113556.1.4.803:=2147483656)''
+    or this[''SearchFilter'']==''(groupType:1.2.840.113556.1.4.803:=2147483652)''
+    or this[''SearchFilter'']==''(groupType:1.2.840.113556.1.4.803:=2147483650)''
+    or this[''SearchFilter'']==''(sAMAccountType=805306369)'' or this[''SearchFilter'']==''(sAMAccountType=805306368)''
+    or this[''SearchFilter'']==''(sAMAccountType=536870913)'' or this[''SearchFilter'']==''(sAMAccountType=536870912)''
+    or this[''SearchFilter'']==''(sAMAccountType=268435457)'' or this[''SearchFilter'']==''(sAMAccountType=268435456)''
+    or this[''SearchFilter'']==''(objectCategory=groupPolicyContainer)'' or this[''SearchFilter'']==''(objectCategory=organizationalUnit)''
+    or this[''SearchFilter'']==''(objectCategory=Computer)'' or this[''SearchFilter'']==''(objectCategory=nTDSDSA)''
+    or this[''SearchFilter'']==''(objectCategory=server)'' or this[''SearchFilter'']==''(objectCategory=domain)''
+    or this[''SearchFilter'']==''(objectCategory=person)'' or this[''SearchFilter'']==''(objectCategory=group)''
+    or this[''SearchFilter'']==''(objectCategory=user)'' or this[''SearchFilter'']==''(objectClass=trustedDomain)''
+    or this[''SearchFilter'']==''(objectClass=computer)'' or this[''SearchFilter'']==''(objectClass=server)''
+    or this[''SearchFilter'']==''(objectClass=group)'' or this[''SearchFilter'']==''(objectClass=user)''
+    or this[''SearchFilter'']==''(primaryGroupID=521)'' or this[''SearchFilter'']==''(primaryGroupID=516)''
+    or this[''SearchFilter'']==''(primaryGroupID=515)'' or this[''SearchFilter'']==''(primaryGroupID=512)''
+    or this[''SearchFilter'']==''Domain Admins'' or this[''SearchFilter'']==''(\''objectGUID=\'',
+    <SpecialChars.WILDCARD_MULTI: 1>)'' or this[''SearchFilter'']==''(\''(schemaIDGUID=\'',
+    <SpecialChars.WILDCARD_MULTI: 1>, \'')\'')'' or this[''SearchFilter'']==''admincount=1'')
+    and not (this[''EventID'']==''30'' and ((this[''SearchFilter'']==''(domainSid=''
+    or this[''SearchFilter'']=='')'') or (this[''SearchFilter'']==''(objectSid=''
+    or this[''SearchFilter'']=='')''))) or this[''EventID'']==''30'' and (this[''SearchFilter'']==''(userAccountControl:1.2.840.113556.1.4.803:=4194304)''
+    or this[''SearchFilter'']==''(userAccountControl:1.2.840.113556.1.4.803:=2097152)''
+    or this[''SearchFilter'']==''!(userAccountControl:1.2.840.113556.1.4.803:=1048574)''
+    or this[''SearchFilter'']==''(userAccountControl:1.2.840.113556.1.4.803:=524288)''
+    or this[''SearchFilter'']==''(userAccountControl:1.2.840.113556.1.4.803:=65536)''
+    or this[''SearchFilter'']==''(userAccountControl:1.2.840.113556.1.4.803:=8192)''
+    or this[''SearchFilter'']==''(userAccountControl:1.2.840.113556.1.4.803:=544)''
+    or this[''SearchFilter'']==''!(UserAccountControl:1.2.840.113556.1.4.803:=2)''
+    or this[''SearchFilter'']==''msDS-AllowedToActOnBehalfOfOtherIdentity'' or this[''SearchFilter'']==''msDS-AllowedToDelegateTo''
+    or this[''SearchFilter'']==''msDS-GroupManagedServiceAccount'' or this[''SearchFilter'']==''(accountExpires=9223372036854775807)''
+    or this[''SearchFilter'']==''(accountExpires=0)'' or this[''SearchFilter'']==''(adminCount=1)''
+    or this[''SearchFilter'']==''ms-MCS-AdmPwd'') or this[''EventID'']==''30'' and
+    this[''SearchFilter'']==''(\''(objectclass=\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \'')\'')'' and (this[''DistinguishedName'']==''CN=Domain Admins'' or this[''DistinguishedName'']==''CN=Enterprise
+    Admins'' or this[''DistinguishedName'']==''CN=Group Policy Creator Owners'')'
+  sigma_id: 31d68132-4038-47c7-8f8e-635a39a7c174
+- name: Standard User In High Privileged Group
+  query: this['EventID']=='300' and this['TargetUserSid']=='S-1-5-21-' and (this['SidList']=='S-1-5-32-544'
+    or this['SidList']=='-500}' or this['SidList']=='-518}' or this['SidList']=='-519}')
+    and not (this['TargetUserSid']=='-500' or this['TargetUserSid']=='-518' or this['TargetUserSid']=='-519')
+  sigma_id: 7ac407cc-0f48-4328-aede-de1d2e6fef41
+- name: ProxyLogon MSExchange OabVirtualDirectory
+  query: grep('OabVirtualDirectory', this) and grep(' -ExternalUrl ', this) and (grep('eval(request',
+    this) or grep('http://f/<script', this) or grep('"unsafe"};', this) or grep('function
+    Page_Load()', this))
+  sigma_id: 550d3350-bb8a-4ff3-9533-2ba533f4a1c0
+- name: Certificate Request Export to Exchange Webserver
+  query: grep('New-ExchangeCertificate', this) and grep(' -GenerateRequest', this)
+    and grep(' -BinaryEncoded', this) and grep(' -RequestFile', this) and (grep('\\localhost\\C$',
+    this) or grep('\\127.0.0.1\\C$', this) or grep('C:\\inetpub', this) or grep('.aspx',
+    this))
+  sigma_id: b7bc7038-638b-4ffd-880c-292c692209ef
+- name: Mailbox Export to Exchange Webserver
+  query: grep('New-MailboxExportRequest', this) and grep(' -Mailbox ', this) and (grep('-FilePath
+    "\\', this) or grep('.aspx', this)) or grep('New-ManagementRoleAssignment', this)
+    and grep(' -Role "Mailbox Import Export"', this) and grep(' -User ', this)
+  sigma_id: 516376b4-05cd-4122-bae0-ad7641c38d48
+- name: Remove Exported Mailbox from Exchange Webserver
+  query: grep('Remove-MailboxExportRequest', this) and grep(' -Identity ', this) and
+    grep(' -Confirm "False"', this)
+  sigma_id: 09570ae5-889e-43ea-aac0-0e1221fb3d95
+- name: Exchange Set OabVirtualDirectory ExternalUrl Property
+  query: grep('Set-OabVirtualDirectory', this) and grep('ExternalUrl', this) and grep('Page_Load',
+    this) and grep('script', this)
+  sigma_id: 9db37458-4df2-46a5-95ab-307e7f29e675
+- name: MSExchange Transport Agent Installation - Builtin
+  query: grep('Install-TransportAgent', this)
+  sigma_id: 4fe151c2-ecf9-4fae-95ae-b88ec9c2fca6
+- name: Failed MSExchange Transport Agent Installation
+  query: this['EventID']=='6' and this['Data']=='Install-TransportAgent'
+  sigma_id: c7d16cae-aaf3-42e5-9c1c-fb8553faa6fa
+- name: NTLM Brute Force
+  query: this['EventID']=='8004' and (this['WorkstationName'] in ['Rdesktop', 'Remmina',
+    'Freerdp', 'Windows7', 'Windows8', 'Windows2012', 'Windows2016', 'Windows2019'])
+  sigma_id: 9c8acf1a-cbf9-4db6-b63c-74baabe03e59
+- name: Potential Remote Desktop Connection to Non-Domain Host
+  query: this['EventID']=='8001' and this['TargetName']=='TERMSRV'
+  sigma_id: ce5678bb-b9aa-4fb5-be4b-e57f686256ad
+- name: OpenSSH Server Listening On Socket
+  query: this['EventID']=='4' and this['process']=='sshd' and this['payload']=='Server
+    listening on '
+  sigma_id: 3ce8e9a4-bc61-4c9b-8e69-d7e2492a8781
 - name: Azure AD Health Monitoring Agent Registry Keys Access
-  query: (this['EventID'] in [4656, 4663]) and this['ObjectType']=="Key" and this['ObjectName']=="\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Microsoft
-    Online\\Reporting\\MonitoringAgent" and not (this['ProcessName']=="Microsoft.Identity.Health.Adfs.DiagnosticsAgent.exe"
-    or this['ProcessName']=="Microsoft.Identity.Health.Adfs.InsightsService.exe" or
-    this['ProcessName']=="Microsoft.Identity.Health.Adfs.MonitoringAgent.Startup.exe"
-    or this['ProcessName']=="Microsoft.Identity.Health.Adfs.PshSurrogate.exe" or this['ProcessName']=="Microsoft.Identity.Health.Common.Clients.ResourceMonitor.exe")
+  query: (this['EventID'] in [4656, 4663]) and this['ObjectType']=='Key' and this['ObjectName']=='\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Microsoft
+    Online\\Reporting\\MonitoringAgent' and not (this['ProcessName']=='Microsoft.Identity.Health.Adfs.DiagnosticsAgent.exe'
+    or this['ProcessName']=='Microsoft.Identity.Health.Adfs.InsightsService.exe' or
+    this['ProcessName']=='Microsoft.Identity.Health.Adfs.MonitoringAgent.Startup.exe'
+    or this['ProcessName']=='Microsoft.Identity.Health.Adfs.PshSurrogate.exe' or this['ProcessName']=='Microsoft.Identity.Health.Common.Clients.ResourceMonitor.exe')
   sigma_id: ff151c33-45fa-475d-af4f-c2f93571f4fe
 - name: Azure AD Health Service Agents Registry Keys Access
-  query: (this['EventID'] in [4656, 4663]) and this['ObjectType']=="Key" and this['ObjectName']=="\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\ADHealthAgent"
-    and not (this['ProcessName']=="Microsoft.Identity.Health.Adfs.DiagnosticsAgent.exe"
-    or this['ProcessName']=="Microsoft.Identity.Health.Adfs.InsightsService.exe" or
-    this['ProcessName']=="Microsoft.Identity.Health.Adfs.MonitoringAgent.Startup.exe"
-    or this['ProcessName']=="Microsoft.Identity.Health.Adfs.PshSurrogate.exe" or this['ProcessName']=="Microsoft.Identity.Health.Common.Clients.ResourceMonitor.exe")
+  query: (this['EventID'] in [4656, 4663]) and this['ObjectType']=='Key' and this['ObjectName']=='\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\ADHealthAgent'
+    and not (this['ProcessName']=='Microsoft.Identity.Health.Adfs.DiagnosticsAgent.exe'
+    or this['ProcessName']=='Microsoft.Identity.Health.Adfs.InsightsService.exe' or
+    this['ProcessName']=='Microsoft.Identity.Health.Adfs.MonitoringAgent.Startup.exe'
+    or this['ProcessName']=='Microsoft.Identity.Health.Adfs.PshSurrogate.exe' or this['ProcessName']=='Microsoft.Identity.Health.Common.Clients.ResourceMonitor.exe')
   sigma_id: 1d2ab8ac-1a01-423b-9c39-001510eae8e8
 - name: Powerview Add-DomainObjectAcl DCSync AD Extend Right
-  query: this['EventID']==5136 and this['AttributeLDAPDisplayName']=="ntSecurityDescriptor"
-    and (this['AttributeValue']=="1131f6ad-9c07-11d1-f79f-00c04fc2dcd2" or this['AttributeValue']=="1131f6aa-9c07-11d1-f79f-00c04fc2dcd2"
-    or this['AttributeValue']=="89e95b76-444d-4c62-991a-0facbeda640c") and not (this['ObjectClass']
-    in ["dnsNode", "dnsZoneScope", "dnsZone"])
+  query: this['EventID']=='5136' and this['AttributeLDAPDisplayName']=='ntSecurityDescriptor'
+    and (this['AttributeValue']=='1131f6ad-9c07-11d1-f79f-00c04fc2dcd2' or this['AttributeValue']=='1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'
+    or this['AttributeValue']=='89e95b76-444d-4c62-991a-0facbeda640c') and not (this['ObjectClass']
+    in ['dnsNode', 'dnsZoneScope', 'dnsZone'])
   sigma_id: 2c99737c-585d-4431-b61a-c911d86ff32f
 - name: AD Privileged Users or Groups Reconnaissance
-  query: this['EventID']==4661 and (this['ObjectType'] in ["SAM_USER", "SAM_GROUP"])
-    and (this['ObjectName']=="-512" or this['ObjectName']=="-502" or this['ObjectName']=="-500"
-    or this['ObjectName']=="-505" or this['ObjectName']=="-519" or this['ObjectName']=="-520"
-    or this['ObjectName']=="-544" or this['ObjectName']=="-551" or this['ObjectName']=="-555"
-    or this['ObjectName']=="admin") and not this['SubjectUserName']=="$"
+  query: this['EventID']=='4661' and (this['ObjectType'] in ['SAM_USER', 'SAM_GROUP'])
+    and (this['ObjectName']=='-512' or this['ObjectName']=='-502' or this['ObjectName']=='-500'
+    or this['ObjectName']=='-505' or this['ObjectName']=='-519' or this['ObjectName']=='-520'
+    or this['ObjectName']=='-544' or this['ObjectName']=='-551' or this['ObjectName']=='-555'
+    or this['ObjectName']=='admin') and not this['SubjectUserName']=='$'
   sigma_id: 35ba1d85-724d-42a3-889f-2e2362bcaf23
 - name: AD Object WriteDAC Access
-  query: this['EventID']==4662 and this['ObjectServer']=="DS" and this['AccessMask']=="0x40000"
-    and (this['ObjectType'] in ["19195a5b-6da0-11d0-afd3-00c04fd930c9", "domainDNS"])
+  query: this['EventID']=='4662' and this['ObjectServer']=='DS' and this['AccessMask']=='0x40000'
+    and (this['ObjectType'] in ['19195a5b-6da0-11d0-afd3-00c04fd930c9', 'domainDNS'])
   sigma_id: 028c7842-4243-41cd-be6f-12f3cf1a26c7
 - name: Active Directory Replication from Non Machine Account
-  query: this['EventID']==4662 and this['AccessMask']=="0x100" and (this['Properties']=="1131f6aa-9c07-11d1-f79f-00c04fc2dcd2"
-    or this['Properties']=="1131f6ad-9c07-11d1-f79f-00c04fc2dcd2" or this['Properties']=="89e95b76-444d-4c62-991a-0facbeda640c")
-    and not (this['SubjectUserName']=="$" or this['SubjectUserName']=="MSOL_")
+  query: this['EventID']=='4662' and this['AccessMask']=='0x100' and (this['Properties']=='1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'
+    or this['Properties']=='1131f6ad-9c07-11d1-f79f-00c04fc2dcd2' or this['Properties']=='89e95b76-444d-4c62-991a-0facbeda640c')
+    and not (this['SubjectUserName']=='$' or this['SubjectUserName']=='MSOL_')
   sigma_id: 17d619c1-e020-4347-957e-1d1207455c93
 - name: Potential AD User Enumeration From Non-Machine Account
-  query: this['EventID']==4662 and this['ObjectType']=="bf967aba-0de6-11d0-a285-00aa003049e2"
-    and (this['AccessMask']=="1" or this['AccessMask']=="3" or this['AccessMask']=="4"
-    or this['AccessMask']=="7" or this['AccessMask']=="9" or this['AccessMask']=="B"
-    or this['AccessMask']=="D" or this['AccessMask']=="F") and not (this['SubjectUserName']=="$"
-    or this['SubjectUserName']=="MSOL_")
+  query: this['EventID']=='4662' and this['ObjectType']=='bf967aba-0de6-11d0-a285-00aa003049e2'
+    and (this['AccessMask']=='1' or this['AccessMask']=='3' or this['AccessMask']=='4'
+    or this['AccessMask']=='7' or this['AccessMask']=='9' or this['AccessMask']=='B'
+    or this['AccessMask']=='D' or this['AccessMask']=='F') and not (this['SubjectUserName']=='$'
+    or this['SubjectUserName']=='MSOL_')
   sigma_id: ab6bffca-beff-4baa-af11-6733f296d57a
 - name: ADCS Certificate Template Configuration Vulnerability with Risky EKU
-  query: this['EventID']==4898 and (this['TemplateContent']=="1.3.6.1.5.5.7.3.2" or
-    this['TemplateContent']=="1.3.6.1.5.2.3.4" or this['TemplateContent']=="1.3.6.1.4.1.311.20.2.2"
-    or this['TemplateContent']=="2.5.29.37.0") and this['TemplateContent']=="CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT"
-    or this['EventID']==4899 and (this['NewTemplateContent']=="1.3.6.1.5.5.7.3.2"
-    or this['NewTemplateContent']=="1.3.6.1.5.2.3.4" or this['NewTemplateContent']=="1.3.6.1.4.1.311.20.2.2"
-    or this['NewTemplateContent']=="2.5.29.37.0") and this['NewTemplateContent']=="CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT"
+  query: this['EventID']=='4898' and (this['TemplateContent']=='1.3.6.1.5.5.7.3.2'
+    or this['TemplateContent']=='1.3.6.1.5.2.3.4' or this['TemplateContent']=='1.3.6.1.4.1.311.20.2.2'
+    or this['TemplateContent']=='2.5.29.37.0') and this['TemplateContent']=='CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT'
+    or this['EventID']=='4899' and (this['NewTemplateContent']=='1.3.6.1.5.5.7.3.2'
+    or this['NewTemplateContent']=='1.3.6.1.5.2.3.4' or this['NewTemplateContent']=='1.3.6.1.4.1.311.20.2.2'
+    or this['NewTemplateContent']=='2.5.29.37.0') and this['NewTemplateContent']=='CT_FLAG_ENROLLEE_SUPPLIES_SUBJECT'
   sigma_id: bfbd3291-de87-4b7c-88a2-d6a5deb28668
 - name: Enabled User Right in AD to Control User Objects
-  query: this['EventID']==4704 and this['PrivilegeList']=="SeEnableDelegationPrivilege"
+  query: this['EventID']=='4704' and this['PrivilegeList']=='SeEnableDelegationPrivilege'
   sigma_id: 311b6ce2-7890-4383-a8c2-663a9f6b43cd
 - name: Active Directory User Backdoors
-  query: this['EventID']==4738 and not (this['AllowedToDelegateTo'] in ["()", "-"]
-    or this['AllowedToDelegateTo']==null) or this['EventID']==5136 and this['AttributeLDAPDisplayName']=="msDS-AllowedToDelegateTo"
-    or this['EventID']==5136 and this['ObjectClass']=="user" and this['AttributeLDAPDisplayName']=="servicePrincipalName"
-    or this['EventID']==5136 and this['AttributeLDAPDisplayName']=="msDS-AllowedToActOnBehalfOfOtherIdentity"
+  query: this['EventID']=='4738' and not (this['AllowedToDelegateTo'] in ['()', '-']
+    or this['AllowedToDelegateTo']==null) or this['EventID']=='5136' and this['AttributeLDAPDisplayName']=='msDS-AllowedToDelegateTo'
+    or this['EventID']=='5136' and this['ObjectClass']=='user' and this['AttributeLDAPDisplayName']=='servicePrincipalName'
+    or this['EventID']=='5136' and this['AttributeLDAPDisplayName']=='msDS-AllowedToActOnBehalfOfOtherIdentity'
   sigma_id: 300bac00-e041-4ee2-9c36-e262656a6ecc
 - name: Weak Encryption Enabled and Kerberoast
-  query: this['EventID']==4738 and ((this['NewUacValue']=="8" or this['NewUacValue']=="9"
-    or this['NewUacValue']=="A" or this['NewUacValue']=="B" or this['NewUacValue']=="C"
-    or this['NewUacValue']=="D" or this['NewUacValue']=="E" or this['NewUacValue']=="F")
-    and not (this['OldUacValue']=="8" or this['OldUacValue']=="9" or this['OldUacValue']=="A"
-    or this['OldUacValue']=="B" or this['OldUacValue']=="C" or this['OldUacValue']=="D"
-    or this['OldUacValue']=="E" or this['OldUacValue']=="F") or (this['NewUacValue']=="1"
-    or this['NewUacValue']=="3" or this['NewUacValue']=="5" or this['NewUacValue']=="7"
-    or this['NewUacValue']=="9" or this['NewUacValue']=="B" or this['NewUacValue']=="D"
-    or this['NewUacValue']=="F") and not (this['OldUacValue']=="1" or this['OldUacValue']=="3"
-    or this['OldUacValue']=="5" or this['OldUacValue']=="7" or this['OldUacValue']=="9"
-    or this['OldUacValue']=="B" or this['OldUacValue']=="D" or this['OldUacValue']=="F")
-    or (this['NewUacValue']=="8" or this['NewUacValue']=="9" or this['NewUacValue']=="A"
-    or this['NewUacValue']=="B" or this['NewUacValue']=="C" or this['NewUacValue']=="D"
-    or this['NewUacValue']=="E" or this['NewUacValue']=="F") and not (this['OldUacValue']=="8"
-    or this['OldUacValue']=="9" or this['OldUacValue']=="A" or this['OldUacValue']=="B"
-    or this['OldUacValue']=="C" or this['OldUacValue']=="D" or this['OldUacValue']=="E"
-    or this['OldUacValue']=="F"))
+  query: this['EventID']=='4738' and ((this['NewUacValue']=='8' or this['NewUacValue']=='9'
+    or this['NewUacValue']=='A' or this['NewUacValue']=='B' or this['NewUacValue']=='C'
+    or this['NewUacValue']=='D' or this['NewUacValue']=='E' or this['NewUacValue']=='F')
+    and not (this['OldUacValue']=='8' or this['OldUacValue']=='9' or this['OldUacValue']=='A'
+    or this['OldUacValue']=='B' or this['OldUacValue']=='C' or this['OldUacValue']=='D'
+    or this['OldUacValue']=='E' or this['OldUacValue']=='F') or (this['NewUacValue']=='1'
+    or this['NewUacValue']=='3' or this['NewUacValue']=='5' or this['NewUacValue']=='7'
+    or this['NewUacValue']=='9' or this['NewUacValue']=='B' or this['NewUacValue']=='D'
+    or this['NewUacValue']=='F') and not (this['OldUacValue']=='1' or this['OldUacValue']=='3'
+    or this['OldUacValue']=='5' or this['OldUacValue']=='7' or this['OldUacValue']=='9'
+    or this['OldUacValue']=='B' or this['OldUacValue']=='D' or this['OldUacValue']=='F')
+    or (this['NewUacValue']=='8' or this['NewUacValue']=='9' or this['NewUacValue']=='A'
+    or this['NewUacValue']=='B' or this['NewUacValue']=='C' or this['NewUacValue']=='D'
+    or this['NewUacValue']=='E' or this['NewUacValue']=='F') and not (this['OldUacValue']=='8'
+    or this['OldUacValue']=='9' or this['OldUacValue']=='A' or this['OldUacValue']=='B'
+    or this['OldUacValue']=='C' or this['OldUacValue']=='D' or this['OldUacValue']=='E'
+    or this['OldUacValue']=='F'))
   sigma_id: f6de9536-0441-4b3f-a646-f4e00f300ffd
 - name: Hacktool Ruler
-  query: this['EventID']==4776 and this['Workstation']=="RULER" or (this['EventID']
-    in [4624, 4625]) and this['WorkstationName']=="RULER"
+  query: this['EventID']=='4776' and this['Workstation']=='RULER' or (this['EventID']
+    in [4624, 4625]) and this['WorkstationName']=='RULER'
   sigma_id: 24549159-ac1b-479c-8175-d42aea947cae
 - name: Remote Task Creation via ATSVC Named Pipe
-  query: 'this[''EventID'']==5145 and this[''ShareName'']=="(''\\'', <SpecialChars.WILDCARD_MULTI:
-    1>, ''\\IPC$'')" and this[''RelativeTargetName'']=="atsvc" and this[''AccessList'']=="WriteData"'
+  query: 'this[''EventID'']==''5145'' and this[''ShareName'']==''(\''\\\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \''\\IPC$\'')'' and this[''RelativeTargetName'']==''atsvc'' and this[''AccessList'']==''WriteData'''
   sigma_id: f6de6525-4509-495a-8a82-1f8b0ed73a00
 - name: Security Eventlog Cleared
-  query: this['EventID']==517 and this['Provider_Name']=="Security" or this['EventID']==1102
-    and this['Provider_Name']=="Microsoft-Windows-Eventlog"
+  query: this['EventID']=='517' and this['Provider_Name']=='Security' or this['EventID']=='1102'
+    and this['Provider_Name']=='Microsoft-Windows-Eventlog'
   sigma_id: d99b79d2-0a6f-4f46-ad8b-260b6e17f982
 - name: Processes Accessing the Microphone and Webcam
-  query: (this['EventID'] in [4657, 4656, 4663]) and (this['ObjectName']=="\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone\\NonPackaged"
-    or this['ObjectName']=="\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\webcam\\NonPackaged")
+  query: (this['EventID'] in [4657, 4656, 4663]) and (this['ObjectName']=='\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone\\NonPackaged'
+    or this['ObjectName']=='\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\webcam\\NonPackaged')
   sigma_id: 8cd538a4-62d5-4e83-810b-12d41e428d6e
 - name: CobaltStrike Service Installations - Security
-  query: this['EventID']==4697 and (this['ServiceFileName']=="ADMIN$" and this['ServiceFileName']==".exe"
-    or this['ServiceFileName']=="%COMSPEC%" and this['ServiceFileName']=="start" and
-    this['ServiceFileName']=="powershell" or this['ServiceFileName']=="powershell
-    -nop -w hidden -encodedcommand" or this['ServiceFileName']=="SUVYIChOZXctT2JqZWN0IE5ldC5XZWJjbGllbnQpLkRvd25sb2FkU3RyaW5nKCdodHRwOi8vMTI3LjAuMC4xO"
-    or this['ServiceFileName']=="lFWCAoTmV3LU9iamVjdCBOZXQuV2ViY2xpZW50KS5Eb3dubG9hZFN0cmluZygnaHR0cDovLzEyNy4wLjAuMT"
-    or this['ServiceFileName']=="JRVggKE5ldy1PYmplY3QgTmV0LldlYmNsaWVudCkuRG93bmxvYWRTdHJpbmcoJ2h0dHA6Ly8xMjcuMC4wLjE6")
+  query: this['EventID']=='4697' and (this['ServiceFileName']=='ADMIN$' and this['ServiceFileName']=='.exe'
+    or this['ServiceFileName']=='%COMSPEC%' and this['ServiceFileName']=='start' and
+    this['ServiceFileName']=='powershell' or this['ServiceFileName']=='powershell
+    -nop -w hidden -encodedcommand' or this['ServiceFileName']=='SUVYIChOZXctT2JqZWN0IE5ldC5XZWJjbGllbnQpLkRvd25sb2FkU3RyaW5nKCdodHRwOi8vMTI3LjAuMC4xO'
+    or this['ServiceFileName']=='lFWCAoTmV3LU9iamVjdCBOZXQuV2ViY2xpZW50KS5Eb3dubG9hZFN0cmluZygnaHR0cDovLzEyNy4wLjAuMT'
+    or this['ServiceFileName']=='JRVggKE5ldy1PYmplY3QgTmV0LldlYmNsaWVudCkuRG93bmxvYWRTdHJpbmcoJ2h0dHA6Ly8xMjcuMC4wLjE6')
   sigma_id: d7a95147-145f-4678-b85d-d1ff4a3bb3f6
 - name: DCERPC SMB Spoolss Named Pipe
-  query: 'this[''EventID'']==5145 and this[''ShareName'']=="(''\\'', <SpecialChars.WILDCARD_MULTI:
-    1>, ''\\IPC$'')" and this[''RelativeTargetName'']=="spoolss"'
+  query: 'this[''EventID'']==''5145'' and this[''ShareName'']==''(\''\\\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \''\\IPC$\'')'' and this[''RelativeTargetName'']==''spoolss'''
   sigma_id: 214e8f95-100a-4e04-bb31-ef6cba8ce07e
 - name: DCOM InternetExplorer.Application Iertutil DLL Hijack - Security
-  query: this['EventID']==5145 and this['RelativeTargetName']=="\\Internet Explorer\\iertutil.dll"
-    and not this['SubjectUserName']=="$"
+  query: this['EventID']=='5145' and this['RelativeTargetName']=='\\Internet Explorer\\iertutil.dll'
+    and not this['SubjectUserName']=='$'
   sigma_id: c39f0c81-7348-4965-ab27-2fde35a1b641
 - name: Mimikatz DC Sync
-  query: this['EventID']==4662 and (this['Properties']=="Replicating Directory Changes
-    All" or this['Properties']=="1131f6ad-9c07-11d1-f79f-00c04fc2dcd2" or this['Properties']=="1131f6aa-9c07-11d1-f79f-00c04fc2dcd2"
-    or this['Properties']=="9923a32a-3607-11d2-b9be-0000f87a36b2" or this['Properties']=="89e95b76-444d-4c62-991a-0facbeda640c")
-    and this['AccessMask']=="0x100" and not (this['SubjectDomainName']=="Window Manager"
-    or this['SubjectUserName']=="NT AUT" or this['SubjectUserName']=="MSOL_" or this['SubjectUserName']=="$")
+  query: this['EventID']=='4662' and (this['Properties']=='Replicating Directory Changes
+    All' or this['Properties']=='1131f6ad-9c07-11d1-f79f-00c04fc2dcd2' or this['Properties']=='1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'
+    or this['Properties']=='9923a32a-3607-11d2-b9be-0000f87a36b2' or this['Properties']=='89e95b76-444d-4c62-991a-0facbeda640c')
+    and this['AccessMask']=='0x100' and not (this['SubjectDomainName']=='Window Manager'
+    or this['SubjectUserName']=='NT AUT' or this['SubjectUserName']=='MSOL_' or this['SubjectUserName']=='$')
   sigma_id: 611eab06-a145-4dfa-a295-3ccc5c20f59a
 - name: Device Installation Blocked
-  query: this['EventID']==6423
+  query: this['EventID']=='6423'
   sigma_id: c9eb55c3-b468-40ab-9089-db2862e42137
 - name: Important Windows Event Auditing Disabled
-  query: this['EventID']==4719 and (this['SubcategoryGuid'] in ["{0CCE9210-69AE-11D9-BED3-505054503030}",
-    "{0CCE9211-69AE-11D9-BED3-505054503030}", "{0CCE9212-69AE-11D9-BED3-505054503030}",
-    "{0CCE9215-69AE-11D9-BED3-505054503030}", "{0CCE921B-69AE-11D9-BED3-505054503030}",
-    "{0CCE922B-69AE-11D9-BED3-505054503030}", "{0CCE922F-69AE-11D9-BED3-505054503030}",
-    "{0CCE9230-69AE-11D9-BED3-505054503030}", "{0CCE9235-69AE-11D9-BED3-505054503030}",
-    "{0CCE9236-69AE-11D9-BED3-505054503030}", "{0CCE9237-69AE-11D9-BED3-505054503030}",
-    "{0CCE923F-69AE-11D9-BED3-505054503030}", "{0CCE9240-69AE-11D9-BED3-505054503030}",
-    "{0CCE9242-69AE-11D9-BED3-505054503030}"]) and (this['AuditPolicyChanges']=="%%8448"
-    or this['AuditPolicyChanges']=="%%8450") or this['EventID']==4719 and this['SubcategoryGuid']=="{0CCE9217-69AE-11D9-BED3-505054503030}"
-    and this['AuditPolicyChanges']=="%%8448"
+  query: this['EventID']=='4719' and (this['SubcategoryGuid'] in ['{0CCE9210-69AE-11D9-BED3-505054503030}',
+    '{0CCE9211-69AE-11D9-BED3-505054503030}', '{0CCE9212-69AE-11D9-BED3-505054503030}',
+    '{0CCE9215-69AE-11D9-BED3-505054503030}', '{0CCE921B-69AE-11D9-BED3-505054503030}',
+    '{0CCE922B-69AE-11D9-BED3-505054503030}', '{0CCE922F-69AE-11D9-BED3-505054503030}',
+    '{0CCE9230-69AE-11D9-BED3-505054503030}', '{0CCE9235-69AE-11D9-BED3-505054503030}',
+    '{0CCE9236-69AE-11D9-BED3-505054503030}', '{0CCE9237-69AE-11D9-BED3-505054503030}',
+    '{0CCE923F-69AE-11D9-BED3-505054503030}', '{0CCE9240-69AE-11D9-BED3-505054503030}',
+    '{0CCE9242-69AE-11D9-BED3-505054503030}']) and (this['AuditPolicyChanges']=='%%8448'
+    or this['AuditPolicyChanges']=='%%8450') or this['EventID']=='4719' and this['SubcategoryGuid']=='{0CCE9217-69AE-11D9-BED3-505054503030}'
+    and this['AuditPolicyChanges']=='%%8448'
   sigma_id: ab4561b1-6c7e-48a7-ad08-087cfb9ce8f1
 - name: ETW Logging Disabled In .NET Processes - Registry
-  query: this['EventID']==4657 and this['ObjectName']=="\\SOFTWARE\\Microsoft\\.NETFramework"
-    and this['ObjectValueName']=="ETWEnabled" and this['NewValue']==0 or this['EventID']==4657
-    and this['ObjectName']=="\\Environment" and (this['ObjectValueName'] in ["COMPlus_ETWEnabled",
-    "COMPlus_ETWFlags"]) and this['NewValue']==0
+  query: this['EventID']=='4657' and this['ObjectName']=='\\SOFTWARE\\Microsoft\\.NETFramework'
+    and this['ObjectValueName']=='ETWEnabled' and this['NewValue']=='0' or this['EventID']=='4657'
+    and this['ObjectName']=='\\Environment' and (this['ObjectValueName'] in ['COMPlus_ETWEnabled',
+    'COMPlus_ETWFlags']) and this['NewValue']=='0'
   sigma_id: a4c90ea1-2634-4ca0-adbb-35eae169b6fc
 - name: DPAPI Domain Backup Key Extraction
-  query: this['EventID']==4662 and this['ObjectType']=="SecretObject" and this['AccessMask']=="0x2"
-    and this['ObjectName']=="BCKUPKEY"
+  query: this['EventID']=='4662' and this['ObjectType']=='SecretObject' and this['AccessMask']=='0x2'
+    and this['ObjectName']=='BCKUPKEY'
   sigma_id: 4ac1f50b-3bd0-4968-902d-868b4647937e
 - name: DPAPI Domain Master Key Backup Attempt
-  query: this['EventID']==4692
+  query: this['EventID']=='4692'
   sigma_id: 39a94fd1-8c9a-4ff6-bf22-c058762f8014
 - name: Persistence and Execution at Scale via GPO Scheduled Task
-  query: this['EventID']==5136 and (this['AttributeLDAPDisplayName'] in ["gPCMachineExtensionNames",
-    "gPCUserExtensionNames"]) and (this['AttributeValue']=="CAB54552-DEEA-4691-817E-ED4A4D1AFC72"
-    or this['AttributeValue']=="AADCED64-746C-4633-A97C-D61349046527") or this['EventID']==5145
-    and this['ShareName']=="\\SYSVOL" and this['RelativeTargetName']=="ScheduledTasks.xml"
-    and (this['AccessList']=="WriteData" or this['AccessList']=="%%4417")
+  query: this['EventID']=='5136' and (this['AttributeLDAPDisplayName'] in ['gPCMachineExtensionNames',
+    'gPCUserExtensionNames']) and (this['AttributeValue']=='CAB54552-DEEA-4691-817E-ED4A4D1AFC72'
+    or this['AttributeValue']=='AADCED64-746C-4633-A97C-D61349046527') or this['EventID']=='5145'
+    and this['ShareName']=='\\SYSVOL' and this['RelativeTargetName']=='ScheduledTasks.xml'
+    and (this['AccessList']=='WriteData' or this['AccessList']=='%%4417')
   sigma_id: a8f29a7b-b137-4446-80a0-b804272f3da2
 - name: Hidden Local User Creation
-  query: this['EventID']==4720 and this['TargetUserName']=="$" and not this['TargetUserName']=="HomeGroupUser$"
+  query: this['EventID']=='4720' and this['TargetUserName']=='$' and not this['TargetUserName']=='HomeGroupUser$'
   sigma_id: 7b449a5e-1db5-4dd0-a2dc-4e3a67282538
 - name: HackTool - EDRSilencer Execution - Filter Added
-  query: (this['EventID'] in [5441, 5447]) and this['FilterName']=="Custom Outbound
-    Filter"
+  query: (this['EventID'] in [5441, 5447]) and this['FilterName']=='Custom Outbound
+    Filter'
   sigma_id: 98054878-5eab-434c-85d4-72d4e5a3361b
 - name: HackTool - NoFilter Execution
-  query: this['EventID']==5447 and this['FilterName']=="RonPolicy" or this['EventID']==5449
-    and this['ProviderContextName']=="RonPolicy"
+  query: this['EventID']=='5447' and this['FilterName']=='RonPolicy' or this['EventID']=='5449'
+    and this['ProviderContextName']=='RonPolicy'
   sigma_id: 7b14c76a-c602-4ae6-9717-eff868153fc0
 - name: HybridConnectionManager Service Installation
-  query: this['EventID']==4697 and this['ServiceName']=="HybridConnectionManager"
-    and this['ServiceFileName']=="HybridConnectionManager"
+  query: this['EventID']=='4697' and this['ServiceName']=='HybridConnectionManager'
+    and this['ServiceFileName']=='HybridConnectionManager'
   sigma_id: 0ee4d8a5-4e67-4faf-acfa-62a78457d1f2
 - name: Impacket PsExec Execution
-  query: 'this[''EventID'']==5145 and this[''ShareName'']=="(''\\'', <SpecialChars.WILDCARD_MULTI:
-    1>, ''\\IPC$'')" and (this[''RelativeTargetName'']=="RemCom_stdin" or this[''RelativeTargetName'']=="RemCom_stdout"
-    or this[''RelativeTargetName'']=="RemCom_stderr")'
+  query: 'this[''EventID'']==''5145'' and this[''ShareName'']==''(\''\\\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \''\\IPC$\'')'' and (this[''RelativeTargetName'']==''RemCom_stdin'' or this[''RelativeTargetName'']==''RemCom_stdout''
+    or this[''RelativeTargetName'']==''RemCom_stderr'')'
   sigma_id: 32d56ea1-417f-44ff-822b-882873f5f43b
 - name: Possible Impacket SecretDump Remote Activity
-  query: 'this[''EventID'']==5145 and this[''ShareName'']=="(''\\'', <SpecialChars.WILDCARD_MULTI:
-    1>, ''\\ADMIN$'')" and this[''RelativeTargetName'']=="SYSTEM32\\" and this[''RelativeTargetName'']==".tmp"'
+  query: 'this[''EventID'']==''5145'' and this[''ShareName'']==''(\''\\\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \''\\ADMIN$\'')'' and this[''RelativeTargetName'']==''SYSTEM32\\'' and this[''RelativeTargetName'']==''.tmp'''
   sigma_id: 252902e3-5830-4cf6-bf21-c22083dfd5cf
 - name: Invoke-Obfuscation CLIP+ Launcher - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="cmd" and this['ServiceFileName']=="&&"
-    and this['ServiceFileName']=="clipboard]::"
+  query: this['EventID']=='4697' and this['ServiceFileName']=='cmd' and this['ServiceFileName']=='&&'
+    and this['ServiceFileName']=='clipboard]::'
   sigma_id: 4edf51e1-cb83-4e1a-bc39-800e396068e3
 - name: Invoke-Obfuscation STDIN+ Launcher - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="cmd" and this['ServiceFileName']=="powershell"
-    and (this['ServiceFileName']=="${input}" or this['ServiceFileName']=="noexit")
-    and (this['ServiceFileName']==" /c " or this['ServiceFileName']==" /r ")
+  query: this['EventID']=='4697' and this['ServiceFileName']=='cmd' and this['ServiceFileName']=='powershell'
+    and (this['ServiceFileName']=='${input}' or this['ServiceFileName']=='noexit')
+    and (this['ServiceFileName']==' /c ' or this['ServiceFileName']==' /r ')
   sigma_id: 0c718a5e-4284-4fb9-b4d9-b9a50b3a1974
 - name: Invoke-Obfuscation VAR+ Launcher - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="cmd" and this['ServiceFileName']=="\"set"
-    and this['ServiceFileName']=="-f" and (this['ServiceFileName']=="/c" or this['ServiceFileName']=="/r")
+  query: this['EventID']=='4697' and this['ServiceFileName']=='cmd' and this['ServiceFileName']=='"set'
+    and this['ServiceFileName']=='-f' and (this['ServiceFileName']=='/c' or this['ServiceFileName']=='/r')
   sigma_id: dcf2db1f-f091-425b-a821-c05875b8925a
 - name: Invoke-Obfuscation COMPRESS OBFUSCATION - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="new-object" and this['ServiceFileName']=="text.encoding]::ascii"
-    and this['ServiceFileName']=="readtoend" and (this['ServiceFileName']=="system.io.compression.deflatestream"
-    or this['ServiceFileName']=="system.io.streamreader")
+  query: this['EventID']=='4697' and this['ServiceFileName']=='new-object' and this['ServiceFileName']=='text.encoding]::ascii'
+    and this['ServiceFileName']=='readtoend' and (this['ServiceFileName']=='system.io.compression.deflatestream'
+    or this['ServiceFileName']=='system.io.streamreader')
   sigma_id: 7a922f1b-2635-4d6c-91ef-af228b198ad3
 - name: Invoke-Obfuscation RUNDLL LAUNCHER - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="rundll32.exe" and this['ServiceFileName']=="shell32.dll"
-    and this['ServiceFileName']=="shellexec_rundll" and this['ServiceFileName']=="powershell"
+  query: this['EventID']=='4697' and this['ServiceFileName']=='rundll32.exe' and this['ServiceFileName']=='shell32.dll'
+    and this['ServiceFileName']=='shellexec_rundll' and this['ServiceFileName']=='powershell'
   sigma_id: f241cf1b-3a6b-4e1a-b4f9-133c00dd95ca
 - name: Invoke-Obfuscation Via Stdin - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="set" and this['ServiceFileName']=="&&"
-    and (this['ServiceFileName']=="environment" or this['ServiceFileName']=="invoke"
-    or this['ServiceFileName']=="${input)")
+  query: this['EventID']=='4697' and this['ServiceFileName']=='set' and this['ServiceFileName']=='&&'
+    and (this['ServiceFileName']=='environment' or this['ServiceFileName']=='invoke'
+    or this['ServiceFileName']=='${input)')
   sigma_id: 80b708f3-d034-40e4-a6c8-d23b7a7db3d1
 - name: Invoke-Obfuscation Via Use Clip - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="(Clipboard|i"
+  query: this['EventID']=='4697' and this['ServiceFileName']=='(Clipboard|i'
   sigma_id: 1a0a2ff1-611b-4dac-8216-8a7b47c618a6
 - name: Invoke-Obfuscation Via Use MSHTA - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="mshta" and this['ServiceFileName']=="vbscript:createobject"
-    and this['ServiceFileName']==".run" and this['ServiceFileName']=="window.close"
+  query: this['EventID']=='4697' and this['ServiceFileName']=='mshta' and this['ServiceFileName']=='vbscript:createobject'
+    and this['ServiceFileName']=='.run' and this['ServiceFileName']=='window.close'
   sigma_id: 9b8d9203-4e0f-4cd9-bb06-4cc4ea6d0e9a
 - name: Invoke-Obfuscation Via Use Rundll32 - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="&&" and this['ServiceFileName']=="rundll32"
-    and this['ServiceFileName']=="shell32.dll" and this['ServiceFileName']=="shellexec_rundll"
-    and (this['ServiceFileName']=="value" or this['ServiceFileName']=="invoke" or
-    this['ServiceFileName']=="comspec" or this['ServiceFileName']=="iex")
+  query: this['EventID']=='4697' and this['ServiceFileName']=='&&' and this['ServiceFileName']=='rundll32'
+    and this['ServiceFileName']=='shell32.dll' and this['ServiceFileName']=='shellexec_rundll'
+    and (this['ServiceFileName']=='value' or this['ServiceFileName']=='invoke' or
+    this['ServiceFileName']=='comspec' or this['ServiceFileName']=='iex')
   sigma_id: cd0f7229-d16f-42de-8fe3-fba365fbcb3a
 - name: Invoke-Obfuscation VAR++ LAUNCHER OBFUSCATION - Security
-  query: this['EventID']==4697 and this['ServiceFileName']=="&&set" and this['ServiceFileName']=="cmd"
-    and this['ServiceFileName']=="/c" and this['ServiceFileName']=="-f" and (this['ServiceFileName']=="{0}"
-    or this['ServiceFileName']=="{1}" or this['ServiceFileName']=="{2}" or this['ServiceFileName']=="{3}"
-    or this['ServiceFileName']=="{4}" or this['ServiceFileName']=="{5}")
+  query: this['EventID']=='4697' and this['ServiceFileName']=='&&set' and this['ServiceFileName']=='cmd'
+    and this['ServiceFileName']=='/c' and this['ServiceFileName']=='-f' and (this['ServiceFileName']=='{0}'
+    or this['ServiceFileName']=='{1}' or this['ServiceFileName']=='{2}' or this['ServiceFileName']=='{3}'
+    or this['ServiceFileName']=='{4}' or this['ServiceFileName']=='{5}')
   sigma_id: 4c54ba8f-73d2-4d40-8890-d9cf1dca3d30
 - name: ISO Image Mounted
-  query: this['EventID']==4663 and this['ObjectServer']=="Security" and this['ObjectType']=="File"
-    and this['ObjectName']=="\\Device\\CdRom" and not (this['ObjectName'] in ["\\Device\\CdRom0\\autorun.ico",
-    "\\Device\\CdRom0\\setup.exe", "\\Device\\CdRom0\\setup64.exe"])
+  query: this['EventID']=='4663' and this['ObjectServer']=='Security' and this['ObjectType']=='File'
+    and this['ObjectName']=='\\Device\\CdRom' and not (this['ObjectName'] in ['\\Device\\CdRom0\\autorun.ico',
+    '\\Device\\CdRom0\\setup.exe', '\\Device\\CdRom0\\setup64.exe'])
   sigma_id: 0248a7bc-8a9a-4cd8-a57e-3ae8e073a073
 - name: Kerberoasting Activity - Initial Query
-  query: this['EventID']==4769 and this['Status']=="0x0" and this['TicketEncryptionType']=="0x17"
-    and not ((this['ServiceName']=="krbtgt" or this['ServiceName']=="$") and this['TargetUserName']=="$@")
+  query: this['EventID']=='4769' and this['Status']=='0x0' and this['TicketEncryptionType']=='0x17'
+    and not ((this['ServiceName']=='krbtgt' or this['ServiceName']=='$') and this['TargetUserName']=='$@')
   sigma_id: d04ae2b8-ad54-4de0-bd87-4bc1da66aa59
 - name: First Time Seen Remote Named Pipe
-  query: 'this[''EventID'']==5145 and this[''ShareName'']=="(''\\'', <SpecialChars.WILDCARD_MULTI:
-    1>, ''\\IPC$'')" and not (this[''RelativeTargetName''] in ["atsvc", "samr", "lsarpc",
-    "lsass", "winreg", "netlogon", "srvsvc", "protected_storage", "wkssvc", "browser",
-    "netdfs", "svcctl", "spoolss", "ntsvcs", "LSM_API_service", "HydraLsPipe", "TermSrv_API_service",
-    "MsFteWds", "sql\\query", "eventlog"])'
+  query: 'this[''EventID'']==''5145'' and this[''ShareName'']==''(\''\\\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \''\\IPC$\'')'' and not (this[''RelativeTargetName''] in [''atsvc'', ''samr'',
+    ''lsarpc'', ''lsass'', ''winreg'', ''netlogon'', ''srvsvc'', ''protected_storage'',
+    ''wkssvc'', ''browser'', ''netdfs'', ''svcctl'', ''spoolss'', ''ntsvcs'', ''LSM_API_service'',
+    ''HydraLsPipe'', ''TermSrv_API_service'', ''MsFteWds'', ''sql\\query'', ''eventlog''])'
   sigma_id: 52d8b0c6-53d6-439a-9e41-52ad442ad9ad
 - name: LSASS Access From Non System Account
-  query: (this['EventID'] in [4663, 4656]) and (this['AccessMask'] in ["0x100000",
-    "0x1010", "0x1400", "0x1410", "0x1418", "0x1438", "0x143a", "0x1f0fff", "0x1f1fff",
-    "0x1f2fff", "0x1f3fff", "0x40", "143a", "1f0fff", "1f1fff", "1f2fff", "1f3fff"])
-    and this['ObjectType']=="Process" and this['ObjectName']=="\\lsass.exe" and not
-    (this['SubjectUserName']=="$" or this['ProcessName']==":\\Program Files\\" or
-    this['ProcessName']==":\\Program Files (x86)\\" or this['ProcessName']=="C:\\Windows\\System32\\wbem\\WmiPrvSE.exe"
-    and this['AccessMask']=="0x1410") and not this['ProcessName']=="\\SteamLibrary\\steamapps\\"
+  query: (this['EventID'] in [4663, 4656]) and (this['AccessMask'] in ['0x100000',
+    '0x1010', '0x1400', '0x1410', '0x1418', '0x1438', '0x143a', '0x1f0fff', '0x1f1fff',
+    '0x1f2fff', '0x1f3fff', '0x40', '143a', '1f0fff', '1f1fff', '1f2fff', '1f3fff'])
+    and this['ObjectType']=='Process' and this['ObjectName']=='\\lsass.exe' and not
+    (this['SubjectUserName']=='$' or this['ProcessName']==':\\Program Files\\' or
+    this['ProcessName']==':\\Program Files (x86)\\' or this['ProcessName']=='C:\\Windows\\System32\\wbem\\WmiPrvSE.exe'
+    and this['AccessMask']=='0x1410') and not this['ProcessName']=='\\SteamLibrary\\steamapps\\'
   sigma_id: 962fe167-e48d-4fd6-9974-11e5b9a5d6d1
 - name: Credential Dumping Tools Service Execution - Security
-  query: this['EventID']==4697 and (this['ServiceFileName']=="cachedump" or this['ServiceFileName']=="dumpsvc"
-    or this['ServiceFileName']=="fgexec" or this['ServiceFileName']=="gsecdump" or
-    this['ServiceFileName']=="mimidrv" or this['ServiceFileName']=="pwdump" or this['ServiceFileName']=="servpw")
+  query: this['EventID']=='4697' and (this['ServiceFileName']=='cachedump' or this['ServiceFileName']=='dumpsvc'
+    or this['ServiceFileName']=='fgexec' or this['ServiceFileName']=='gsecdump' or
+    this['ServiceFileName']=='mimidrv' or this['ServiceFileName']=='pwdump' or this['ServiceFileName']=='servpw')
   sigma_id: f0d1feba-4344-4ca9-8121-a6c97bd6df52
 - name: WCE wceaux.dll Access
-  query: (this['EventID'] in [4656, 4663]) and this['ObjectName']=="\\wceaux.dll"
+  query: (this['EventID'] in [4656, 4663]) and this['ObjectName']=='\\wceaux.dll'
   sigma_id: 1de68c67-af5c-4097-9c85-fe5578e09e67
 - name: Meterpreter or Cobalt Strike Getsystem Service Installation - Security
-  query: this['EventID']==4697 and (this['ServiceFileName']=="/c" and this['ServiceFileName']=="echo"
-    and this['ServiceFileName']=="\\pipe\\" and (this['ServiceFileName']=="cmd" or
-    this['ServiceFileName']=="%COMSPEC%") or this['ServiceFileName']=="rundll32" and
-    this['ServiceFileName']==".dll,a" and this['ServiceFileName']=="/p:" or this['ServiceFileName']=="\\127.0.0.1\\ADMIN$\\")
+  query: this['EventID']=='4697' and (this['ServiceFileName']=='/c' and this['ServiceFileName']=='echo'
+    and this['ServiceFileName']=='\\pipe\\' and (this['ServiceFileName']=='cmd' or
+    this['ServiceFileName']=='%COMSPEC%') or this['ServiceFileName']=='rundll32' and
+    this['ServiceFileName']=='.dll,a' and this['ServiceFileName']=='/p:' or this['ServiceFileName']=='\\127.0.0.1\\ADMIN$\\')
   sigma_id: ecbc5e16-58e0-4521-9c60-eb9a7ea4ad34
 - name: NetNTLM Downgrade Attack
-  query: this['EventID']==4657 and this['ObjectName']=="\\REGISTRY\\MACHINE\\SYSTEM"
-    and this['ObjectName']=="ControlSet" and this['ObjectName']=="\\Control\\Lsa"
-    and (this['ObjectValueName'] in ["LmCompatibilityLevel", "NtlmMinClientSec", "RestrictSendingNTLMTraffic"])
+  query: this['EventID']=='4657' and this['ObjectName']=='\\REGISTRY\\MACHINE\\SYSTEM'
+    and this['ObjectName']=='ControlSet' and this['ObjectName']=='\\Control\\Lsa'
+    and (this['ObjectValueName'] in ['LmCompatibilityLevel', 'NtlmMinClientSec', 'RestrictSendingNTLMTraffic'])
   sigma_id: d3abac66-f11c-4ed0-8acb-50cc29c97eed
 - name: Windows Network Access Suspicious desktop.ini Action
-  query: this['EventID']==5145 and this['ObjectType']=="File" and this['RelativeTargetName']=="\\desktop.ini"
-    and (this['AccessList']=="WriteData" or this['AccessList']=="DELETE" or this['AccessList']=="WriteDAC"
-    or this['AccessList']=="AppendData" or this['AccessList']=="AddSubdirectory")
+  query: this['EventID']=='5145' and this['ObjectType']=='File' and this['RelativeTargetName']=='\\desktop.ini'
+    and (this['AccessList']=='WriteData' or this['AccessList']=='DELETE' or this['AccessList']=='WriteDAC'
+    or this['AccessList']=='AppendData' or this['AccessList']=='AddSubdirectory')
   sigma_id: 35bc7e28-ee6b-492f-ab04-da58fcf6402e
 - name: New or Renamed User Account with '$' Character
-  query: (this['EventID']==4720 and this['SamAccountName']=="$" or this['EventID']==4781
-    and this['NewTargetUserName']=="$") and not (this['EventID']==4720 and this['TargetUserName']=="HomeGroupUser$")
+  query: (this['EventID']=='4720' and this['SamAccountName']=='$' or this['EventID']=='4781'
+    and this['NewTargetUserName']=='$') and not (this['EventID']=='4720' and this['TargetUserName']=='HomeGroupUser$')
   sigma_id: cfeed607-6aa4-4bbd-9627-b637deb723c8
 - name: Denied Access To Remote Desktop
-  query: this['EventID']==4825
+  query: this['EventID']=='4825'
   sigma_id: 8e5c03fa-b7f0-11ea-b242-07e0576828d9
 - name: Password Policy Enumerated
-  query: this['EventID']==4661 and this['AccessList']=="%%5392" and this['ObjectServer']=="Security
-    Account Manager"
+  query: this['EventID']=='4661' and this['AccessList']=='%%5392' and this['ObjectServer']=='Security
+    Account Manager'
   sigma_id: 12ba6a38-adb3-4d6b-91ba-a7fb248e3199
 - name: Windows Pcap Drivers
-  query: this['EventID']==4697 and (this['ServiceFileName']=="pcap" or this['ServiceFileName']=="npcap"
-    or this['ServiceFileName']=="npf" or this['ServiceFileName']=="nm3" or this['ServiceFileName']=="ndiscap"
-    or this['ServiceFileName']=="nmnt" or this['ServiceFileName']=="windivert" or
-    this['ServiceFileName']=="USBPcap" or this['ServiceFileName']=="pktmon")
+  query: this['EventID']=='4697' and (this['ServiceFileName']=='pcap' or this['ServiceFileName']=='npcap'
+    or this['ServiceFileName']=='npf' or this['ServiceFileName']=='nm3' or this['ServiceFileName']=='ndiscap'
+    or this['ServiceFileName']=='nmnt' or this['ServiceFileName']=='windivert' or
+    this['ServiceFileName']=='USBPcap' or this['ServiceFileName']=='pktmon')
   sigma_id: 7b687634-ab20-11ea-bb37-0242ac130002
 - name: Possible PetitPotam Coerce Authentication Attempt
-  query: this['EventID']==5145 and this['ShareName']=="\\" and this['ShareName']=="\\IPC$"
-    and this['RelativeTargetName']=="lsarpc" and this['SubjectUserName']=="ANONYMOUS
-    LOGON"
+  query: this['EventID']=='5145' and this['ShareName']=='\\' and this['ShareName']=='\\IPC$'
+    and this['RelativeTargetName']=='lsarpc' and this['SubjectUserName']=='ANONYMOUS
+    LOGON'
   sigma_id: 1ce8c8a3-2723-48ed-8246-906ac91061a6
 - name: PetitPotam Suspicious Kerberos TGT Request
-  query: this['EventID']==4768 and this['TargetUserName']=="$" and false and not (this['IpAddress']=="::1"
-    or false)
+  query: this['EventID']=='4768' and this['TargetUserName']=='$' and false and not
+    (this['IpAddress']=='::1' or false)
   sigma_id: 6a53d871-682d-40b6-83e0-b7c1a6c4e3a5
 - name: Possible DC Shadow Attack
-  query: this['EventID']==4742 and this['ServicePrincipalNames']=="GC/" or this['EventID']==5136
-    and this['AttributeLDAPDisplayName']=="servicePrincipalName" and this['AttributeValue']=="GC/"
+  query: this['EventID']=='4742' and this['ServicePrincipalNames']=='GC/' or this['EventID']=='5136'
+    and this['AttributeLDAPDisplayName']=='servicePrincipalName' and this['AttributeValue']=='GC/'
   sigma_id: 32e19d25-4aed-4860-a55a-be99cb0bf7ed
 - name: PowerShell Scripts Installed as Services - Security
-  query: this['EventID']==4697 and (this['ServiceFileName']=="powershell" or this['ServiceFileName']=="pwsh")
+  query: this['EventID']=='4697' and (this['ServiceFileName']=='powershell' or this['ServiceFileName']=='pwsh')
   sigma_id: 2a926e6a-4b81-4011-8a96-e36cc8c04302
 - name: Protected Storage Service Access
-  query: this['EventID']==5145 and this['ShareName']=="IPC" and this['RelativeTargetName']=="protected_storage"
+  query: this['EventID']=='5145' and this['ShareName']=='IPC' and this['RelativeTargetName']=='protected_storage'
   sigma_id: 45545954-4016-43c6-855e-eae8f1c369dc
 - name: RDP over Reverse SSH Tunnel WFP
-  query: this['EventID']==5156 and (this['SourcePort']==3389 and (this['DestAddress']=="127."
-    or this['DestAddress']=="::1") or this['DestPort']==3389 and (this['SourceAddress']=="127."
-    or this['SourceAddress']=="::1")) and not (this['FilterOrigin']=="AppContainer
-    Loopback" or this['Application']=="\\thor.exe" or this['Application']=="\\thor64.exe")
+  query: this['EventID']=='5156' and (this['SourcePort']=='3389' and (this['DestAddress']=='127.'
+    or this['DestAddress']=='::1') or this['DestPort']=='3389' and (this['SourceAddress']=='127.'
+    or this['SourceAddress']=='::1')) and not (this['FilterOrigin']=='AppContainer
+    Loopback' or this['Application']=='\\thor.exe' or this['Application']=='\\thor64.exe')
   sigma_id: 5bed80b6-b3e8-428e-a3ae-d3c757589e41
 - name: Register new Logon Process by Rubeus
-  query: this['EventID']==4611 and this['LogonProcessName']=="User32LogonProcesss"
+  query: this['EventID']=='4611' and this['LogonProcessName']=='User32LogonProcesss'
   sigma_id: 12e6d621-194f-4f59-90cc-1959e21e69f7
 - name: Remote PowerShell Sessions Network Connections (WinRM)
-  query: this['EventID']==5156 and (this['DestPort'] in [5985, 5986]) and this['LayerRTID']==44
+  query: this['EventID']=='5156' and (this['DestPort'] in [5985, 5986]) and this['LayerRTID']=='44'
   sigma_id: 13acf386-b8c6-4fe0-9a6e-c4756b974698
 - name: Replay Attack Detected
-  query: this['EventID']==4649
+  query: this['EventID']=='4649'
   sigma_id: 5a44727c-3b85-4713-8c44-4401d5499629
 - name: SAM Registry Hive Handle Request
-  query: this['EventID']==4656 and this['ObjectType']=="Key" and this['ObjectName']=="\\SAM"
+  query: this['EventID']=='4656' and this['ObjectType']=='Key' and this['ObjectName']=='\\SAM'
   sigma_id: f8748f2c-89dc-4d95-afb0-5a2dfdbad332
 - name: SCM Database Handle Failure
-  query: this['EventID']==4656 and this['ObjectType']=="SC_MANAGER OBJECT" and this['ObjectName']=="ServicesActive"
-    and this['AccessMask']=="0xf003f" and not this['SubjectLogonId']=="0x3e4"
+  query: this['EventID']=='4656' and this['ObjectType']=='SC_MANAGER OBJECT' and this['ObjectName']=='ServicesActive'
+    and this['AccessMask']=='0xf003f' and not this['SubjectLogonId']=='0x3e4'
   sigma_id: 13addce7-47b2-4ca0-a98f-1de964d1d669
 - name: SCM Database Privileged Operation
-  query: this['EventID']==4674 and this['ObjectType']=="SC_MANAGER OBJECT" and this['ObjectName']=="servicesactive"
-    and this['PrivilegeList']=="SeTakeOwnershipPrivilege" and not (this['SubjectLogonId']=="0x3e4"
-    and this['ProcessName']==":\\Windows\\System32\\services.exe")
+  query: this['EventID']=='4674' and this['ObjectType']=='SC_MANAGER OBJECT' and this['ObjectName']=='servicesactive'
+    and this['PrivilegeList']=='SeTakeOwnershipPrivilege' and not (this['SubjectLogonId']=='0x3e4'
+    and this['ProcessName']==':\\Windows\\System32\\services.exe')
   sigma_id: dae8171c-5ec6-4396-b210-8466585b53e9
 - name: Potential Secure Deletion with SDelete
-  query: (this['EventID'] in [4656, 4663, 4658]) and (this['ObjectName']==".AAA" or
-    this['ObjectName']==".ZZZ")
+  query: (this['EventID'] in [4656, 4663, 4658]) and (this['ObjectName']=='.AAA' or
+    this['ObjectName']=='.ZZZ')
   sigma_id: 39a80702-d7ca-4a83-b776-525b1f86a36d
 - name: Remote Access Tool Services Have Been Installed - Security
-  query: this['EventID']==4697 and (this['ServiceName']=="AmmyyAdmin" or this['ServiceName']=="AnyDesk"
-    or this['ServiceName']=="Atera" or this['ServiceName']=="BASupportExpressSrvcUpdater"
-    or this['ServiceName']=="BASupportExpressStandaloneService" or this['ServiceName']=="chromoting"
-    or this['ServiceName']=="GoToAssist" or this['ServiceName']=="GoToMyPC" or this['ServiceName']=="jumpcloud"
-    or this['ServiceName']=="LMIGuardianSvc" or this['ServiceName']=="LogMeIn" or
-    this['ServiceName']=="monblanking" or this['ServiceName']=="Parsec" or this['ServiceName']=="RManService"
-    or this['ServiceName']=="RPCPerformanceService" or this['ServiceName']=="RPCService"
-    or this['ServiceName']=="SplashtopRemoteService" or this['ServiceName']=="SSUService"
-    or this['ServiceName']=="TeamViewer" or this['ServiceName']=="TightVNC" or this['ServiceName']=="vncserver"
-    or this['ServiceName']=="Zoho")
+  query: this['EventID']=='4697' and (this['ServiceName']=='AmmyyAdmin' or this['ServiceName']=='AnyDesk'
+    or this['ServiceName']=='Atera' or this['ServiceName']=='BASupportExpressSrvcUpdater'
+    or this['ServiceName']=='BASupportExpressStandaloneService' or this['ServiceName']=='chromoting'
+    or this['ServiceName']=='GoToAssist' or this['ServiceName']=='GoToMyPC' or this['ServiceName']=='jumpcloud'
+    or this['ServiceName']=='LMIGuardianSvc' or this['ServiceName']=='LogMeIn' or
+    this['ServiceName']=='monblanking' or this['ServiceName']=='Parsec' or this['ServiceName']=='RManService'
+    or this['ServiceName']=='RPCPerformanceService' or this['ServiceName']=='RPCService'
+    or this['ServiceName']=='SplashtopRemoteService' or this['ServiceName']=='SSUService'
+    or this['ServiceName']=='TeamViewer' or this['ServiceName']=='TightVNC' or this['ServiceName']=='vncserver'
+    or this['ServiceName']=='Zoho')
   sigma_id: c8b00925-926c-47e3-beea-298fd563728e
 - name: Service Installed By Unusual Client - Security
-  query: this['EventID']==4697 and (this['ClientProcessId']==0 or this['ParentProcessId']==0)
+  query: this['EventID']=='4697' and (this['ClientProcessId']=='0' or this['ParentProcessId']=='0')
   sigma_id: c4e92a97-a9ff-4392-9d2d-7a4c642768ca
 - name: SMB Create Remote File Admin Share
-  query: this['EventID']==5145 and this['ShareName']=="C$" and this['AccessMask']=="0x2"
-    and not this['SubjectUserName']=="$"
+  query: this['EventID']=='5145' and this['ShareName']=='C$' and this['AccessMask']=='0x2'
+    and not this['SubjectUserName']=='$'
   sigma_id: b210394c-ba12-4f89-9117-44a2464b9511
 - name: A New Trust Was Created To A Domain
-  query: this['EventID']==4706
+  query: this['EventID']=='4706'
   sigma_id: 0255a820-e564-4e40-af2b-6ac61160335c
 - name: Addition of SID History to Active Directory Object
-  query: this['EventID'] in [4765, 4766] or this['EventID']==4738 and not (this['SidHistory']
-    in ["-", "%%1793"]) and not this['SidHistory']==null
+  query: this['EventID'] in [4765, 4766] or this['EventID']=='4738' and not (this['SidHistory']
+    in ['-', '%%1793']) and not this['SidHistory']==null
   sigma_id: 2632954e-db1c-49cb-9936-67d1ef1d17d2
 - name: Win Susp Computer Name Containing Samtheadmin
-  query: this['SamAccountName']=="SAMTHEADMIN-" and this['SamAccountName']=="$" or
-    this['TargetUserName']=="SAMTHEADMIN-" and this['TargetUserName']=="$"
+  query: this['SamAccountName']=='SAMTHEADMIN-' and this['SamAccountName']=='$' or
+    this['TargetUserName']=='SAMTHEADMIN-' and this['TargetUserName']=='$'
   sigma_id: 39698b3f-da92-4bc6-bfb5-645a98386e45
 - name: Password Change on Directory Service Restore Mode (DSRM) Account
-  query: this['EventID']==4794
+  query: this['EventID']=='4794'
   sigma_id: 53ad8e36-f573-46bf-97e4-15ba5bf4bb51
 - name: Account Tampering - Suspicious Failed Logon Reasons
-  query: (this['EventID'] in [4625, 4776]) and (this['Status'] in ["0xC0000072", "0xC000006F",
-    "0xC0000070", "0xC0000413", "0xC000018C", "0xC000015B"]) and not this['SubjectUserSid']=="S-1-0-0"
+  query: (this['EventID'] in [4625, 4776]) and (this['Status'] in ['0xC0000072', '0xC000006F',
+    '0xC0000070', '0xC0000413', '0xC000018C', '0xC000015B']) and not this['SubjectUserSid']=='S-1-0-0'
   sigma_id: 9eb99343-d336-4020-a3cd-67f3819e68ee
 - name: Group Policy Abuse for Privilege Addition
-  query: this['EventID']==5136 and this['AttributeLDAPDisplayName']=="gPCMachineExtensionNames"
-    and (this['AttributeValue']=="827D319E-6EAC-11D2-A4EA-00C04F79F83A" or this['AttributeValue']=="803E14A0-B4FB-11D0-A0D0-00A0C90F574B")
+  query: this['EventID']=='5136' and this['AttributeLDAPDisplayName']=='gPCMachineExtensionNames'
+    and (this['AttributeValue']=='827D319E-6EAC-11D2-A4EA-00C04F79F83A' or this['AttributeValue']=='803E14A0-B4FB-11D0-A0D0-00A0C90F574B')
   sigma_id: 1c480e10-7ee1-46d4-8ed2-85f9789e3ce4
 - name: Startup/Logon Script Added to Group Policy Object
   query: (this['EventID'] in [5136, 5145]) and ((this['AttributeLDAPDisplayName']
-    in ["gPCMachineExtensionNames", "gPCUserExtensionNames"]) and this['AttributeValue']=="42B5FAAE-6536-11D2-AE5A-0000F87571E3"
-    and (this['AttributeValue']=="40B6664F-4972-11D1-A7CA-0000F87571E3" or this['AttributeValue']=="40B66650-4972-11D1-A7CA-0000F87571E3")
-    or this['ShareName']=="\\SYSVOL" and (this['RelativeTargetName']=="\\scripts.ini"
-    or this['RelativeTargetName']=="\\psscripts.ini") and this['AccessList']=="%%4417")
+    in ['gPCMachineExtensionNames', 'gPCUserExtensionNames']) and this['AttributeValue']=='42B5FAAE-6536-11D2-AE5A-0000F87571E3'
+    and (this['AttributeValue']=='40B6664F-4972-11D1-A7CA-0000F87571E3' or this['AttributeValue']=='40B66650-4972-11D1-A7CA-0000F87571E3')
+    or this['ShareName']=='\\SYSVOL' and (this['RelativeTargetName']=='\\scripts.ini'
+    or this['RelativeTargetName']=='\\psscripts.ini') and this['AccessList']=='%%4417')
   sigma_id: 123e4e6d-b123-48f8-b261-7214938acaf0
 - name: Kerberos Manipulation
-  query: (this['EventID'] in [675, 4768, 4769, 4771]) and (this['Status'] in ["0x9",
-    "0xA", "0xB", "0xF", "0x10", "0x11", "0x13", "0x14", "0x1A", "0x1F", "0x21", "0x22",
-    "0x23", "0x24", "0x26", "0x27", "0x28", "0x29", "0x2C", "0x2D", "0x2E", "0x2F",
-    "0x31", "0x32", "0x3E", "0x3F", "0x40", "0x41", "0x43", "0x44"])
+  query: (this['EventID'] in [675, 4768, 4769, 4771]) and (this['Status'] in ['0x9',
+    '0xA', '0xB', '0xF', '0x10', '0x11', '0x13', '0x14', '0x1A', '0x1F', '0x21', '0x22',
+    '0x23', '0x24', '0x26', '0x27', '0x28', '0x29', '0x2C', '0x2D', '0x2E', '0x2F',
+    '0x31', '0x32', '0x3E', '0x3F', '0x40', '0x41', '0x43', '0x44'])
   sigma_id: f7644214-0eb0-4ace-9455-331ec4c09253
 - name: Suspicious LDAP-Attributes Used
-  query: this['EventID']==5136 and false and (this['AttributeLDAPDisplayName'] in
-    ["primaryInternationalISDNNumber", "otherFacsimileTelephoneNumber", "primaryTelexNumber"])
+  query: this['EventID']=='5136' and false and (this['AttributeLDAPDisplayName'] in
+    ['primaryInternationalISDNNumber', 'otherFacsimileTelephoneNumber', 'primaryTelexNumber'])
   sigma_id: d00a9a72-2c09-4459-ad03-5e0a23351e36
 - name: Suspicious Windows ANONYMOUS LOGON Local Account Created
-  query: this['EventID']==4720 and this['SamAccountName']=="ANONYMOUS" and this['SamAccountName']=="LOGON"
+  query: this['EventID']=='4720' and this['SamAccountName']=='ANONYMOUS' and this['SamAccountName']=='LOGON'
   sigma_id: 1bbf25b9-8038-4154-a50b-118f2a32be27
 - name: Suspicious Remote Logon with Explicit Credentials
-  query: this['EventID']==4648 and (this['ProcessName']=="\\cmd.exe" or this['ProcessName']=="\\powershell.exe"
-    or this['ProcessName']=="\\pwsh.exe" or this['ProcessName']=="\\winrs.exe" or
-    this['ProcessName']=="\\wmic.exe" or this['ProcessName']=="\\net.exe" or this['ProcessName']=="\\net1.exe"
-    or this['ProcessName']=="\\reg.exe") and not (this['TargetServerName']=="localhost"
-    or this['SubjectUserName']=="$" and this['TargetUserName']=="$")
+  query: this['EventID']=='4648' and (this['ProcessName']=='\\cmd.exe' or this['ProcessName']=='\\powershell.exe'
+    or this['ProcessName']=='\\pwsh.exe' or this['ProcessName']=='\\winrs.exe' or
+    this['ProcessName']=='\\wmic.exe' or this['ProcessName']=='\\net.exe' or this['ProcessName']=='\\net1.exe'
+    or this['ProcessName']=='\\reg.exe') and not (this['TargetServerName']=='localhost'
+    or this['SubjectUserName']=='$' and this['TargetUserName']=='$')
   sigma_id: 941e5c45-cda7-4864-8cea-bbb7458d194a
 - name: Password Dumper Activity on LSASS
-  query: this['EventID']==4656 and this['ProcessName']=="\\lsass.exe" and this['AccessMask']=="0x705"
-    and this['ObjectType']=="SAM_DOMAIN"
+  query: this['EventID']=='4656' and this['ProcessName']=='\\lsass.exe' and this['AccessMask']=='0x705'
+    and this['ObjectType']=='SAM_DOMAIN'
   sigma_id: aa1697b7-d611-4f9a-9cb2-5125b4ccfd5c
 - name: Potentially Suspicious AccessMask Requested From LSASS
-  query: (this['EventID']==4656 and this['ObjectName']=="\\lsass.exe" and (this['AccessMask']=="0x40"
-    or this['AccessMask']=="0x1400" or this['AccessMask']=="0x100000" or this['AccessMask']=="0x1410"
-    or this['AccessMask']=="0x1010" or this['AccessMask']=="0x1438" or this['AccessMask']=="0x143a"
-    or this['AccessMask']=="0x1418" or this['AccessMask']=="0x1f0fff" or this['AccessMask']=="0x1f1fff"
-    or this['AccessMask']=="0x1f2fff" or this['AccessMask']=="0x1f3fff") or this['EventID']==4663
-    and this['ObjectName']=="\\lsass.exe" and (this['AccessList']=="4484" or this['AccessList']=="4416"))
-    and not ((this['ProcessName']=="\\csrss.exe" or this['ProcessName']=="\\GamingServices.exe"
-    or this['ProcessName']=="\\lsm.exe" or this['ProcessName']=="\\MicrosoftEdgeUpdate.exe"
-    or this['ProcessName']=="\\minionhost.exe" or this['ProcessName']=="\\MRT.exe"
-    or this['ProcessName']=="\\MsMpEng.exe" or this['ProcessName']=="\\perfmon.exe"
-    or this['ProcessName']=="\\procexp.exe" or this['ProcessName']=="\\procexp64.exe"
-    or this['ProcessName']=="\\svchost.exe" or this['ProcessName']=="\\taskmgr.exe"
-    or this['ProcessName']=="\\thor.exe" or this['ProcessName']=="\\thor64.exe" or
-    this['ProcessName']=="\\vmtoolsd.exe" or this['ProcessName']=="\\VsTskMgr.exe"
-    or this['ProcessName']=="\\wininit.exe" or this['ProcessName']=="\\wmiprvse.exe"
-    or this['ProcessName']=="RtkAudUService64") and (this['ProcessName']==":\\Program
-    Files (x86)\\" or this['ProcessName']==":\\Program Files\\" or this['ProcessName']==":\\ProgramData\\Microsoft\\Windows
-    Defender\\Platform\\" or this['ProcessName']==":\\Windows\\SysNative\\" or this['ProcessName']==":\\Windows\\System32\\"
-    or this['ProcessName']==":\\Windows\\SysWow64\\" or this['ProcessName']==":\\Windows\\Temp\\asgard2-agent\\")
-    or this['ProcessName']==":\\Program Files" or this['ProcessName']==":\\Windows\\System32\\taskhostw.exe"
-    or this['ProcessName']==":\\Windows\\System32\\msiexec.exe" or this['ProcessName']==":\\Windows\\CCM\\CcmExec.exe"
-    or this['ProcessName']==":\\Windows\\Sysmon64.exe" and this['AccessList']=="%%4484"
-    or this['ProcessName']==":\\Windows\\Temp\\asgard2-agent-sc\\aurora\\" and this['ProcessName']=="\\aurora-agent-64.exe"
-    and this['AccessList']=="%%4484" or this['ProcessName']=="\\x64\\SCENARIOENGINE.EXE"
-    and this['AccessList']=="%%4484" or this['ProcessName']==":\\Users\\" and this['ProcessName']=="\\AppData\\Local\\Temp\\is-"
-    and this['ProcessName']=="\\avira_system_speedup.tmp" and this['AccessList']=="%%4484"
-    or this['ProcessName']==":\\Windows\\Temp\\" and this['ProcessName']=="\\avira_speedup_setup_update.tmp"
-    and this['AccessList']=="%%4484" or this['ProcessName']==":\\Windows\\System32\\snmp.exe"
-    and this['AccessList']=="%%4484" or this['ProcessName']==":\\Windows\\SystemTemp\\"
-    and this['ProcessName']=="\\GoogleUpdate.exe" and this['AccessList']=="%%4484")
-    and not ((this['ProcessName']=="\\procmon64.exe" or this['ProcessName']=="\\procmon.exe")
-    and this['AccessList']=="%%4484")
+  query: (this['EventID']=='4656' and this['ObjectName']=='\\lsass.exe' and (this['AccessMask']=='0x40'
+    or this['AccessMask']=='0x1400' or this['AccessMask']=='0x100000' or this['AccessMask']=='0x1410'
+    or this['AccessMask']=='0x1010' or this['AccessMask']=='0x1438' or this['AccessMask']=='0x143a'
+    or this['AccessMask']=='0x1418' or this['AccessMask']=='0x1f0fff' or this['AccessMask']=='0x1f1fff'
+    or this['AccessMask']=='0x1f2fff' or this['AccessMask']=='0x1f3fff') or this['EventID']=='4663'
+    and this['ObjectName']=='\\lsass.exe' and (this['AccessList']=='4484' or this['AccessList']=='4416'))
+    and not ((this['ProcessName']=='\\csrss.exe' or this['ProcessName']=='\\GamingServices.exe'
+    or this['ProcessName']=='\\lsm.exe' or this['ProcessName']=='\\MicrosoftEdgeUpdate.exe'
+    or this['ProcessName']=='\\minionhost.exe' or this['ProcessName']=='\\MRT.exe'
+    or this['ProcessName']=='\\MsMpEng.exe' or this['ProcessName']=='\\perfmon.exe'
+    or this['ProcessName']=='\\procexp.exe' or this['ProcessName']=='\\procexp64.exe'
+    or this['ProcessName']=='\\svchost.exe' or this['ProcessName']=='\\taskmgr.exe'
+    or this['ProcessName']=='\\thor.exe' or this['ProcessName']=='\\thor64.exe' or
+    this['ProcessName']=='\\vmtoolsd.exe' or this['ProcessName']=='\\VsTskMgr.exe'
+    or this['ProcessName']=='\\wininit.exe' or this['ProcessName']=='\\wmiprvse.exe'
+    or this['ProcessName']=='RtkAudUService64') and (this['ProcessName']==':\\Program
+    Files (x86)\\' or this['ProcessName']==':\\Program Files\\' or this['ProcessName']==':\\ProgramData\\Microsoft\\Windows
+    Defender\\Platform\\' or this['ProcessName']==':\\Windows\\SysNative\\' or this['ProcessName']==':\\Windows\\System32\\'
+    or this['ProcessName']==':\\Windows\\SysWow64\\' or this['ProcessName']==':\\Windows\\Temp\\asgard2-agent\\')
+    or this['ProcessName']==':\\Program Files' or this['ProcessName']==':\\Windows\\System32\\taskhostw.exe'
+    or this['ProcessName']==':\\Windows\\System32\\msiexec.exe' or this['ProcessName']==':\\Windows\\CCM\\CcmExec.exe'
+    or this['ProcessName']==':\\Windows\\Sysmon64.exe' and this['AccessList']=='%%4484'
+    or this['ProcessName']==':\\Windows\\Temp\\asgard2-agent-sc\\aurora\\' and this['ProcessName']=='\\aurora-agent-64.exe'
+    and this['AccessList']=='%%4484' or this['ProcessName']=='\\x64\\SCENARIOENGINE.EXE'
+    and this['AccessList']=='%%4484' or this['ProcessName']==':\\Users\\' and this['ProcessName']=='\\AppData\\Local\\Temp\\is-'
+    and this['ProcessName']=='\\avira_system_speedup.tmp' and this['AccessList']=='%%4484'
+    or this['ProcessName']==':\\Windows\\Temp\\' and this['ProcessName']=='\\avira_speedup_setup_update.tmp'
+    and this['AccessList']=='%%4484' or this['ProcessName']==':\\Windows\\System32\\snmp.exe'
+    and this['AccessList']=='%%4484' or this['ProcessName']==':\\Windows\\SystemTemp\\'
+    and this['ProcessName']=='\\GoogleUpdate.exe' and this['AccessList']=='%%4484')
+    and not ((this['ProcessName']=='\\procmon64.exe' or this['ProcessName']=='\\procmon.exe')
+    and this['AccessList']=='%%4484')
   sigma_id: 4a1b6da0-d94f-4fc3-98fc-2d9cb9e5ee76
 - name: Reconnaissance Activity
-  query: this['EventID']==4661 and this['AccessMask']=="0x2d" and (this['ObjectType']
-    in ["SAM_USER", "SAM_GROUP"]) and this['ObjectName']=="S-1-5-21-" and (this['ObjectName']=="-500"
-    or this['ObjectName']=="-512")
+  query: this['EventID']=='4661' and this['AccessMask']=='0x2d' and (this['ObjectType']
+    in ['SAM_USER', 'SAM_GROUP']) and this['ObjectName']=='S-1-5-21-' and (this['ObjectName']=='-500'
+    or this['ObjectName']=='-512')
   sigma_id: 968eef52-9cff-4454-8992-1e74b9cbad6c
 - name: Password Protected ZIP File Opened
-  query: this['EventID']==5379 and this['TargetName']=="Microsoft_Windows_Shell_ZipFolder:filename"
-    and not this['TargetName']=="\\Temporary Internet Files\\Content.Outlook"
+  query: this['EventID']=='5379' and this['TargetName']=='Microsoft_Windows_Shell_ZipFolder:filename'
+    and not this['TargetName']=='\\Temporary Internet Files\\Content.Outlook'
   sigma_id: 00ba9da1-b510-4f6b-b258-8d338836180f
 - name: Password Protected ZIP File Opened (Suspicious Filenames)
-  query: this['EventID']==5379 and this['TargetName']=="Microsoft_Windows_Shell_ZipFolder:filename"
-    and (this['TargetName']=="invoice" or this['TargetName']=="new order" or this['TargetName']=="rechnung"
-    or this['TargetName']=="factura" or this['TargetName']=="delivery" or this['TargetName']=="purchase"
-    or this['TargetName']=="order" or this['TargetName']=="payment")
+  query: this['EventID']=='5379' and this['TargetName']=='Microsoft_Windows_Shell_ZipFolder:filename'
+    and (this['TargetName']=='invoice' or this['TargetName']=='new order' or this['TargetName']=='rechnung'
+    or this['TargetName']=='factura' or this['TargetName']=='delivery' or this['TargetName']=='purchase'
+    or this['TargetName']=='order' or this['TargetName']=='payment')
   sigma_id: 54f0434b-726f-48a1-b2aa-067df14516e4
 - name: Password Protected ZIP File Opened (Email Attachment)
-  query: this['EventID']==5379 and this['TargetName']=="Microsoft_Windows_Shell_ZipFolder:filename"
-    and this['TargetName']=="\\Temporary Internet Files\\Content.Outlook"
+  query: this['EventID']=='5379' and this['TargetName']=='Microsoft_Windows_Shell_ZipFolder:filename'
+    and this['TargetName']=='\\Temporary Internet Files\\Content.Outlook'
   sigma_id: 571498c8-908e-40b4-910b-d2369159a3da
 - name: Uncommon Outbound Kerberos Connection - Security
-  query: this['EventID']==5156 and this['DestPort']==88 and not ((this['Application']=="\\device\\harddiskvolume"
-    or this['Application']=="C:") and this['Application']=="\\Windows\\System32\\lsass.exe")
-    and not ((this['Application']=="\\device\\harddiskvolume" or this['Application']=="C:")
-    and (this['Application']=="\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
-    or this['Application']=="\\Program Files\\Google\\Chrome\\Application\\chrome.exe")
-    or (this['Application']=="\\device\\harddiskvolume" or this['Application']=="C:")
-    and (this['Application']=="\\Program Files (x86)\\Mozilla Firefox\\firefox.exe"
-    or this['Application']=="\\Program Files\\Mozilla Firefox\\firefox.exe") or this['Application']=="\\tomcat\\bin\\tomcat8.exe")
+  query: this['EventID']=='5156' and this['DestPort']=='88' and not ((this['Application']=='\\device\\harddiskvolume'
+    or this['Application']=='C:') and this['Application']=='\\Windows\\System32\\lsass.exe')
+    and not ((this['Application']=='\\device\\harddiskvolume' or this['Application']=='C:')
+    and (this['Application']=='\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+    or this['Application']=='\\Program Files\\Google\\Chrome\\Application\\chrome.exe')
+    or (this['Application']=='\\device\\harddiskvolume' or this['Application']=='C:')
+    and (this['Application']=='\\Program Files (x86)\\Mozilla Firefox\\firefox.exe'
+    or this['Application']=='\\Program Files\\Mozilla Firefox\\firefox.exe') or this['Application']=='\\tomcat\\bin\\tomcat8.exe')
   sigma_id: eca91c7c-9214-47b9-b4c5-cb1d7e4f2350
 - name: Possible Shadow Credentials Added
-  query: this['EventID']==5136 and this['AttributeLDAPDisplayName']=="msDS-KeyCredentialLink"
+  query: this['EventID']=='5136' and this['AttributeLDAPDisplayName']=='msDS-KeyCredentialLink'
   sigma_id: f598ea0c-c25a-4f72-a219-50c44411c791
 - name: Suspicious PsExec Execution
-  query: 'this[''EventID'']==5145 and this[''ShareName'']=="(''\\'', <SpecialChars.WILDCARD_MULTI:
-    1>, ''\\IPC$'')" and (this[''RelativeTargetName'']=="-stdin" or this[''RelativeTargetName'']=="-stdout"
-    or this[''RelativeTargetName'']=="-stderr") and not this[''RelativeTargetName'']=="PSEXESVC"'
+  query: 'this[''EventID'']==''5145'' and this[''ShareName'']==''(\''\\\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \''\\IPC$\'')'' and (this[''RelativeTargetName'']==''-stdin'' or this[''RelativeTargetName'']==''-stdout''
+    or this[''RelativeTargetName'']==''-stderr'') and not this[''RelativeTargetName'']==''PSEXESVC'''
   sigma_id: c462f537-a1e3-41a6-b5fc-b2c2cef9bf82
 - name: Suspicious Access to Sensitive File Extensions
-  query: this['EventID']==5145 and (this['RelativeTargetName']==".bak" or this['RelativeTargetName']==".dmp"
-    or this['RelativeTargetName']==".edb" or this['RelativeTargetName']==".kirbi"
-    or this['RelativeTargetName']==".msg" or this['RelativeTargetName']==".nsf" or
-    this['RelativeTargetName']==".nst" or this['RelativeTargetName']==".oab" or this['RelativeTargetName']==".ost"
-    or this['RelativeTargetName']==".pst" or this['RelativeTargetName']==".rdp" or
-    this['RelativeTargetName']=="\\groups.xml")
+  query: this['EventID']=='5145' and (this['RelativeTargetName']=='.bak' or this['RelativeTargetName']=='.dmp'
+    or this['RelativeTargetName']=='.edb' or this['RelativeTargetName']=='.kirbi'
+    or this['RelativeTargetName']=='.msg' or this['RelativeTargetName']=='.nsf' or
+    this['RelativeTargetName']=='.nst' or this['RelativeTargetName']=='.oab' or this['RelativeTargetName']=='.ost'
+    or this['RelativeTargetName']=='.pst' or this['RelativeTargetName']=='.rdp' or
+    this['RelativeTargetName']=='\\groups.xml')
   sigma_id: 91c945bc-2ad1-4799-a591-4d00198a1215
 - name: Suspicious Kerberos RC4 Ticket Encryption
-  query: this['EventID']==4769 and this['TicketOptions']=="0x40810000" and this['TicketEncryptionType']=="0x17"
-    and not this['ServiceName']=="$"
+  query: this['EventID']=='4769' and this['TicketOptions']=='0x40810000' and this['TicketEncryptionType']=='0x17'
+    and not this['ServiceName']=='$'
   sigma_id: 496a0e47-0a33-4dca-b009-9e6ca3591f39
 - name: Suspicious Scheduled Task Creation
-  query: this['EventID']==4698 and (this['TaskContent']=="\\AppData\\Local\\Temp\\"
-    or this['TaskContent']=="\\AppData\\Roaming\\" or this['TaskContent']=="\\Users\\Public\\"
-    or this['TaskContent']=="\\WINDOWS\\Temp\\" or this['TaskContent']=="C:\\Temp\\"
-    or this['TaskContent']=="\\Desktop\\" or this['TaskContent']=="\\Downloads\\"
-    or this['TaskContent']=="\\Temporary Internet" or this['TaskContent']=="C:\\ProgramData\\"
-    or this['TaskContent']=="C:\\Perflogs\\") and (this['TaskContent']=="regsvr32"
-    or this['TaskContent']=="rundll32" or this['TaskContent']=="cmd.exe</Command>"
-    or this['TaskContent']=="cmd</Command>" or this['TaskContent']=="<Arguments>/c
-    " or this['TaskContent']=="<Arguments>/k " or this['TaskContent']=="<Arguments>/r
-    " or this['TaskContent']=="powershell" or this['TaskContent']=="pwsh" or this['TaskContent']=="mshta"
-    or this['TaskContent']=="wscript" or this['TaskContent']=="cscript" or this['TaskContent']=="certutil"
-    or this['TaskContent']=="bitsadmin" or this['TaskContent']=="bash.exe" or this['TaskContent']=="bash
-    " or this['TaskContent']=="scrcons" or this['TaskContent']=="wmic " or this['TaskContent']=="wmic.exe"
-    or this['TaskContent']=="forfiles" or this['TaskContent']=="scriptrunner" or this['TaskContent']=="hh.exe")
+  query: this['EventID']=='4698' and (this['TaskContent']=='\\AppData\\Local\\Temp\\'
+    or this['TaskContent']=='\\AppData\\Roaming\\' or this['TaskContent']=='\\Users\\Public\\'
+    or this['TaskContent']=='\\WINDOWS\\Temp\\' or this['TaskContent']=='C:\\Temp\\'
+    or this['TaskContent']=='\\Desktop\\' or this['TaskContent']=='\\Downloads\\'
+    or this['TaskContent']=='\\Temporary Internet' or this['TaskContent']=='C:\\ProgramData\\'
+    or this['TaskContent']=='C:\\Perflogs\\') and (this['TaskContent']=='regsvr32'
+    or this['TaskContent']=='rundll32' or this['TaskContent']=='cmd.exe</Command>'
+    or this['TaskContent']=='cmd</Command>' or this['TaskContent']=='<Arguments>/c
+    ' or this['TaskContent']=='<Arguments>/k ' or this['TaskContent']=='<Arguments>/r
+    ' or this['TaskContent']=='powershell' or this['TaskContent']=='pwsh' or this['TaskContent']=='mshta'
+    or this['TaskContent']=='wscript' or this['TaskContent']=='cscript' or this['TaskContent']=='certutil'
+    or this['TaskContent']=='bitsadmin' or this['TaskContent']=='bash.exe' or this['TaskContent']=='bash
+    ' or this['TaskContent']=='scrcons' or this['TaskContent']=='wmic ' or this['TaskContent']=='wmic.exe'
+    or this['TaskContent']=='forfiles' or this['TaskContent']=='scriptrunner' or this['TaskContent']=='hh.exe')
   sigma_id: 3a734d25-df5c-4b99-8034-af1ddb5883a4
 - name: Important Scheduled Task Deleted/Disabled
-  query: (this['EventID'] in [4699, 4701]) and (this['TaskName']=="\\Windows\\SystemRestore\\SR"
-    or this['TaskName']=="\\Windows\\Windows Defender\\" or this['TaskName']=="\\Windows\\BitLocker"
-    or this['TaskName']=="\\Windows\\WindowsBackup\\" or this['TaskName']=="\\Windows\\WindowsUpdate\\"
-    or this['TaskName']=="\\Windows\\UpdateOrchestrator\\Schedule" or this['TaskName']=="\\Windows\\ExploitGuard")
-    and not (this['EventID']==4699 and this['SubjectUserName']=="$" and this['TaskName']=="\\Windows\\Windows
-    Defender\\")
+  query: (this['EventID'] in [4699, 4701]) and (this['TaskName']=='\\Windows\\SystemRestore\\SR'
+    or this['TaskName']=='\\Windows\\Windows Defender\\' or this['TaskName']=='\\Windows\\BitLocker'
+    or this['TaskName']=='\\Windows\\WindowsBackup\\' or this['TaskName']=='\\Windows\\WindowsUpdate\\'
+    or this['TaskName']=='\\Windows\\UpdateOrchestrator\\Schedule' or this['TaskName']=='\\Windows\\ExploitGuard')
+    and not (this['EventID']=='4699' and this['SubjectUserName']=='$' and this['TaskName']=='\\Windows\\Windows
+    Defender\\')
   sigma_id: 7595ba94-cf3b-4471-aa03-4f6baa9e5fad
 - name: Suspicious Scheduled Task Update
-  query: this['EventID']==4702 and (this['TaskContentNew']=="\\AppData\\Local\\Temp\\"
-    or this['TaskContentNew']=="\\AppData\\Roaming\\" or this['TaskContentNew']=="\\Users\\Public\\"
-    or this['TaskContentNew']=="\\WINDOWS\\Temp\\" or this['TaskContentNew']=="C:\\Temp\\"
-    or this['TaskContentNew']=="\\Desktop\\" or this['TaskContentNew']=="\\Downloads\\"
-    or this['TaskContentNew']=="\\Temporary Internet" or this['TaskContentNew']=="C:\\ProgramData\\"
-    or this['TaskContentNew']=="C:\\Perflogs\\") and (this['TaskContentNew']=="regsvr32"
-    or this['TaskContentNew']=="rundll32" or this['TaskContentNew']=="cmd.exe</Command>"
-    or this['TaskContentNew']=="cmd</Command>" or this['TaskContentNew']=="<Arguments>/c
-    " or this['TaskContentNew']=="<Arguments>/k " or this['TaskContentNew']=="<Arguments>/r
-    " or this['TaskContentNew']=="powershell" or this['TaskContentNew']=="pwsh" or
-    this['TaskContentNew']=="mshta" or this['TaskContentNew']=="wscript" or this['TaskContentNew']=="cscript"
-    or this['TaskContentNew']=="certutil" or this['TaskContentNew']=="bitsadmin" or
-    this['TaskContentNew']=="bash.exe" or this['TaskContentNew']=="bash " or this['TaskContentNew']=="scrcons"
-    or this['TaskContentNew']=="wmic " or this['TaskContentNew']=="wmic.exe" or this['TaskContentNew']=="forfiles"
-    or this['TaskContentNew']=="scriptrunner" or this['TaskContentNew']=="hh.exe")
+  query: this['EventID']=='4702' and (this['TaskContentNew']=='\\AppData\\Local\\Temp\\'
+    or this['TaskContentNew']=='\\AppData\\Roaming\\' or this['TaskContentNew']=='\\Users\\Public\\'
+    or this['TaskContentNew']=='\\WINDOWS\\Temp\\' or this['TaskContentNew']=='C:\\Temp\\'
+    or this['TaskContentNew']=='\\Desktop\\' or this['TaskContentNew']=='\\Downloads\\'
+    or this['TaskContentNew']=='\\Temporary Internet' or this['TaskContentNew']=='C:\\ProgramData\\'
+    or this['TaskContentNew']=='C:\\Perflogs\\') and (this['TaskContentNew']=='regsvr32'
+    or this['TaskContentNew']=='rundll32' or this['TaskContentNew']=='cmd.exe</Command>'
+    or this['TaskContentNew']=='cmd</Command>' or this['TaskContentNew']=='<Arguments>/c
+    ' or this['TaskContentNew']=='<Arguments>/k ' or this['TaskContentNew']=='<Arguments>/r
+    ' or this['TaskContentNew']=='powershell' or this['TaskContentNew']=='pwsh' or
+    this['TaskContentNew']=='mshta' or this['TaskContentNew']=='wscript' or this['TaskContentNew']=='cscript'
+    or this['TaskContentNew']=='certutil' or this['TaskContentNew']=='bitsadmin' or
+    this['TaskContentNew']=='bash.exe' or this['TaskContentNew']=='bash ' or this['TaskContentNew']=='scrcons'
+    or this['TaskContentNew']=='wmic ' or this['TaskContentNew']=='wmic.exe' or this['TaskContentNew']=='forfiles'
+    or this['TaskContentNew']=='scriptrunner' or this['TaskContentNew']=='hh.exe')
   sigma_id: 614cf376-6651-47c4-9dcc-6b9527f749f4
 - name: Remote Service Activity via SVCCTL Named Pipe
-  query: 'this[''EventID'']==5145 and this[''ShareName'']=="(''\\'', <SpecialChars.WILDCARD_MULTI:
-    1>, ''\\IPC$'')" and this[''RelativeTargetName'']=="svcctl" and this[''AccessList'']=="WriteData"'
+  query: 'this[''EventID'']==''5145'' and this[''ShareName'']==''(\''\\\'', <SpecialChars.WILDCARD_MULTI:
+    1>, \''\\IPC$\'')'' and this[''RelativeTargetName'']==''svcctl'' and this[''AccessList'']==''WriteData'''
   sigma_id: 586a8d6b-6bfe-4ad9-9d78-888cd2fe50c3
 - name: SysKey Registry Keys Access
-  query: (this['EventID'] in [4656, 4663]) and this['ObjectType']=="key" and (this['ObjectName']=="lsa\\JD"
-    or this['ObjectName']=="lsa\\GBG" or this['ObjectName']=="lsa\\Skew1" or this['ObjectName']=="lsa\\Data")
+  query: (this['EventID'] in [4656, 4663]) and this['ObjectType']=='key' and (this['ObjectName']=='lsa\\JD'
+    or this['ObjectName']=='lsa\\GBG' or this['ObjectName']=='lsa\\Skew1' or this['ObjectName']=='lsa\\Data')
   sigma_id: 9a4ff3b8-6187-4fd2-8e8b-e0eae1129495
 - name: Sysmon Channel Reference Deletion
-  query: this['EventID']==4657 and (this['ObjectName']=="WINEVT\\Publishers\\{5770385f-c22a-43e0-bf4c-06f5698ffbd9}"
-    or this['ObjectName']=="WINEVT\\Channels\\Microsoft-Windows-Sysmon/Operational")
-    and this['ObjectValueName']=="Enabled" and this['NewValue']==0 or this['EventID']==4663
-    and (this['ObjectName']=="WINEVT\\Publishers\\{5770385f-c22a-43e0-bf4c-06f5698ffbd9}"
-    or this['ObjectName']=="WINEVT\\Channels\\Microsoft-Windows-Sysmon/Operational")
-    and this['AccessMask']==65536
+  query: this['EventID']=='4657' and (this['ObjectName']=='WINEVT\\Publishers\\{5770385f-c22a-43e0-bf4c-06f5698ffbd9}'
+    or this['ObjectName']=='WINEVT\\Channels\\Microsoft-Windows-Sysmon/Operational')
+    and this['ObjectValueName']=='Enabled' and this['NewValue']=='0' or this['EventID']=='4663'
+    and (this['ObjectName']=='WINEVT\\Publishers\\{5770385f-c22a-43e0-bf4c-06f5698ffbd9}'
+    or this['ObjectName']=='WINEVT\\Channels\\Microsoft-Windows-Sysmon/Operational')
+    and this['AccessMask']=='65536'
   sigma_id: 18beca67-ab3e-4ee3-ba7a-a46ca8d7d0cc
 - name: Suspicious Teams Application Related ObjectAcess Event
-  query: this['EventID']==4663 and (this['ObjectName']=="\\Microsoft\\Teams\\Cookies"
-    or this['ObjectName']=="\\Microsoft\\Teams\\Local Storage\\leveldb") and not this['ProcessName']=="\\Microsoft\\Teams\\current\\Teams.exe"
+  query: this['EventID']=='4663' and (this['ObjectName']=='\\Microsoft\\Teams\\Cookies'
+    or this['ObjectName']=='\\Microsoft\\Teams\\Local Storage\\leveldb') and not this['ProcessName']=='\\Microsoft\\Teams\\current\\Teams.exe'
   sigma_id: 25cde13e-8e20-4c29-b949-4e795b76f16f
 - name: Transferring Files with Credential Data via Network Shares
-  query: this['EventID']==5145 and (this['RelativeTargetName']=="\\mimidrv" or this['RelativeTargetName']=="\\lsass"
-    or this['RelativeTargetName']=="\\windows\\minidump\\" or this['RelativeTargetName']=="\\hiberfil"
-    or this['RelativeTargetName']=="\\sqldmpr" or this['RelativeTargetName']=="\\sam"
-    or this['RelativeTargetName']=="\\ntds.dit" or this['RelativeTargetName']=="\\security")
+  query: this['EventID']=='5145' and (this['RelativeTargetName']=='\\mimidrv' or this['RelativeTargetName']=='\\lsass'
+    or this['RelativeTargetName']=='\\windows\\minidump\\' or this['RelativeTargetName']=='\\hiberfil'
+    or this['RelativeTargetName']=='\\sqldmpr' or this['RelativeTargetName']=='\\sam'
+    or this['RelativeTargetName']=='\\ntds.dit' or this['RelativeTargetName']=='\\security')
   sigma_id: 910ab938-668b-401b-b08c-b596e80fdca5
 - name: User Added to Local Administrator Group
-  query: this['EventID']==4732 and (this['TargetUserName']=="Administr" or this['TargetSid']=="S-1-5-32-544")
-    and not this['SubjectUserName']=="$"
+  query: this['EventID']=='4732' and (this['TargetUserName']=='Administr' or this['TargetSid']=='S-1-5-32-544')
+    and not this['SubjectUserName']=='$'
   sigma_id: c265cf08-3f99-46c1-8d59-328247057d57
 - name: User Couldn't Call a Privileged Service 'LsaRegisterLogonProcess'
-  query: this['EventID']==4673 and this['Service']=="LsaRegisterLogonProcess()" and
-    this['Keywords']=="0x8010000000000000"
+  query: this['EventID']=='4673' and this['Service']=='LsaRegisterLogonProcess()'
+    and this['Keywords']=='0x8010000000000000'
   sigma_id: 6daac7fc-77d1-449a-a71a-e6b4d59a0e54
 - name: Potential Privileged System Service Operation - SeLoadDriverPrivilege
-  query: this['EventID']==4673 and this['PrivilegeList']=="SeLoadDriverPrivilege"
-    and this['Service']=="-" and not (this['ProcessName'] in ["C:\\Windows\\System32\\Dism.exe",
-    "C:\\Windows\\System32\\rundll32.exe", "C:\\Windows\\System32\\fltMC.exe", "C:\\Windows\\HelpPane.exe",
-    "C:\\Windows\\System32\\mmc.exe", "C:\\Windows\\System32\\svchost.exe", "C:\\Windows\\System32\\wimserv.exe",
-    "C:\\Windows\\System32\\RuntimeBroker.exe", "C:\\Windows\\System32\\SystemSettingsBroker.exe",
-    "C:\\Windows\\explorer.exe"] or this['ProcessName']=="\\procexp64.exe" or this['ProcessName']=="\\procexp.exe"
-    or this['ProcessName']=="\\procmon64.exe" or this['ProcessName']=="\\procmon.exe"
-    or this['ProcessName']=="\\Google\\Chrome\\Application\\chrome.exe" or this['ProcessName']=="\\AppData\\Local\\Microsoft\\Teams\\current\\Teams.exe"
-    or this['ProcessName']=="C:\\Program Files\\WindowsApps\\Microsoft")
+  query: this['EventID']=='4673' and this['PrivilegeList']=='SeLoadDriverPrivilege'
+    and this['Service']=='-' and not (this['ProcessName'] in ['C:\\Windows\\System32\\Dism.exe',
+    'C:\\Windows\\System32\\rundll32.exe', 'C:\\Windows\\System32\\fltMC.exe', 'C:\\Windows\\HelpPane.exe',
+    'C:\\Windows\\System32\\mmc.exe', 'C:\\Windows\\System32\\svchost.exe', 'C:\\Windows\\System32\\wimserv.exe',
+    'C:\\Windows\\System32\\RuntimeBroker.exe', 'C:\\Windows\\System32\\SystemSettingsBroker.exe',
+    'C:\\Windows\\explorer.exe'] or this['ProcessName']=='\\procexp64.exe' or this['ProcessName']=='\\procexp.exe'
+    or this['ProcessName']=='\\procmon64.exe' or this['ProcessName']=='\\procmon.exe'
+    or this['ProcessName']=='\\Google\\Chrome\\Application\\chrome.exe' or this['ProcessName']=='\\AppData\\Local\\Microsoft\\Teams\\current\\Teams.exe'
+    or this['ProcessName']=='C:\\Program Files\\WindowsApps\\Microsoft')
   sigma_id: f63508a0-c809-4435-b3be-ed819394d612
 - name: Windows Defender Exclusion List Modified
-  query: this['EventID']==4657 and this['ObjectName']=="\\Microsoft\\Windows Defender\\Exclusions\\"
+  query: this['EventID']=='4657' and this['ObjectName']=='\\Microsoft\\Windows Defender\\Exclusions\\'
   sigma_id: 46a68649-f218-4f86-aea1-16a759d81820
 - name: Windows Defender Exclusion Registry Key - Write Access Requested
-  query: (this['AccessList']=="%%4417" or this['AccessList']=="%%4418") and (this['EventID']
-    in [4656, 4663]) and this['ObjectName']=="\\Microsoft\\Windows Defender\\Exclusions\\"
+  query: (this['AccessList']=='%%4417' or this['AccessList']=='%%4418') and (this['EventID']
+    in [4656, 4663]) and this['ObjectName']=='\\Microsoft\\Windows Defender\\Exclusions\\'
   sigma_id: e9c8808f-4cfb-4ba9-97d4-e5f3beaa244d
 - name: WMI Persistence - Security
-  query: this['EventID']==4662 and this['ObjectType']=="WMI Namespace" and this['ObjectName']=="subscription"
+  query: this['EventID']=='4662' and this['ObjectType']=='WMI Namespace' and this['ObjectName']=='subscription'
   sigma_id: f033f3f3-fd24-4995-97d8-a3bb17550a88
 - name: T1047 Wmiprvse Wbemcomn DLL Hijack
-  query: this['EventID']==5145 and this['RelativeTargetName']=="\\wbem\\wbemcomn.dll"
-    and not this['SubjectUserName']=="$"
+  query: this['EventID']=='5145' and this['RelativeTargetName']=='\\wbem\\wbemcomn.dll'
+    and not this['SubjectUserName']=='$'
   sigma_id: f6c68d5f-e101-4b86-8c84-7d96851fd65c
 - name: Potential Access Token Abuse
-  query: this['EventID']==4624 and this['LogonType']==9 and this['LogonProcessName']=="Advapi"
-    and this['AuthenticationPackageName']=="Negotiate" and this['ImpersonationLevel']=="%%1833"
+  query: this['EventID']=='4624' and this['LogonType']=='9' and this['LogonProcessName']=='Advapi'
+    and this['AuthenticationPackageName']=='Negotiate' and this['ImpersonationLevel']=='%%1833'
   sigma_id: 02f7c9c1-1ae8-4c6a-8add-04693807f92f
 - name: DiagTrackEoP Default Login Username
-  query: this['EventID']==4624 and this['LogonType']==9 and this['TargetOutboundUserName']=="thisisnotvaliduser"
+  query: this['EventID']=='4624' and this['LogonType']=='9' and this['TargetOutboundUserName']=='thisisnotvaliduser'
   sigma_id: 2111118f-7e46-4fc8-974a-59fd8ec95196
 - name: Successful Overpass the Hash Attempt
-  query: this['EventID']==4624 and this['LogonType']==9 and this['LogonProcessName']=="seclogo"
-    and this['AuthenticationPackageName']=="Negotiate"
+  query: this['EventID']=='4624' and this['LogonType']=='9' and this['LogonProcessName']=='seclogo'
+    and this['AuthenticationPackageName']=='Negotiate'
   sigma_id: 192a0330-c20b-4356-90b6-7b7049ae0b87
 - name: Pass the Hash Activity 2
-  query: (this['EventID']==4624 and this['SubjectUserSid']=="S-1-0-0" and this['LogonType']==3
-    and this['LogonProcessName']=="NtLmSsp" and this['KeyLength']==0 or this['EventID']==4624
-    and this['LogonType']==9 and this['LogonProcessName']=="seclogo") and not this['TargetUserName']=="ANONYMOUS
-    LOGON"
+  query: (this['EventID']=='4624' and this['SubjectUserSid']=='S-1-0-0' and this['LogonType']=='3'
+    and this['LogonProcessName']=='NtLmSsp' and this['KeyLength']=='0' or this['EventID']=='4624'
+    and this['LogonType']=='9' and this['LogonProcessName']=='seclogo') and not this['TargetUserName']=='ANONYMOUS
+    LOGON'
   sigma_id: 8eef149c-bd26-49f2-9e5a-9b00e3af499b
 - name: Scanner PoC for CVE-2019-0708 RDP RCE Vuln
-  query: this['EventID']==4625 and this['TargetUserName']=="AAAAAAA"
+  query: this['EventID']=='4625' and this['TargetUserName']=='AAAAAAA'
   sigma_id: 8400629e-79a9-4737-b387-5db940ab2367
 - name: RDP Login from Localhost
-  query: this['EventID']==4624 and this['LogonType']==10 and (this['IpAddress'] in
-    ["::1", "127.0.0.1"])
+  query: this['EventID']=='4624' and this['LogonType']=='10' and (this['IpAddress']
+    in ['::1', '127.0.0.1'])
   sigma_id: 51e33403-2a37-4d66-a574-1fda1782cc31
 - name: External Remote RDP Logon from Public IP
-  query: this['EventID']==4624 and this['LogonType']==10 and not (cidr_match(::1/128,
+  query: this['EventID']=='4624' and this['LogonType']=='10' and not (cidr_match(::1/128,
     this['IpAddress']) or cidr_match(10.0.0.0/8, this['IpAddress']) or cidr_match(127.0.0.0/8,
     this['IpAddress']) or cidr_match(172.16.0.0/12, this['IpAddress']) or cidr_match(192.168.0.0/16,
     this['IpAddress']) or cidr_match(169.254.0.0/16, this['IpAddress']) or cidr_match(fc00::/7,
-    this['IpAddress']) or cidr_match(fe80::/10, this['IpAddress']) or this['IpAddress']=="-")
+    this['IpAddress']) or cidr_match(fe80::/10, this['IpAddress']) or this['IpAddress']=='-')
   sigma_id: 259a9cdf-c4dd-4fa2-b243-2269e5ab18a2
 - name: External Remote SMB Logon from Public IP
-  query: this['EventID']==4624 and this['LogonType']==3 and not (cidr_match(::1/128,
+  query: this['EventID']=='4624' and this['LogonType']=='3' and not (cidr_match(::1/128,
     this['IpAddress']) or cidr_match(10.0.0.0/8, this['IpAddress']) or cidr_match(127.0.0.0/8,
     this['IpAddress']) or cidr_match(172.16.0.0/12, this['IpAddress']) or cidr_match(192.168.0.0/16,
     this['IpAddress']) or cidr_match(169.254.0.0/16, this['IpAddress']) or cidr_match(fc00::/7,
-    this['IpAddress']) or cidr_match(fe80::/10, this['IpAddress']) or this['IpAddress']=="-")
+    this['IpAddress']) or cidr_match(fe80::/10, this['IpAddress']) or this['IpAddress']=='-')
   sigma_id: 78d5cab4-557e-454f-9fb9-a222bd0d5edc
 - name: Failed Logon From Public IP
-  query: this['EventID']==4625 and not (this['IpAddress']=="-" or cidr_match(::1/128,
+  query: this['EventID']=='4625' and not (this['IpAddress']=='-' or cidr_match(::1/128,
     this['IpAddress']) or cidr_match(10.0.0.0/8, this['IpAddress']) or cidr_match(127.0.0.0/8,
     this['IpAddress']) or cidr_match(172.16.0.0/12, this['IpAddress']) or cidr_match(192.168.0.0/16,
     this['IpAddress']) or cidr_match(169.254.0.0/16, this['IpAddress']) or cidr_match(fc00::/7,
     this['IpAddress']) or cidr_match(fe80::/10, this['IpAddress']))
   sigma_id: f88e112a-21aa-44bd-9b01-6ee2a2bbbed1
 - name: Potential Privilege Escalation via Local Kerberos Relay over LDAP
-  query: this['EventID']==4624 and this['LogonType']==3 and this['AuthenticationPackageName']=="Kerberos"
-    and this['IpAddress']=="127.0.0.1" and this['TargetUserSid']=="S-1-5-21-" and
-    this['TargetUserSid']=="-500" and not this['IpPort']=="0"
+  query: this['EventID']=='4624' and this['LogonType']=='3' and this['AuthenticationPackageName']=='Kerberos'
+    and this['IpAddress']=='127.0.0.1' and this['TargetUserSid']=='S-1-5-21-' and
+    this['TargetUserSid']=='-500' and not this['IpPort']=='0'
   sigma_id: 749c9f5e-b353-4b90-a9c1-05243357ca4b
 - name: RottenPotato Like Attack Pattern
-  query: this['EventID']==4624 and this['LogonType']==3 and this['TargetUserName']=="ANONYMOUS
-    LOGON" and this['WorkstationName']=="-" and (this['IpAddress'] in ["127.0.0.1",
-    "::1"])
+  query: this['EventID']=='4624' and this['LogonType']=='3' and this['TargetUserName']=='ANONYMOUS
+    LOGON' and this['WorkstationName']=='-' and (this['IpAddress'] in ['127.0.0.1',
+    '::1'])
   sigma_id: 16f5d8ca-44bd-47c8-acbe-6fc95a16c12f
 - name: Windows Filtering Platform Blocked Connection From EDR Agent Binary
-  query: this['EventID']==5157 and (this['Application']=="\\AmSvc.exe" or this['Application']=="\\cb.exe"
-    or this['Application']=="\\CETASvc.exe" or this['Application']=="\\CNTAoSMgr.exe"
-    or this['Application']=="\\CrAmTray.exe" or this['Application']=="\\CrsSvc.exe"
-    or this['Application']=="\\CSFalconContainer.exe" or this['Application']=="\\CSFalconService.exe"
-    or this['Application']=="\\CybereasonAV.exe" or this['Application']=="\\CylanceSvc.exe"
-    or this['Application']=="\\cyserver.exe" or this['Application']=="\\CyveraService.exe"
-    or this['Application']=="\\CyvrFsFlt.exe" or this['Application']=="\\EIConnector.exe"
-    or this['Application']=="\\elastic-agent.exe" or this['Application']=="\\elastic-endpoint.exe"
-    or this['Application']=="\\EndpointBasecamp.exe" or this['Application']=="\\ExecutionPreventionSvc.exe"
-    or this['Application']=="\\filebeat.exe" or this['Application']=="\\fortiedr.exe"
-    or this['Application']=="\\hmpalert.exe" or this['Application']=="\\hurukai.exe"
-    or this['Application']=="\\LogProcessorService.exe" or this['Application']=="\\mcsagent.exe"
-    or this['Application']=="\\mcsclient.exe" or this['Application']=="\\MsMpEng.exe"
-    or this['Application']=="\\MsSense.exe" or this['Application']=="\\Ntrtscan.exe"
-    or this['Application']=="\\PccNTMon.exe" or this['Application']=="\\QualysAgent.exe"
-    or this['Application']=="\\RepMgr.exe" or this['Application']=="\\RepUtils.exe"
-    or this['Application']=="\\RepUx.exe" or this['Application']=="\\RepWAV.exe" or
-    this['Application']=="\\RepWSC.exe" or this['Application']=="\\sedservice.exe"
-    or this['Application']=="\\SenseCncProxy.exe" or this['Application']=="\\SenseIR.exe"
-    or this['Application']=="\\SenseNdr.exe" or this['Application']=="\\SenseSampleUploader.exe"
-    or this['Application']=="\\SentinelAgent.exe" or this['Application']=="\\SentinelAgentWorker.exe"
-    or this['Application']=="\\SentinelBrowserNativeHost.exe" or this['Application']=="\\SentinelHelperService.exe"
-    or this['Application']=="\\SentinelServiceHost.exe" or this['Application']=="\\SentinelStaticEngine.exe"
-    or this['Application']=="\\SentinelStaticEngineScanner.exe" or this['Application']=="\\sfc.exe"
-    or this['Application']=="\\sophos ui.exe" or this['Application']=="\\sophosfilescanner.exe"
-    or this['Application']=="\\sophosfs.exe" or this['Application']=="\\sophoshealth.exe"
-    or this['Application']=="\\sophosips.exe" or this['Application']=="\\sophosLivequeryservice.exe"
-    or this['Application']=="\\sophosnetfilter.exe" or this['Application']=="\\sophosntpservice.exe"
-    or this['Application']=="\\sophososquery.exe" or this['Application']=="\\sspservice.exe"
-    or this['Application']=="\\TaniumClient.exe" or this['Application']=="\\TaniumCX.exe"
-    or this['Application']=="\\TaniumDetectEngine.exe" or this['Application']=="\\TMBMSRV.exe"
-    or this['Application']=="\\TmCCSF.exe" or this['Application']=="\\TmListen.exe"
-    or this['Application']=="\\TmWSCSvc.exe" or this['Application']=="\\Traps.exe"
-    or this['Application']=="\\winlogbeat.exe" or this['Application']=="\\WSCommunicator.exe"
-    or this['Application']=="\\xagt.exe")
+  query: this['EventID']=='5157' and (this['Application']=='\\AmSvc.exe' or this['Application']=='\\cb.exe'
+    or this['Application']=='\\CETASvc.exe' or this['Application']=='\\CNTAoSMgr.exe'
+    or this['Application']=='\\CrAmTray.exe' or this['Application']=='\\CrsSvc.exe'
+    or this['Application']=='\\CSFalconContainer.exe' or this['Application']=='\\CSFalconService.exe'
+    or this['Application']=='\\CybereasonAV.exe' or this['Application']=='\\CylanceSvc.exe'
+    or this['Application']=='\\cyserver.exe' or this['Application']=='\\CyveraService.exe'
+    or this['Application']=='\\CyvrFsFlt.exe' or this['Application']=='\\EIConnector.exe'
+    or this['Application']=='\\elastic-agent.exe' or this['Application']=='\\elastic-endpoint.exe'
+    or this['Application']=='\\EndpointBasecamp.exe' or this['Application']=='\\ExecutionPreventionSvc.exe'
+    or this['Application']=='\\filebeat.exe' or this['Application']=='\\fortiedr.exe'
+    or this['Application']=='\\hmpalert.exe' or this['Application']=='\\hurukai.exe'
+    or this['Application']=='\\LogProcessorService.exe' or this['Application']=='\\mcsagent.exe'
+    or this['Application']=='\\mcsclient.exe' or this['Application']=='\\MsMpEng.exe'
+    or this['Application']=='\\MsSense.exe' or this['Application']=='\\Ntrtscan.exe'
+    or this['Application']=='\\PccNTMon.exe' or this['Application']=='\\QualysAgent.exe'
+    or this['Application']=='\\RepMgr.exe' or this['Application']=='\\RepUtils.exe'
+    or this['Application']=='\\RepUx.exe' or this['Application']=='\\RepWAV.exe' or
+    this['Application']=='\\RepWSC.exe' or this['Application']=='\\sedservice.exe'
+    or this['Application']=='\\SenseCncProxy.exe' or this['Application']=='\\SenseIR.exe'
+    or this['Application']=='\\SenseNdr.exe' or this['Application']=='\\SenseSampleUploader.exe'
+    or this['Application']=='\\SentinelAgent.exe' or this['Application']=='\\SentinelAgentWorker.exe'
+    or this['Application']=='\\SentinelBrowserNativeHost.exe' or this['Application']=='\\SentinelHelperService.exe'
+    or this['Application']=='\\SentinelServiceHost.exe' or this['Application']=='\\SentinelStaticEngine.exe'
+    or this['Application']=='\\SentinelStaticEngineScanner.exe' or this['Application']=='\\sfc.exe'
+    or this['Application']=='\\sophos ui.exe' or this['Application']=='\\sophosfilescanner.exe'
+    or this['Application']=='\\sophosfs.exe' or this['Application']=='\\sophoshealth.exe'
+    or this['Application']=='\\sophosips.exe' or this['Application']=='\\sophosLivequeryservice.exe'
+    or this['Application']=='\\sophosnetfilter.exe' or this['Application']=='\\sophosntpservice.exe'
+    or this['Application']=='\\sophososquery.exe' or this['Application']=='\\sspservice.exe'
+    or this['Application']=='\\TaniumClient.exe' or this['Application']=='\\TaniumCX.exe'
+    or this['Application']=='\\TaniumDetectEngine.exe' or this['Application']=='\\TMBMSRV.exe'
+    or this['Application']=='\\TmCCSF.exe' or this['Application']=='\\TmListen.exe'
+    or this['Application']=='\\TmWSCSvc.exe' or this['Application']=='\\Traps.exe'
+    or this['Application']=='\\winlogbeat.exe' or this['Application']=='\\WSCommunicator.exe'
+    or this['Application']=='\\xagt.exe')
   sigma_id: bacf58c6-e199-4040-a94f-95dea0f1e45a
+- name: Microsoft Defender Blocked from Loading Unsigned DLL
+  query: (this['EventID'] in [11, 12]) and (this['ProcessPath']=='\\MpCmdRun.exe'
+    or this['ProcessPath']=='\\NisSrv.exe')
+  sigma_id: 0b0ea3cc-99c8-4730-9c53-45deee2a4c86
+- name: Unsigned Binary Loaded From Suspicious Location
+  query: (this['EventID'] in [11, 12]) and (this['ImageName']=='\\Users\\Public\\'
+    or this['ImageName']=='\\PerfLogs\\' or this['ImageName']=='\\Desktop\\' or this['ImageName']=='\\Downloads\\'
+    or this['ImageName']=='\\AppData\\Local\\Temp\\' or this['ImageName']=='C:\\Windows\\TEMP\\')
+  sigma_id: 8289bf8c-4aca-4f5a-9db3-dc3d7afe5c10
+- name: HybridConnectionManager Service Running
+  query: (this['EventID'] in [40300, 40301, 40302]) and (grep('HybridConnection',
+    this) or grep('sb://', this) or grep('servicebus.windows.net', this) or grep('HybridConnectionManage',
+    this))
+  sigma_id: b55d23e5-6821-44ff-8a6e-67218891e49f
+- name: Suspicious Application Installed
+  query: this['EventID']=='28115' and (this['Name']=='Zenmap' or this['Name']=='AnyDesk'
+    or this['Name']=='wireshark' or this['Name']=='openvpn') or this['EventID']=='28115'
+    and (this['AppID']=='zenmap.exe' or this['AppID']=='prokzult ad' or this['AppID']=='wireshark'
+    or this['AppID']=='openvpn')
+  sigma_id: 83c161b6-ca67-4f33-8ad0-644a0737cf07
+- name: Suspicious Rejected SMB Guest Logon From IP
+  query: this['EventID']=='31017' and false and this['ServerName']=='\\1'
+  sigma_id: 71886b70-d7b4-4dbf-acce-87d2ca135262
+- name: Sysmon Application Crashed
+  query: this['Provider_Name']=='Application Popup' and this['EventID']=='26' and
+    (this['Caption'] in ['sysmon64.exe - Application Error', 'sysmon.exe - Application
+    Error'])
+  sigma_id: 4d7f1827-1637-4def-8d8a-fd254f9454df
+- name: NTLMv1 Logon Between Client and Server
+  query: this['Provider_Name']=='LsaSrv' and (this['EventID'] in [6038, 6039])
+  sigma_id: e9d4ab66-a532-4ef7-a502-66a9e4a34f5d
+- name: DHCP Server Loaded the CallOut DLL
+  query: this['EventID']=='1033' and this['Provider_Name']=='Microsoft-Windows-DHCP-Server'
+  sigma_id: 13fc89a9-971e-4ca6-b9dc-aa53a445bf40
+- name: DHCP Server Error Failed Loading the CallOut DLL
+  query: (this['EventID'] in [1031, 1032, 1034]) and this['Provider_Name']=='Microsoft-Windows-DHCP-Server'
+  sigma_id: 75edd3fd-7146-48e5-9848-3013d7f0282c
+- name: Potential CVE-2021-42287 Exploitation Attempt
+  query: this['Provider_Name']=='Microsoft-Windows-Directory-Services-SAM' and (this['EventID']
+    in [16990, 16991])
+  sigma_id: e80a0fee-1a62-4419-b31e-0d0db6e6013a
+- name: Local Privilege Escalation Indicator TabTip
+  query: this['Provider_Name']=='Microsoft-Windows-DistributedCOM' and this['EventID']=='10001'
+    and this['param1']=='C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe'
+    and this['param2']=='2147943140' and this['param3']=='{054AAE20-4BEA-4347-8A35-64A533254A9D}'
+  sigma_id: bc2e25ed-b92b-4daa-b074-b502bdd1982b
+- name: Eventlog Cleared
+  query: this['EventID']=='104' and this['Provider_Name']=='Microsoft-Windows-Eventlog'
+    and not (this['Channel'] in ['Microsoft-Windows-PowerShell/Operational', 'Microsoft-Windows-Sysmon/Operational',
+    'PowerShellCore/Operational', 'Security', 'System', 'Windows PowerShell'])
+  sigma_id: a62b37e0-45d3-48d9-a517-90c1a1b0186b
+- name: Important Windows Eventlog Cleared
+  query: this['EventID']=='104' and this['Provider_Name']=='Microsoft-Windows-Eventlog'
+    and (this['Channel'] in ['Microsoft-Windows-PowerShell/Operational', 'Microsoft-Windows-Sysmon/Operational',
+    'PowerShellCore/Operational', 'Security', 'System', 'Windows PowerShell'])
+  sigma_id: 100ef69e-3327-481c-8e5c-6d80d9507556
+- name: Certificate Use With No Strong Mapping
+  query: this['Provider_Name']=='Kerberos-Key-Distribution-Center' and (this['EventID']
+    in [39, 41])
+  sigma_id: 993c2665-e6ef-40e3-a62a-e1a97686af79
+- name: KDC RC4-HMAC Downgrade CVE-2022-37966
+  query: this['EventID']=='42' and this['Provider_Name']=='Kerberos-Key-Distribution-Center'
+    and this['Level']=='2'
+  sigma_id: e6f81941-b1cd-4766-87db-9fc156f658ee
+- name: Critical Hive In Suspicious Location Access Bits Cleared
+  query: this['EventID']=='16' and this['Provider_Name']=='Microsoft-Windows-Kernel-General'
+    and (this['HiveName']=='\\Temp\\SAM' or this['HiveName']=='\\Temp\\SECURITY')
+  sigma_id: 39f919f3-980b-4e6f-a975-8af7e507ef2b
+- name: Zerologon Exploitation Using Well-known Tools
+  query: (this['EventID'] in [5805, 5723]) and (grep('kali', this) or grep('mimikatz',
+    this))
+  sigma_id: 18f37338-b9bd-4117-a039-280c81f7a596
+- name: Vulnerable Netlogon Secure Channel Connection Allowed
+  query: this['Provider_Name']=='NetLogon' and this['EventID']=='5829'
+  sigma_id: a0cb7110-edf0-47a4-9177-541a4083128a
+- name: NTFS Vulnerability Exploitation
+  query: this['Provider_Name']=='Ntfs' and this['EventID']=='55' and this['Origin']=='File
+    System Driver' and this['Description']=='contains a corrupted file record' and
+    this['Description']=='The name of the file is "\\"'
+  sigma_id: f14719ce-d3ab-4e25-9ce6-2899092260b0
+- name: CobaltStrike Service Installations - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='ADMIN$' and this['ImagePath']=='.exe' or this['ImagePath']=='%COMSPEC%'
+    and this['ImagePath']=='start' and this['ImagePath']=='powershell' or this['ImagePath']=='powershell
+    -nop -w hidden -encodedcommand' or this['ImagePath']=='SUVYIChOZXctT2JqZWN0IE5ldC5XZWJjbGllbnQpLkRvd25sb2FkU3RyaW5nKCdodHRwOi8vMTI3LjAuMC4xO'
+    or this['ImagePath']=='lFWCAoTmV3LU9iamVjdCBOZXQuV2ViY2xpZW50KS5Eb3dubG9hZFN0cmluZygnaHR0cDovLzEyNy4wLjAuMT'
+    or this['ImagePath']=='JRVggKE5ldy1PYmplY3QgTmV0LldlYmNsaWVudCkuRG93bmxvYWRTdHJpbmcoJ2h0dHA6Ly8xMjcuMC4wLjE6')
+  sigma_id: 5a105d34-05fc-401e-8553-272b45c1522d
+- name: Windows Defender Threat Detection Service Disabled
+  query: "this['EventID']=='7036' and this['Provider_Name']=='Service Control Manager'\
+    \ and (this['param1'] in ['Windows Defender Antivirus Service', 'Service antivirus\
+    \ Microsoft Defender']) and (this['param2'] in ['stopped', 'arr\xEAt\xE9'])"
+  sigma_id: 6c0a7755-6d31-44fa-80e1-133e57752680
+- name: smbexec.py Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ServiceName']=='BTOBTO' or this['ImagePath']=='.bat & del ' or this['ImagePath']=='__output
+    2^>^&1 >')
+  sigma_id: 52a85084-6989-40c3-8f32-091e12e13f09
+- name: Invoke-Obfuscation CLIP+ Launcher - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='cmd' and this['ImagePath']=='&&' and this['ImagePath']=='clipboard]::'
+  sigma_id: f7385ee2-0e0c-11eb-adc1-0242ac120002
+- name: Invoke-Obfuscation STDIN+ Launcher - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='cmd' and this['ImagePath']=='powershell' and (this['ImagePath']=='/c'
+    or this['ImagePath']=='/r') and (this['ImagePath']=='noexit' or this['ImagePath']=='input'
+    and this['ImagePath']=='$')
+  sigma_id: 72862bf2-0eb1-11eb-adc1-0242ac120002
+- name: Invoke-Obfuscation VAR+ Launcher - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='cmd' and this['ImagePath']=='"set' and this['ImagePath']=='-f'
+    and (this['ImagePath']=='/c' or this['ImagePath']=='/r')
+  sigma_id: 8ca7004b-e620-4ecb-870e-86129b5b8e75
+- name: Invoke-Obfuscation COMPRESS OBFUSCATION - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='new-object' and this['ImagePath']=='text.encoding]::ascii'
+    and this['ImagePath']=='readtoend' and (this['ImagePath']==':system.io.compression.deflatestream'
+    or this['ImagePath']=='system.io.streamreader')
+  sigma_id: 175997c5-803c-4b08-8bb0-70b099f47595
+- name: Invoke-Obfuscation RUNDLL LAUNCHER - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='rundll32.exe' and this['ImagePath']=='shell32.dll' and
+    this['ImagePath']=='shellexec_rundll' and this['ImagePath']=='powershell'
+  sigma_id: 11b52f18-aaec-4d60-9143-5dd8cc4706b9
+- name: Invoke-Obfuscation Via Stdin - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='set' and this['ImagePath']=='&&' and (this['ImagePath']=='environment'
+    or this['ImagePath']=='invoke' or this['ImagePath']=='input')
+  sigma_id: 487c7524-f892-4054-b263-8a0ace63fc25
+- name: Invoke-Obfuscation Via Use Clip - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='(Clipboard|i'
+  sigma_id: 63e3365d-4824-42d8-8b82-e56810fefa0c
+- name: Invoke-Obfuscation Via Use MSHTA - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='mshta' and this['ImagePath']=='vbscript:createobject'
+  sigma_id: 7e9c7999-0f9b-4d4a-a6ed-af6d553d4af4
+- name: Invoke-Obfuscation Via Use Rundll32 - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='&&' and this['ImagePath']=='rundll32' and this['ImagePath']=='shell32.dll'
+    and this['ImagePath']=='shellexec_rundll' and (this['ImagePath']=='value' or this['ImagePath']=='invoke'
+    or this['ImagePath']=='comspec' or this['ImagePath']=='iex')
+  sigma_id: 641a4bfb-c017-44f7-800c-2aee0184ce9b
+- name: Invoke-Obfuscation VAR++ LAUNCHER OBFUSCATION - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='&&set' and this['ImagePath']=='cmd' and this['ImagePath']=='/c'
+    and this['ImagePath']=='-f' and (this['ImagePath']=='{0}' or this['ImagePath']=='{1}'
+    or this['ImagePath']=='{2}' or this['ImagePath']=='{3}' or this['ImagePath']=='{4}'
+    or this['ImagePath']=='{5}')
+  sigma_id: 14bcba49-a428-42d9-b943-e2ce0f0f7ae6
+- name: KrbRelayUp Service Installation
+  query: this['EventID']=='7045' and this['ServiceName']=='KrbSCM'
+  sigma_id: e97d9903-53b2-41fc-8cb9-889ed4093e80
+- name: Credential Dumping Tools Service Execution - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='cachedump' or this['ImagePath']=='dumpsvc' or this['ImagePath']=='fgexec'
+    or this['ImagePath']=='gsecdump' or this['ImagePath']=='mimidrv' or this['ImagePath']=='pwdump'
+    or this['ImagePath']=='servpw')
+  sigma_id: 4976aa50-8f41-45c6-8b15-ab3fc10e79ed
+- name: Meterpreter or Cobalt Strike Getsystem Service Installation - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='/c' and this['ImagePath']=='echo' and this['ImagePath']=='\\pipe\\'
+    and (this['ImagePath']=='cmd' or this['ImagePath']=='%COMSPEC%') or this['ImagePath']=='rundll32'
+    and this['ImagePath']=='.dll,a' and this['ImagePath']=='/p:' or this['ImagePath']=='\\127.0.0.1\\ADMIN$\\')
+  sigma_id: 843544a7-56e0-4dcc-a44f-5cc266dd97d6
+- name: Moriya Rootkit - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ServiceName']=='ZzNetSvc'
+  sigma_id: 25b9c01c-350d-4b95-bed1-836d04a4f324
+- name: PowerShell Scripts Installed as Services
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='powershell' or this['ImagePath']=='pwsh')
+  sigma_id: a2e5019d-a658-4c6a-92bf-7197b54e2cae
+- name: Anydesk Remote Access Software Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ServiceName']=='AnyDesk Service'
+  sigma_id: 530a6faa-ff3d-4022-b315-50828e77eef5
+- name: CSExec Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ServiceName']=='csexecsvc' or this['ImagePath']=='\\csexecsvc.exe')
+  sigma_id: a27e5fa9-c35e-4e3d-b7e0-1ce2af66ad12
+- name: HackTool Service Registration or Execution
+  query: this['Provider_Name']=='Service Control Manager' and (this['EventID'] in
+    [7045, 7036]) and (this['ServiceName']=='cachedump' or this['ServiceName']=='DumpSvc'
+    or this['ServiceName']=='gsecdump' or this['ServiceName']=='pwdump' or this['ServiceName']=='UACBypassedService'
+    or this['ServiceName']=='WCE SERVICE' or this['ServiceName']=='WCESERVICE' or
+    this['ServiceName']=='winexesvc' or this['ImagePath']=='bypass')
+  sigma_id: d26ce60c-2151-403c-9a42-49420d87b5e4
+- name: Mesh Agent Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='MeshAgent.exe' or this['ServiceName']=='Mesh Agent')
+  sigma_id: e0d1ad53-c7eb-48ec-a87a-72393cc6cedc
+- name: NetSupport Manager Service Install
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='\\NetSupport Manager\\client32.exe' or this['ServiceName']=='Client32')
+  sigma_id: 2d510d8d-912b-45c5-b1df-36faa3d8c3f4
+- name: PAExec Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ServiceName']=='PAExec-' or this['ImagePath']=='C:\\WINDOWS\\PAExec-')
+  sigma_id: de7ce410-b3fb-4e8a-b38c-3b999e2c3420
+- name: New PDQDeploy Service - Server Side
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='PDQDeployService.exe' or this['ServiceName'] in ['PDQDeploy',
+    'PDQ Deploy'])
+  sigma_id: ee9ca27c-9bd7-4cee-9b01-6e906be7cae3
+- name: New PDQDeploy Service - Client Side
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='PDQDeployRunner-' or this['ServiceName']=='PDQDeployRunner-')
+  sigma_id: b98a10af-1e1e-44a7-bab2-4cc026917648
+- name: ProcessHacker Privilege Elevation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ServiceName']=='ProcessHacker' and this['AccountName']=='LocalSystem'
+  sigma_id: c4ff1eac-84ad-44dd-a6fb-d56a92fc43a9
+- name: RemCom Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ServiceName']=='RemComSvc' or this['ImagePath']=='\\RemComSvc.exe')
+  sigma_id: 9e36ed87-4986-482e-8e3b-5c23ffff11bf
+- name: Remote Access Tool Services Have Been Installed - System
+  query: this['Provider_Name']=='Service Control Manager' and (this['EventID'] in
+    [7045, 7036]) and (this['ServiceName']=='AmmyyAdmin' or this['ServiceName']=='Atera'
+    or this['ServiceName']=='BASupportExpressSrvcUpdater' or this['ServiceName']=='BASupportExpressStandaloneService'
+    or this['ServiceName']=='chromoting' or this['ServiceName']=='GoToAssist' or this['ServiceName']=='GoToMyPC'
+    or this['ServiceName']=='jumpcloud' or this['ServiceName']=='LMIGuardianSvc' or
+    this['ServiceName']=='LogMeIn' or this['ServiceName']=='monblanking' or this['ServiceName']=='Parsec'
+    or this['ServiceName']=='RManService' or this['ServiceName']=='RPCPerformanceService'
+    or this['ServiceName']=='RPCService' or this['ServiceName']=='SplashtopRemoteService'
+    or this['ServiceName']=='SSUService' or this['ServiceName']=='TeamViewer' or this['ServiceName']=='TightVNC'
+    or this['ServiceName']=='vncserver' or this['ServiceName']=='Zoho')
+  sigma_id: 1a31b18a-f00c-4061-9900-f735b96c99fc
+- name: Remote Utilities Host Service Install
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='\\rutserv.exe' and this['ImagePath']=='-service' or this['ServiceName']=='Remote
+    Utilities - Host')
+  sigma_id: 85cce894-dd8b-4427-a958-5cc47a4dc9b9
+- name: Service Installed By Unusual Client - System
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ProcessId']=='0'
+  sigma_id: 71c276aa-49cd-43d2-b920-2dcd3e6962d5
+- name: Suspicious Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']==' -nop ' or this['ImagePath']==' -sta ' or this['ImagePath']=='
+    -w hidden ' or this['ImagePath']==':\\Temp\\' or this['ImagePath']=='.downloadfile('
+    or this['ImagePath']=='.downloadstring(' or this['ImagePath']=='\\ADMIN$\\' or
+    this['ImagePath']=='\\Perflogs\\' or this['ImagePath']=='&&')
+  sigma_id: 1d61f71d-59d2-479e-9562-4ff5f4ead16b
+- name: PsExec Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ServiceName']=='PSEXESVC' or this['ImagePath']=='\\PSEXESVC.exe')
+  sigma_id: 42c575ea-e41e-41f1-b248-8093c3e82a28
+- name: TacticalRMM Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='tacticalrmm.exe' or this['ServiceName']=='TacticalRMM
+    Agent Service')
+  sigma_id: 4bb79b62-ef12-4861-981d-2aab43fab642
+- name: Tap Driver Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ImagePath']=='tap0901'
+  sigma_id: 8e4cf0e5-aa5d-4dc3-beff-dc26917744a9
+- name: Uncommon Service Installation Image Path
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='\\.\\pipe' or this['ImagePath']=='\\Users\\Public\\'
+    or this['ImagePath']=='\\Windows\\Temp\\' or this['ImagePath']==' -e' and (this['ImagePath']=='
+    aQBlAHgA' or this['ImagePath']==' aWV4I' or this['ImagePath']==' IAB' or this['ImagePath']=='
+    JAB' or this['ImagePath']==' PAA' or this['ImagePath']==' SQBFAFgA' or this['ImagePath']=='
+    SUVYI')) and not this['ImagePath']=='C:\\ProgramData\\Microsoft\\Windows Defender\\Definition
+    Updates\\' and not this['ImagePath']=='C:\\WINDOWS\\TEMP\\thor10-remote\\thor64.exe'
+  sigma_id: 26481afe-db26-4228-b264-25a29fe6efc7
+- name: Important Windows Service Terminated With Error
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7023'
+    and (this['param1']==' Antivirus' or this['param1']==' Firewall' or this['param1']=='Application
+    Guard' or this['param1']=='BitLocker Drive Encryption Service' or this['param1']=='Encrypting
+    File System' or this['param1']=='Microsoft Defender' or this['param1']=='Threat
+    Protection' or this['param1']=='Windows Event Log' or this['Binary']=='770069006e0064006500660065006e006400'
+    or this['Binary']=='4500760065006e0074004c006f006700' or this['Binary']=='6d0070007300730076006300'
+    or this['Binary']=='530065006e0073006500' or this['Binary']=='450046005300' or
+    this['Binary']=='420044004500530056004300')
+  sigma_id: d6b5520d-3934-48b4-928c-2aa3f92d6963
+- name: Important Windows Service Terminated Unexpectedly
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7034'
+    and (this['param1']=='Message Queuing' or this['Binary']=='4d0053004d005100' or
+    this['Binary']=='6d0073006d007100')
+  sigma_id: 56abae0c-6212-4b97-adc0-0b559bb950c3
+- name: RTCore Suspicious Service Installation
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and this['ServiceName']=='RTCore64'
+  sigma_id: 91c49341-e2ef-40c0-ac45-49ec5c3fe26c
+- name: Service Installation in Suspicious Folder
+  query: this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'
+    and (this['ImagePath']=='\\AppData\\' or this['ImagePath']=='\\127.0.0.1' or this['ImagePath']=='\\localhost')
+    and not (this['ServiceName']=='Zoom Sharing Service' and this['ImagePath']==':\\Program
+    Files\\Common Files\\Zoom\\Support\\CptService.exe')
+  sigma_id: 5e993621-67d4-488a-b9ae-b420d08b96cb
+- name: Suspicious Service Installation Script
+  query: "this['Provider_Name']=='Service Control Manager' and this['EventID']=='7045'\
+    \ and (this['ImagePath']==' -c ' or this['ImagePath']==' /c ' or this['ImagePath']=='\
+    \ \u2013c ' or this['ImagePath']==' \u2014c ' or this['ImagePath']==' \u2015c\
+    \ ' or this['ImagePath']==' -r ' or this['ImagePath']==' /r ' or this['ImagePath']=='\
+    \ \u2013r ' or this['ImagePath']==' \u2014r ' or this['ImagePath']==' \u2015r\
+    \ ' or this['ImagePath']==' -k ' or this['ImagePath']==' /k ' or this['ImagePath']=='\
+    \ \u2013k ' or this['ImagePath']==' \u2014k ' or this['ImagePath']==' \u2015k\
+    \ ') and (this['ImagePath']=='cscript' or this['ImagePath']=='mshta' or this['ImagePath']=='powershell'\
+    \ or this['ImagePath']=='pwsh' or this['ImagePath']=='regsvr32' or this['ImagePath']=='rundll32'\
+    \ or this['ImagePath']=='wscript')"
+  sigma_id: 70f00d10-60b2-4f34-b9a0-dc3df3fe762a
+- name: Potential RDP Exploit CVE-2019-0708
+  query: (this['EventID'] in [56, 50]) and this['Provider_Name']=='TermDD'
+  sigma_id: aaa5b30d-f418-420b-83a0-299cb6024885
+- name: Scheduled Task Executed From A Suspicious Location
+  query: this['EventID']=='129' and (this['Path']=='C:\\Windows\\Temp\\' or this['Path']=='\\AppData\\Local\\Temp\\'
+    or this['Path']=='\\Desktop\\' or this['Path']=='\\Downloads\\' or this['Path']=='\\Users\\Public\\'
+    or this['Path']=='C:\\Temp\\')
+  sigma_id: 424273ea-7cf8-43a6-b712-375f925e481f
+- name: Scheduled Task Executed Uncommon LOLBIN
+  query: this['EventID']=='129' and (this['Path']=='\\calc.exe' or this['Path']=='\\cscript.exe'
+    or this['Path']=='\\mshta.exe' or this['Path']=='\\mspaint.exe' or this['Path']=='\\notepad.exe'
+    or this['Path']=='\\regsvr32.exe' or this['Path']=='\\wscript.exe')
+  sigma_id: f0767f15-0fb3-44b9-851e-e8d9a6d0005d
+- name: Important Scheduled Task Deleted
+  query: this['EventID']=='141' and (this['TaskName']=='\\Windows\\SystemRestore\\SR'
+    or this['TaskName']=='\\Windows\\Windows Defender\\' or this['TaskName']=='\\Windows\\BitLocker'
+    or this['TaskName']=='\\Windows\\WindowsBackup\\' or this['TaskName']=='\\Windows\\WindowsUpdate\\'
+    or this['TaskName']=='\\Windows\\UpdateOrchestrator\\' or this['TaskName']=='\\Windows\\ExploitGuard')
+    and not (this['UserName']=='AUTHORI' or this['UserName']=='AUTORI')
+  sigma_id: 9e3cb244-bdb8-4632-8c90-6079c8f4f16d
+- name: Ngrok Usage with Remote Desktop Service
+  query: this['EventID']=='21' and this['Address']=='16777216'
+  sigma_id: 64d51a51-32a6-49f0-9f3d-17e34d640272
+- name: Windows Defender Grace Period Expired
+  query: this['EventID']=='5101'
+  sigma_id: 360a1340-398a-46b6-8d06-99b905dc69d2
+- name: LSASS Access Detected via Attack Surface Reduction
+  query: this['EventID']=='1121' and this['Path']=='\\lsass.exe' and not (this['ProcessName']=='C:\\Windows\\Temp\\asgard2-agent\\'
+    and (this['ProcessName']=='\\thor64.exe' or this['ProcessName']=='\\thor.exe')
+    or this['ProcessName'] in ['C:\\Windows\\System32\\atiesrxx.exe', 'C:\\Windows\\System32\\CompatTelRunner.exe',
+    'C:\\Windows\\System32\\msiexec.exe', 'C:\\Windows\\System32\\nvwmi64.exe', 'C:\\Windows\\System32\\svchost.exe',
+    'C:\\Windows\\System32\\Taskmgr.exe', 'C:\\Windows\\System32\\wbem\\WmiPrvSE.exe',
+    'C:\\Windows\\SysWOW64\\msiexec.exe'] or this['ProcessName']=='C:\\Windows\\System32\\DriverStore\\'
+    or this['ProcessName']=='C:\\WINDOWS\\Installer\\' or this['ProcessName']=='C:\\Program
+    Files\\' or this['ProcessName']=='C:\\Program Files (x86)\\')
+  sigma_id: a0a278fe-2c0e-4de2-ac3c-c68b08a9ba98
+- name: PSExec and WMI Process Creations Block
+  query: this['EventID']=='1121' and (this['ProcessName']=='\\wmiprvse.exe' or this['ProcessName']=='\\psexesvc.exe')
+  sigma_id: 97b9ce1e-c5ab-11ea-87d0-0242ac130003
+- name: Windows Defender Exclusions Added
+  query: this['EventID']=='5007' and this['NewValue']=='\\Microsoft\\Windows Defender\\Exclusions'
+  sigma_id: 1321dc4e-a1fe-481d-a016-52c45f0c8b4f
+- name: Windows Defender Exploit Guard Tamper
+  query: this['EventID']=='5007' and this['NewValue']=='\\Windows Defender\\Windows
+    Defender Exploit Guard\\Controlled Folder Access\\AllowedApplications\\' and (this['NewValue']=='\\Users\\Public\\'
+    or this['NewValue']=='\\AppData\\Local\\Temp\\' or this['NewValue']=='\\Desktop\\'
+    or this['NewValue']=='\\PerfLogs\\' or this['NewValue']=='\\Windows\\Temp\\')
+    or this['EventID']=='5007' and this['OldValue']=='\\Windows Defender\\Windows
+    Defender Exploit Guard\\Controlled Folder Access\\ProtectedFolders\\'
+  sigma_id: a3ab73f1-bd46-4319-8f06-4b20d0617886
+- name: Windows Defender Malware And PUA Scanning Disabled
+  query: this['EventID']=='5010'
+  sigma_id: bc275be9-0bec-4d77-8c8f-281a2df6710f
+- name: Windows Defender AMSI Trigger Detected
+  query: this['EventID']=='1116' and this['SourceName']=='AMSI'
+  sigma_id: ea9bf0fa-edec-4fb8-8b78-b119f2528186
+- name: Windows Defender Real-time Protection Disabled
+  query: this['EventID']=='5001'
+  sigma_id: b28e58e4-2a72-4fae-bdee-0fbe904db642
+- name: Windows Defender Real-Time Protection Failure/Restart
+  query: (this['EventID'] in [3002, 3007]) and not (this['Feature_Name']=='%%886'
+    and (this['Reason'] in ['%%892', '%%858']))
+  sigma_id: dd80db93-6ec2-4f4c-a017-ad40da6ffe81
+- name: Win Defender Restored Quarantine File
+  query: this['EventID']=='1009'
+  sigma_id: bc92ca75-cd42-4d61-9a37-9d5aa259c88b
+- name: Windows Defender Configuration Changes
+  query: this['EventID']=='5007' and (this['NewValue']=='\\Windows Defender\\DisableAntiSpyware
+    ' or this['NewValue']=='\\Windows Defender\\Scan\\DisableRemovableDriveScanning
+    ' or this['NewValue']=='\\Windows Defender\\Scan\\DisableScanningMappedNetworkDrivesForFullScan
+    ' or this['NewValue']=='\\Windows Defender\\SpyNet\\DisableBlockAtFirstSeen '
+    or this['NewValue']=='\\Real-Time Protection\\SpyNetReporting ')
+  sigma_id: 801bd44f-ceed-4eb6-887c-11544633c0aa
+- name: Microsoft Defender Tamper Protection Trigger
+  query: this['EventID']=='5013' and (this['Value']=='\\Windows Defender\\DisableAntiSpyware'
+    or this['Value']=='\\Windows Defender\\DisableAntiVirus' or this['Value']=='\\Windows
+    Defender\\Scan\\DisableArchiveScanning' or this['Value']=='\\Windows Defender\\Scan\\DisableScanningNetworkFiles'
+    or this['Value']=='\\Real-Time Protection\\DisableRealtimeMonitoring' or this['Value']=='\\Real-Time
+    Protection\\DisableBehaviorMonitoring' or this['Value']=='\\Real-Time Protection\\DisableIOAVProtection'
+    or this['Value']=='\\Real-Time Protection\\DisableScriptScanning')
+  sigma_id: 49e5bc24-8b86-49f1-b743-535f332c2856
+- name: Windows Defender Threat Detected
+  query: this['EventID'] in [1006, 1015, 1116, 1117]
+  sigma_id: 57b649ef-ff42-4fb0-8bf6-62da243a1708
+- name: Windows Defender Virus Scanning Feature Disabled
+  query: this['EventID']=='5012'
+  sigma_id: 686c0b4b-9dd3-4847-9077-d6c1bbe36fcb
+- name: WMI Persistence
+  query: (this['EventID']=='5861' and (grep('ActiveScriptEventConsumer', this) or
+    grep('CommandLineEventConsumer', this) or grep('CommandLineTemplate', this)) or
+    this['EventID']=='5859') and not (this['Provider']=='SCM Event Provider' and (this['Query']=='select
+    ' or this['Query']==' from MSFT_SCMEventLogEvent') and this['User']=='S-1-5-32-544'
+    and this['PossibleCause']=='Permanent')
+  sigma_id: 0b7889b4-5577-4521-a60a-3376ee7f9f7b

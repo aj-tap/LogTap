@@ -1,12 +1,13 @@
 [
     "common_iocs_pattern.yaml",
-    "extended_iocs_pattern.yaml",
-    "c2_pattern.yaml",    
+    "extended_iocs_pattern.yaml",    
+    "security_event_ids_of_interest.yaml",
     "sigma_rules_microsoftxdr.yaml",
     "sigma_rules_azure_cloud.yaml",
     "sigma_rules_linux.yaml",
     "sigma_rules_web.yaml",
     "sigma_rules_winevtx.yaml",    
     "httplogs_pattern.yaml",
-    "linuxlogs_pattern.yaml"
+    "linuxlogs_pattern.yaml",
+    "c2_pattern.yaml"
 ]

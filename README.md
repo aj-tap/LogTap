@@ -24,11 +24,11 @@ You can access the hosted version of the application directly in your browser—
 
 ### 2. Local Setup
 
-If you prefer to run the application locally or wish to modify the code:
+If you prefer to run the application locally:
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/aj-tap/LogTap.git](https://github.com/your-username/LogTap-Viewer.git)
+    git clone https://github.com/aj-tap/LogTap.git
     ```
 2.  **Navigate to the project directory:**
     ```sh
