@@ -1,471 +1,471 @@
 rules:
 - name: Azure Active Directory Hybrid Health AD FS New Server
-  query: this['CategoryValue']=="Administrative" and this['ResourceProviderValue']=="Microsoft.ADHybridHealthService"
-    and this['ResourceId']=="AdFederationService" and this['OperationNameValue']=="Microsoft.ADHybridHealthService/services/servicemembers/action"
+  query: this['CategoryValue']=='Administrative' and this['ResourceProviderValue']=='Microsoft.ADHybridHealthService'
+    and this['ResourceId']=='AdFederationService' and this['OperationNameValue']=='Microsoft.ADHybridHealthService/services/servicemembers/action'
   sigma_id: 288a39fc-4914-4831-9ada-270e9dc12cb4
 - name: Azure Active Directory Hybrid Health AD FS Service Delete
-  query: this['CategoryValue']=="Administrative" and this['ResourceProviderValue']=="Microsoft.ADHybridHealthService"
-    and this['ResourceId']=="AdFederationService" and this['OperationNameValue']=="Microsoft.ADHybridHealthService/services/delete"
+  query: this['CategoryValue']=='Administrative' and this['ResourceProviderValue']=='Microsoft.ADHybridHealthService'
+    and this['ResourceId']=='AdFederationService' and this['OperationNameValue']=='Microsoft.ADHybridHealthService/services/delete'
   sigma_id: 48739819-8230-4ee3-a8ea-e0289d1fb0ff
 - name: User Added to an Administrator's Azure AD Role
-  query: this['Operation']=="Add member to role." and this['Workload']=="AzureActiveDirectory"
-    and (this['ModifiedProperties{}.NewValue']=="Admins" or this['ModifiedProperties{}.NewValue']=="Administrator")
+  query: this['Operation']=='Add member to role.' and this['Workload']=='AzureActiveDirectory'
+    and (this['ModifiedProperties{}.NewValue']=='Admins' or this['ModifiedProperties{}.NewValue']=='Administrator')
   sigma_id: ebbeb024-5b1d-4e16-9c0c-917f86c708a7
 - name: Azure Application Credential Modified
-  query: this['properties.message']=="Update application - Certificates and secrets
-    management"
+  query: this['properties.message']=='Update application - Certificates and secrets
+    management'
   sigma_id: cdeef967-f9a1-4375-90ee-6978c5f23974
 - name: Azure Application Deleted
-  query: this['properties.message'] in ["Delete application", "Hard Delete application"]
+  query: this['properties.message'] in ['Delete application', 'Hard Delete application']
   sigma_id: 410d2a41-1e6d-452f-85e5-abdd8257a823
 - name: Azure Application Gateway Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/APPLICATIONGATEWAYS/WRITE",
-    "MICROSOFT.NETWORK/APPLICATIONGATEWAYS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/APPLICATIONGATEWAYS/WRITE',
+    'MICROSOFT.NETWORK/APPLICATIONGATEWAYS/DELETE']
   sigma_id: ad87d14e-7599-4633-ba81-aeb60cfe8cd6
 - name: Azure Application Security Group Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/APPLICATIONSECURITYGROUPS/WRITE",
-    "MICROSOFT.NETWORK/APPLICATIONSECURITYGROUPS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/APPLICATIONSECURITYGROUPS/WRITE',
+    'MICROSOFT.NETWORK/APPLICATIONSECURITYGROUPS/DELETE']
   sigma_id: 835747f1-9329-40b5-9cc3-97d465754ce6
 - name: Number Of Resource Creation Or Deployment Activities
-  query: grep("Microsoft.Compute/virtualMachines/write", this) or grep("Microsoft.Resources/deployments/write",
+  query: grep('Microsoft.Compute/virtualMachines/write', this) or grep('Microsoft.Resources/deployments/write',
     this)
   sigma_id: d2d901db-7a75-45a1-bc39-0cbf00812192
 - name: Azure Device No Longer Managed or Compliant
-  query: this['properties.message'] in ["Device no longer compliant", "Device no longer
-    managed"]
+  query: this['properties.message'] in ['Device no longer compliant', 'Device no longer
+    managed']
   sigma_id: 542b9912-c01f-4e3f-89a8-014c48cdca7d
 - name: Azure Device or Configuration Modified or Deleted
-  query: this['properties.message'] in ["Delete device", "Delete device configuration",
-    "Update device", "Update device configuration"]
+  query: this['properties.message'] in ['Delete device', 'Delete device configuration',
+    'Update device', 'Update device configuration']
   sigma_id: 46530378-f9db-4af9-a9e5-889c177d3881
 - name: Azure DNS Zone Modified or Deleted
-  query: this['operationName']=="MICROSOFT.NETWORK/DNSZONES" and (this['operationName']=="/WRITE"
-    or this['operationName']=="/DELETE")
+  query: this['operationName']=='MICROSOFT.NETWORK/DNSZONES' and (this['operationName']=='/WRITE'
+    or this['operationName']=='/DELETE')
   sigma_id: af6925b0-8826-47f1-9324-337507a0babd
 - name: Azure Firewall Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/AZUREFIREWALLS/WRITE", "MICROSOFT.NETWORK/AZUREFIREWALLS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/AZUREFIREWALLS/WRITE', 'MICROSOFT.NETWORK/AZUREFIREWALLS/DELETE']
   sigma_id: 512cf937-ea9b-4332-939c-4c2c94baadcd
 - name: Azure Firewall Rule Collection Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/AZUREFIREWALLS/APPLICATIONRULECOLLECTIONS/WRITE",
-    "MICROSOFT.NETWORK/AZUREFIREWALLS/APPLICATIONRULECOLLECTIONS/DELETE", "MICROSOFT.NETWORK/AZUREFIREWALLS/NATRULECOLLECTIONS/WRITE",
-    "MICROSOFT.NETWORK/AZUREFIREWALLS/NATRULECOLLECTIONS/DELETE", "MICROSOFT.NETWORK/AZUREFIREWALLS/NETWORKRULECOLLECTIONS/WRITE",
-    "MICROSOFT.NETWORK/AZUREFIREWALLS/NETWORKRULECOLLECTIONS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/AZUREFIREWALLS/APPLICATIONRULECOLLECTIONS/WRITE',
+    'MICROSOFT.NETWORK/AZUREFIREWALLS/APPLICATIONRULECOLLECTIONS/DELETE', 'MICROSOFT.NETWORK/AZUREFIREWALLS/NATRULECOLLECTIONS/WRITE',
+    'MICROSOFT.NETWORK/AZUREFIREWALLS/NATRULECOLLECTIONS/DELETE', 'MICROSOFT.NETWORK/AZUREFIREWALLS/NETWORKRULECOLLECTIONS/WRITE',
+    'MICROSOFT.NETWORK/AZUREFIREWALLS/NETWORKRULECOLLECTIONS/DELETE']
   sigma_id: 025c9fe7-db72-49f9-af0d-31341dd7dd57
 - name: Granting Of Permissions To An Account
-  query: grep("Microsoft.Authorization/roleAssignments/write", this)
+  query: grep('Microsoft.Authorization/roleAssignments/write', this)
   sigma_id: a622fcd2-4b5a-436a-b8a2-a4171161833c
 - name: Azure Keyvault Key Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.KEYVAULT/VAULTS/KEYS/UPDATE/ACTION",
-    "MICROSOFT.KEYVAULT/VAULTS/KEYS/CREATE", "MICROSOFT.KEYVAULT/VAULTS/KEYS/CREATE/ACTION",
-    "MICROSOFT.KEYVAULT/VAULTS/KEYS/IMPORT/ACTION", "MICROSOFT.KEYVAULT/VAULTS/KEYS/RECOVER/ACTION",
-    "MICROSOFT.KEYVAULT/VAULTS/KEYS/RESTORE/ACTION", "MICROSOFT.KEYVAULT/VAULTS/KEYS/DELETE",
-    "MICROSOFT.KEYVAULT/VAULTS/KEYS/BACKUP/ACTION", "MICROSOFT.KEYVAULT/VAULTS/KEYS/PURGE/ACTION"]
+  query: this['operationName'] in ['MICROSOFT.KEYVAULT/VAULTS/KEYS/UPDATE/ACTION',
+    'MICROSOFT.KEYVAULT/VAULTS/KEYS/CREATE', 'MICROSOFT.KEYVAULT/VAULTS/KEYS/CREATE/ACTION',
+    'MICROSOFT.KEYVAULT/VAULTS/KEYS/IMPORT/ACTION', 'MICROSOFT.KEYVAULT/VAULTS/KEYS/RECOVER/ACTION',
+    'MICROSOFT.KEYVAULT/VAULTS/KEYS/RESTORE/ACTION', 'MICROSOFT.KEYVAULT/VAULTS/KEYS/DELETE',
+    'MICROSOFT.KEYVAULT/VAULTS/KEYS/BACKUP/ACTION', 'MICROSOFT.KEYVAULT/VAULTS/KEYS/PURGE/ACTION']
   sigma_id: 80eeab92-0979-4152-942d-96749e11df40
 - name: Azure Key Vault Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.KEYVAULT/VAULTS/WRITE", "MICROSOFT.KEYVAULT/VAULTS/DELETE",
-    "MICROSOFT.KEYVAULT/VAULTS/DEPLOY/ACTION", "MICROSOFT.KEYVAULT/VAULTS/ACCESSPOLICIES/WRITE"]
+  query: this['operationName'] in ['MICROSOFT.KEYVAULT/VAULTS/WRITE', 'MICROSOFT.KEYVAULT/VAULTS/DELETE',
+    'MICROSOFT.KEYVAULT/VAULTS/DEPLOY/ACTION', 'MICROSOFT.KEYVAULT/VAULTS/ACCESSPOLICIES/WRITE']
   sigma_id: 459a2970-bb84-4e6a-a32e-ff0fbd99448d
 - name: Azure Keyvault Secrets Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.KEYVAULT/VAULTS/SECRETS/WRITE", "MICROSOFT.KEYVAULT/VAULTS/SECRETS/DELETE",
-    "MICROSOFT.KEYVAULT/VAULTS/SECRETS/BACKUP/ACTION", "MICROSOFT.KEYVAULT/VAULTS/SECRETS/PURGE/ACTION",
-    "MICROSOFT.KEYVAULT/VAULTS/SECRETS/UPDATE/ACTION", "MICROSOFT.KEYVAULT/VAULTS/SECRETS/RECOVER/ACTION",
-    "MICROSOFT.KEYVAULT/VAULTS/SECRETS/RESTORE/ACTION", "MICROSOFT.KEYVAULT/VAULTS/SECRETS/SETSECRET/ACTION"]
+  query: this['operationName'] in ['MICROSOFT.KEYVAULT/VAULTS/SECRETS/WRITE', 'MICROSOFT.KEYVAULT/VAULTS/SECRETS/DELETE',
+    'MICROSOFT.KEYVAULT/VAULTS/SECRETS/BACKUP/ACTION', 'MICROSOFT.KEYVAULT/VAULTS/SECRETS/PURGE/ACTION',
+    'MICROSOFT.KEYVAULT/VAULTS/SECRETS/UPDATE/ACTION', 'MICROSOFT.KEYVAULT/VAULTS/SECRETS/RECOVER/ACTION',
+    'MICROSOFT.KEYVAULT/VAULTS/SECRETS/RESTORE/ACTION', 'MICROSOFT.KEYVAULT/VAULTS/SECRETS/SETSECRET/ACTION']
   sigma_id: b831353c-1971-477b-abb6-2828edc3bca1
 - name: Azure Kubernetes Admission Controller
-  query: (this['operationName']=="MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/ADMISSIONREGISTRATION.K8S.IO"
-    or this['operationName']=="MICROSOFT.CONTAINERSERVICE/MANAGEDCLUSTERS/ADMISSIONREGISTRATION.K8S.IO")
-    and (this['operationName']=="/MUTATINGWEBHOOKCONFIGURATIONS/WRITE" or this['operationName']=="/VALIDATINGWEBHOOKCONFIGURATIONS/WRITE")
+  query: (this['operationName']=='MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/ADMISSIONREGISTRATION.K8S.IO'
+    or this['operationName']=='MICROSOFT.CONTAINERSERVICE/MANAGEDCLUSTERS/ADMISSIONREGISTRATION.K8S.IO')
+    and (this['operationName']=='/MUTATINGWEBHOOKCONFIGURATIONS/WRITE' or this['operationName']=='/VALIDATINGWEBHOOKCONFIGURATIONS/WRITE')
   sigma_id: a61a3c56-4ce2-4351-a079-88ae4cbd2b58
 - name: Azure Kubernetes CronJob
-  query: (this['operationName']=="MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/BATCH" or
-    this['operationName']=="MICROSOFT.CONTAINERSERVICE/MANAGEDCLUSTERS/BATCH") and
-    (this['operationName']=="/CRONJOBS/WRITE" or this['operationName']=="/JOBS/WRITE")
+  query: (this['operationName']=='MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/BATCH' or
+    this['operationName']=='MICROSOFT.CONTAINERSERVICE/MANAGEDCLUSTERS/BATCH') and
+    (this['operationName']=='/CRONJOBS/WRITE' or this['operationName']=='/JOBS/WRITE')
   sigma_id: 1c71e254-6655-42c1-b2d6-5e4718d7fc0a
 - name: Azure Kubernetes Events Deleted
-  query: this['operationName']=="MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/EVENTS.K8S.IO/EVENTS/DELETE"
+  query: this['operationName']=='MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/EVENTS.K8S.IO/EVENTS/DELETE'
   sigma_id: 225d8b09-e714-479c-a0e4-55e6f29adf35
 - name: Azure Kubernetes Network Policy Change
-  query: this['operationName'] in ["MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/NETWORKING.K8S.IO/NETWORKPOLICIES/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/NETWORKING.K8S.IO/NETWORKPOLICIES/DELETE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/EXTENSIONS/NETWORKPOLICIES/WRITE", "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/EXTENSIONS/NETWORKPOLICIES/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/NETWORKING.K8S.IO/NETWORKPOLICIES/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/NETWORKING.K8S.IO/NETWORKPOLICIES/DELETE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/EXTENSIONS/NETWORKPOLICIES/WRITE', 'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/EXTENSIONS/NETWORKPOLICIES/DELETE']
   sigma_id: 08d6ac24-c927-4469-b3b7-2e422d6e3c43
 - name: Azure Kubernetes Pods Deleted
-  query: this['operationName']=="MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/PODS/DELETE"
+  query: this['operationName']=='MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/PODS/DELETE'
   sigma_id: b02f9591-12c3-4965-986a-88028629b2e1
 - name: Azure Kubernetes Sensitive Role Access
-  query: this['operationName'] in ["MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/DELETE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/BIND/ACTION",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/ESCALATE/ACTION",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/DELETE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/BIND/ACTION",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/ESCALATE/ACTION"]
+  query: this['operationName'] in ['MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/DELETE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/BIND/ACTION',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLES/ESCALATE/ACTION',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/DELETE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/BIND/ACTION',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLES/ESCALATE/ACTION']
   sigma_id: 818fee0c-e0ec-4e45-824e-83e4817b0887
 - name: Azure Kubernetes RoleBinding/ClusterRoleBinding Modified and Deleted
-  query: this['operationName'] in ["MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLEBINDINGS/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLEBINDINGS/DELETE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLEBINDINGS/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLEBINDINGS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLEBINDINGS/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/CLUSTERROLEBINDINGS/DELETE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLEBINDINGS/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/RBAC.AUTHORIZATION.K8S.IO/ROLEBINDINGS/DELETE']
   sigma_id: 25cb259b-bbdc-4b87-98b7-90d7c72f8743
 - name: Azure Kubernetes Secret or Config Object Access
-  query: this['operationName'] in ["MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/CONFIGMAPS/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/CONFIGMAPS/DELETE", "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SECRETS/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SECRETS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/CONFIGMAPS/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/CONFIGMAPS/DELETE', 'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SECRETS/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SECRETS/DELETE']
   sigma_id: 7ee0b4aa-d8d4-4088-b661-20efdf41a04c
 - name: Azure Kubernetes Service Account Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SERVICEACCOUNTS/WRITE",
-    "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SERVICEACCOUNTS/DELETE", "MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SERVICEACCOUNTS/IMPERSONATE/ACTION"]
+  query: this['operationName'] in ['MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SERVICEACCOUNTS/WRITE',
+    'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SERVICEACCOUNTS/DELETE', 'MICROSOFT.KUBERNETES/CONNECTEDCLUSTERS/SERVICEACCOUNTS/IMPERSONATE/ACTION']
   sigma_id: 12d027c3-b48c-4d9d-8bb6-a732200034b2
 - name: Disabled MFA to Bypass Authentication Mechanisms
-  query: this['eventSource']=="AzureActiveDirectory" and this['eventName']=="Disable
-    Strong Authentication." and this['status']=="success"
+  query: this['eventSource']=='AzureActiveDirectory' and this['eventName']=='Disable
+    Strong Authentication.' and this['status']=='success'
   sigma_id: 7ea78478-a4f9-42a6-9dcd-f861816122bf
 - name: Azure Network Firewall Policy Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/FIREWALLPOLICIES/WRITE", "MICROSOFT.NETWORK/FIREWALLPOLICIES/JOIN/ACTION",
-    "MICROSOFT.NETWORK/FIREWALLPOLICIES/CERTIFICATES/ACTION", "MICROSOFT.NETWORK/FIREWALLPOLICIES/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/FIREWALLPOLICIES/WRITE', 'MICROSOFT.NETWORK/FIREWALLPOLICIES/JOIN/ACTION',
+    'MICROSOFT.NETWORK/FIREWALLPOLICIES/CERTIFICATES/ACTION', 'MICROSOFT.NETWORK/FIREWALLPOLICIES/DELETE']
   sigma_id: 83c17918-746e-4bd9-920b-8e098bf88c23
 - name: Azure Firewall Rule Configuration Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/FIREWALLPOLICIES/RULECOLLECTIONGROUPS/WRITE",
-    "MICROSOFT.NETWORK/FIREWALLPOLICIES/RULECOLLECTIONGROUPS/DELETE", "MICROSOFT.NETWORK/FIREWALLPOLICIES/RULEGROUPS/WRITE",
-    "MICROSOFT.NETWORK/FIREWALLPOLICIES/RULEGROUPS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/FIREWALLPOLICIES/RULECOLLECTIONGROUPS/WRITE',
+    'MICROSOFT.NETWORK/FIREWALLPOLICIES/RULECOLLECTIONGROUPS/DELETE', 'MICROSOFT.NETWORK/FIREWALLPOLICIES/RULEGROUPS/WRITE',
+    'MICROSOFT.NETWORK/FIREWALLPOLICIES/RULEGROUPS/DELETE']
   sigma_id: 2a7d64cf-81fa-4daf-ab1b-ab80b789c067
 - name: Azure Point-to-site VPN Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/P2SVPNGATEWAYS/WRITE", "MICROSOFT.NETWORK/P2SVPNGATEWAYS/DELETE",
-    "MICROSOFT.NETWORK/P2SVPNGATEWAYS/RESET/ACTION", "MICROSOFT.NETWORK/P2SVPNGATEWAYS/GENERATEVPNPROFILE/ACTION",
-    "MICROSOFT.NETWORK/P2SVPNGATEWAYS/DISCONNECTP2SVPNCONNECTIONS/ACTION", "MICROSOFT.NETWORK/P2SVPNGATEWAYS/PROVIDERS/MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/WRITE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/P2SVPNGATEWAYS/WRITE', 'MICROSOFT.NETWORK/P2SVPNGATEWAYS/DELETE',
+    'MICROSOFT.NETWORK/P2SVPNGATEWAYS/RESET/ACTION', 'MICROSOFT.NETWORK/P2SVPNGATEWAYS/GENERATEVPNPROFILE/ACTION',
+    'MICROSOFT.NETWORK/P2SVPNGATEWAYS/DISCONNECTP2SVPNCONNECTIONS/ACTION', 'MICROSOFT.NETWORK/P2SVPNGATEWAYS/PROVIDERS/MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/WRITE']
   sigma_id: d9557b75-267b-4b43-922f-a775e2d1f792
 - name: Azure Network Security Configuration Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/WRITE",
-    "MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/DELETE", "MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/SECURITYRULES/WRITE",
-    "MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/SECURITYRULES/DELETE", "MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/JOIN/ACTION",
-    "MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/PROVIDERS/MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/WRITE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/WRITE',
+    'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/DELETE', 'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/SECURITYRULES/WRITE',
+    'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/SECURITYRULES/DELETE', 'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/JOIN/ACTION',
+    'MICROSOFT.NETWORK/NETWORKSECURITYGROUPS/PROVIDERS/MICROSOFT.INSIGHTS/DIAGNOSTICSETTINGS/WRITE']
   sigma_id: d22b4df4-5a67-4859-a578-8c9a0b5af9df
 - name: Azure Virtual Network Device Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/NETWORKINTERFACES/TAPCONFIGURATIONS/WRITE",
-    "MICROSOFT.NETWORK/NETWORKINTERFACES/TAPCONFIGURATIONS/DELETE", "MICROSOFT.NETWORK/NETWORKINTERFACES/WRITE",
-    "MICROSOFT.NETWORK/NETWORKINTERFACES/JOIN/ACTION", "MICROSOFT.NETWORK/NETWORKINTERFACES/DELETE",
-    "MICROSOFT.NETWORK/NETWORKVIRTUALAPPLIANCES/DELETE", "MICROSOFT.NETWORK/NETWORKVIRTUALAPPLIANCES/WRITE",
-    "MICROSOFT.NETWORK/VIRTUALHUBS/DELETE", "MICROSOFT.NETWORK/VIRTUALHUBS/WRITE",
-    "MICROSOFT.NETWORK/VIRTUALROUTERS/WRITE", "MICROSOFT.NETWORK/VIRTUALROUTERS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/NETWORKINTERFACES/TAPCONFIGURATIONS/WRITE',
+    'MICROSOFT.NETWORK/NETWORKINTERFACES/TAPCONFIGURATIONS/DELETE', 'MICROSOFT.NETWORK/NETWORKINTERFACES/WRITE',
+    'MICROSOFT.NETWORK/NETWORKINTERFACES/JOIN/ACTION', 'MICROSOFT.NETWORK/NETWORKINTERFACES/DELETE',
+    'MICROSOFT.NETWORK/NETWORKVIRTUALAPPLIANCES/DELETE', 'MICROSOFT.NETWORK/NETWORKVIRTUALAPPLIANCES/WRITE',
+    'MICROSOFT.NETWORK/VIRTUALHUBS/DELETE', 'MICROSOFT.NETWORK/VIRTUALHUBS/WRITE',
+    'MICROSOFT.NETWORK/VIRTUALROUTERS/WRITE', 'MICROSOFT.NETWORK/VIRTUALROUTERS/DELETE']
   sigma_id: 15ef3fac-f0f0-4dc4-ada0-660aa72980b3
 - name: Azure New CloudShell Created
-  query: this['operationName']=="MICROSOFT.PORTAL/CONSOLES/WRITE"
+  query: this['operationName']=='MICROSOFT.PORTAL/CONSOLES/WRITE'
   sigma_id: 72af37e2-ec32-47dc-992b-bc288a2708cb
 - name: Azure Owner Removed From Application or Service Principal
-  query: this['properties.message'] in ["Remove owner from service principal", "Remove
-    owner from application"]
+  query: this['properties.message'] in ['Remove owner from service principal', 'Remove
+    owner from application']
   sigma_id: 636e30d5-3736-42ea-96b1-e6e2f8429fd6
 - name: Rare Subscription-level Operations In Azure
-  query: grep("Microsoft.DocumentDB/databaseAccounts/listKeys/action", this) or grep("Microsoft.Maps/accounts/listKeys/action",
-    this) or grep("Microsoft.Media/mediaservices/listKeys/action", this) or grep("Microsoft.CognitiveServices/accounts/listKeys/action",
-    this) or grep("Microsoft.Storage/storageAccounts/listKeys/action", this) or grep("Microsoft.Compute/snapshots/write",
-    this) or grep("Microsoft.Network/networkSecurityGroups/write", this)
+  query: grep('Microsoft.DocumentDB/databaseAccounts/listKeys/action', this) or grep('Microsoft.Maps/accounts/listKeys/action',
+    this) or grep('Microsoft.Media/mediaservices/listKeys/action', this) or grep('Microsoft.CognitiveServices/accounts/listKeys/action',
+    this) or grep('Microsoft.Storage/storageAccounts/listKeys/action', this) or grep('Microsoft.Compute/snapshots/write',
+    this) or grep('Microsoft.Network/networkSecurityGroups/write', this)
   sigma_id: c1182e02-49a3-481c-b3de-0fadc4091488
 - name: Azure Service Principal Created
-  query: this['properties.message']=="Add service principal"
+  query: this['properties.message']=='Add service principal'
   sigma_id: 0ddcff6d-d262-40b0-804b-80eb592de8e3
 - name: Azure Service Principal Removed
-  query: this['properties.message']=="Remove service principal"
+  query: this['properties.message']=='Remove service principal'
   sigma_id: 448fd1ea-2116-4c62-9cde-a92d120e0f08
 - name: Azure Subscription Permission Elevation Via ActivityLogs
-  query: this['operationName']=="MICROSOFT.AUTHORIZATION/ELEVATEACCESS/ACTION"
+  query: this['operationName']=='MICROSOFT.AUTHORIZATION/ELEVATEACCESS/ACTION'
   sigma_id: 09438caa-07b1-4870-8405-1dbafe3dad95
 - name: Azure Suppression Rule Created
-  query: this['operationName']=="MICROSOFT.SECURITY/ALERTSSUPPRESSIONRULES/WRITE"
+  query: this['operationName']=='MICROSOFT.SECURITY/ALERTSSUPPRESSIONRULES/WRITE'
   sigma_id: 92cc3e5d-eb57-419d-8c16-5c63f325a401
 - name: Azure Virtual Network Modified or Deleted
-  query: (this['operationName']=="MICROSOFT.NETWORK/VIRTUALNETWORKGATEWAYS/" or this['operationName']=="MICROSOFT.NETWORK/VIRTUALNETWORKS/")
-    and (this['operationName']=="/WRITE" or this['operationName']=="/DELETE")
+  query: (this['operationName']=='MICROSOFT.NETWORK/VIRTUALNETWORKGATEWAYS/' or this['operationName']=='MICROSOFT.NETWORK/VIRTUALNETWORKS/')
+    and (this['operationName']=='/WRITE' or this['operationName']=='/DELETE')
   sigma_id: bcfcc962-0e4a-4fd9-84bb-a833e672df3f
 - name: Azure VPN Connection Modified or Deleted
-  query: this['operationName'] in ["MICROSOFT.NETWORK/VPNGATEWAYS/VPNCONNECTIONS/WRITE",
-    "MICROSOFT.NETWORK/VPNGATEWAYS/VPNCONNECTIONS/DELETE"]
+  query: this['operationName'] in ['MICROSOFT.NETWORK/VPNGATEWAYS/VPNCONNECTIONS/WRITE',
+    'MICROSOFT.NETWORK/VPNGATEWAYS/VPNCONNECTIONS/DELETE']
   sigma_id: 61171ffc-d79c-4ae5-8e10-9323dba19cd3
 - name: CA Policy Removed by Non Approved Actor
-  query: this['properties.message']=="Delete conditional access policy"
+  query: this['properties.message']=='Delete conditional access policy'
   sigma_id: 26e7c5e2-6545-481e-b7e6-050143459635
 - name: CA Policy Updated by Non Approved Actor
-  query: this['properties.message']=="Update conditional access policy"
+  query: this['properties.message']=='Update conditional access policy'
   sigma_id: 50a3c7aa-ec29-44a4-92c1-fce229eef6fc
 - name: New CA Policy by Non-approved Actor
-  query: this['properties.message']=="Add conditional access policy"
+  query: this['properties.message']=='Add conditional access policy'
   sigma_id: 0922467f-db53-4348-b7bf-dee8d0d348c6
 - name: Account Created And Deleted Within A Close Time Frame
-  query: (this['properties.message'] in ["Add user", "Delete user"]) and this['Status']=="Success"
+  query: (this['properties.message'] in ['Add user', 'Delete user']) and this['Status']=='Success'
   sigma_id: 6f583da0-3a90-4566-a4ed-83c09fe18bbf
 - name: Bitlocker Key Retrieval
-  query: this['Category']=="KeyManagement" and this['OperationName']=="Read BitLocker
-    key"
+  query: this['Category']=='KeyManagement' and this['OperationName']=='Read BitLocker
+    key'
   sigma_id: a0413867-daf3-43dd-9245-734b3a787942
 - name: Certificate-Based Authentication Enabled
-  query: this['OperationName']=="Authentication Methods Policy Update" and this['TargetResources.modifiedProperties']=="AuthenticationMethodsPolicy"
+  query: this['OperationName']=='Authentication Methods Policy Update' and this['TargetResources.modifiedProperties']=='AuthenticationMethodsPolicy'
   sigma_id: c2496b41-16a9-4016-a776-b23f8910dc58
 - name: Changes to Device Registration Policy
-  query: this['Category']=="Policy" and this['ActivityDisplayName']=="Set device registration
-    policies"
+  query: this['Category']=='Policy' and this['ActivityDisplayName']=='Set device registration
+    policies'
   sigma_id: 9494bff8-959f-4440-bbce-fb87a208d517
 - name: Guest Users Invited To Tenant By Non Approved Inviters
-  query: this['Category']=="UserManagement" and this['OperationName']=="Invite external
-    user" and not this['InitiatedBy']=="<approved guest inviter use OR for multiple>"
+  query: this['Category']=='UserManagement' and this['OperationName']=='Invite external
+    user' and not this['InitiatedBy']=='<approved guest inviter use OR for multiple>'
   sigma_id: 4ad97bf5-a514-41a4-abd3-4f3455ad4865
 - name: New Root Certificate Authority Added
-  query: this['OperationName']=="Set Company Information" and this['TargetResources.modifiedProperties.newValue']=="TrustedCAsForPasswordlessAuth"
+  query: this['OperationName']=='Set Company Information' and this['TargetResources.modifiedProperties.newValue']=='TrustedCAsForPasswordlessAuth'
   sigma_id: 4bb80281-3756-4ec8-a88e-523c5a6fda9e
 - name: Users Added to Global or Device Admin Roles
-  query: this['Category']=="RoleManagement" and this['OperationName']=="Add" and this['OperationName']=="member
-    to role" and (this['TargetResources']=="7698a772-787b-4ac8-901f-60d6b08affd2"
-    or this['TargetResources']=="62e90394-69f5-4237-9190-012177145e10")
+  query: this['Category']=='RoleManagement' and this['OperationName']=='Add' and this['OperationName']=='member
+    to role' and (this['TargetResources']=='7698a772-787b-4ac8-901f-60d6b08affd2'
+    or this['TargetResources']=='62e90394-69f5-4237-9190-012177145e10')
   sigma_id: 11c767ae-500b-423b-bae3-b234450736ed
 - name: Application AppID Uri Configuration Changes
-  query: this['properties.message'] in ["Update Application", "Update Service principal"]
+  query: this['properties.message'] in ['Update Application', 'Update Service principal']
   sigma_id: 1b45b0d1-773f-4f23-aedc-814b759563b1
 - name: Added Credentials to Existing Application
-  query: this['properties.message'] in ["Update Application-Certificates and secrets
-    management", "Update Service principal/Update Application"]
+  query: this['properties.message'] in ['Update Application-Certificates and secrets
+    management', 'Update Service principal/Update Application']
   sigma_id: cbb67ecc-fb70-4467-9350-c910bdf7c628
 - name: Delegated Permissions Granted For All Users
-  query: this['properties.message']=="Add delegated permission grant"
+  query: this['properties.message']=='Add delegated permission grant'
   sigma_id: a6355fbe-f36f-45d8-8efc-ab42465cbc52
 - name: End User Consent Blocked
-  query: this['failure_status_reason']=="Microsoft.online.Security.userConsentBlockedForRiskyAppsExceptions"
+  query: this['failure_status_reason']=='Microsoft.online.Security.userConsentBlockedForRiskyAppsExceptions'
   sigma_id: 7091372f-623c-4293-bc37-20c32b3492be
 - name: Added Owner To Application
-  query: this['properties.message']=="Add owner to application"
+  query: this['properties.message']=='Add owner to application'
   sigma_id: 74298991-9fc4-460e-a92e-511aa60baec1
 - name: App Granted Microsoft Permissions
-  query: this['properties.message'] in ["Add delegated permission grant", "Add app
-    role assignment to service principal"]
+  query: this['properties.message'] in ['Add delegated permission grant', 'Add app
+    role assignment to service principal']
   sigma_id: c1d147ae-a951-48e5-8b41-dcd0170c7213
 - name: App Granted Privileged Delegated Or App Permissions
-  query: this['properties.message']=="Add app role assignment to service principal"
+  query: this['properties.message']=='Add app role assignment to service principal'
   sigma_id: 5aecf3d5-f8a0-48e7-99be-3a759df7358f
 - name: App Assigned To Azure RBAC/Microsoft Entra Role
-  query: this['targetResources.type']=="Service Principal" and (this['properties.message']
-    in ["Add member to role", "Add eligible member to role", "Add scoped member to
-    role"])
+  query: this['targetResources.type']=='Service Principal' and (this['properties.message']
+    in ['Add member to role', 'Add eligible member to role', 'Add scoped member to
+    role'])
   sigma_id: b04934b2-0a68-4845-8a19-bdfed3a68a7a
 - name: Application URI Configuration Changes
-  query: this['properties.message']=="Update Application Sucess- Property Name AppAddress"
+  query: this['properties.message']=='Update Application Sucess- Property Name AppAddress'
   sigma_id: 0055ad1f-be85-4798-83cf-a6da17c993b3
 - name: Windows LAPS Credential Dump From Entra ID
-  query: this['category']=="Device" and this['activityType']=="Recover device local
-    administrator password" and this['additionalDetails.additionalInfo']=="Successfully
-    recovered local credential by device id"
+  query: this['category']=='Device' and this['activityType']=='Recover device local
+    administrator password' and this['additionalDetails.additionalInfo']=='Successfully
+    recovered local credential by device id'
   sigma_id: a4b25073-8947-489c-a8dd-93b41c23f26d
 - name: Change to Authentication Method
-  query: this['LoggedByService']=="Authentication Methods" and this['Category']=="UserManagement"
-    and this['OperationName']=="User registered security info"
+  query: this['LoggedByService']=='Authentication Methods' and this['Category']=='UserManagement'
+    and this['OperationName']=='User registered security info'
   sigma_id: 4d78a000-ab52-4564-88a5-7ab5242b20c7
 - name: Azure Domain Federation Settings Modified
-  query: this['ActivityDisplayName']=="Set federation settings on domain"
+  query: this['ActivityDisplayName']=='Set federation settings on domain'
   sigma_id: 352a54e1-74ba-4929-9d47-8193d67aba1e
 - name: User Added To Group With CA Policy Modification Access
-  query: this['properties.message']=="Add member from group"
+  query: this['properties.message']=='Add member from group'
   sigma_id: 91c95675-1f27-46d0-bead-d1ae96b97cd3
 - name: User Removed From Group With CA Policy Modification Access
-  query: this['properties.message']=="Remove member from group"
+  query: this['properties.message']=='Remove member from group'
   sigma_id: 665e2d43-70dc-4ccc-9d27-026c9dd7ed9c
 - name: Guest User Invited By Non Approved Inviters
-  query: this['properties.message']=="Invite external user" and this['Status']=="failure"
+  query: this['properties.message']=='Invite external user' and this['Status']=='failure'
   sigma_id: 0b4b72e3-4c53-4d5b-b198-2c58cfef39a9
 - name: User State Changed From Guest To Member
-  query: this['Category']=="UserManagement" and this['OperationName']=="Update user"
-    and this['properties.message']=="\"displayName\":\"UserType\",\"oldValue\":\"[\\\"Guest\\\"]\",\"newValue\":\"[\\\"Member\\\"]\""
+  query: this['Category']=='UserManagement' and this['OperationName']=='Update user'
+    and this['properties.message']=='"displayName":"UserType","oldValue":"[\\"Guest\\"]","newValue":"[\\"Member\\"]"'
   sigma_id: 8dee7a0d-43fd-4b3c-8cd1-605e189d195e
 - name: PIM Approvals And Deny Elevation
-  query: this['properties.message']=="Request Approved/Denied"
+  query: this['properties.message']=='Request Approved/Denied'
   sigma_id: 039a7469-0296-4450-84c0-f6966b16dc6d
 - name: PIM Alert Setting Changes To Disabled
-  query: this['properties.message']=="Disable PIM Alert"
+  query: this['properties.message']=='Disable PIM Alert'
   sigma_id: aeaef14c-e5bf-4690-a9c8-835caad458bd
 - name: Changes To PIM Settings
-  query: this['properties.message']=="Update role setting in PIM"
+  query: this['properties.message']=='Update role setting in PIM'
   sigma_id: db6c06c4-bf3b-421c-aa88-15672b88c743
 - name: User Added To Privilege Role
-  query: this['properties.message'] in ["Add eligible member (permanent)", "Add eligible
-    member (eligible)"]
+  query: this['properties.message'] in ['Add eligible member (permanent)', 'Add eligible
+    member (eligible)']
   sigma_id: 49a268a4-72f4-4e38-8a7b-885be690c5b5
 - name: Bulk Deletion Changes To Privileged Account Permissions
-  query: this['properties.message'] in ["Remove eligible member (permanent)", "Remove
-    eligible member (eligible)"]
+  query: this['properties.message'] in ['Remove eligible member (permanent)', 'Remove
+    eligible member (eligible)']
   sigma_id: 102e11e3-2db5-4c9e-bc26-357d42585d21
 - name: Privileged Account Creation
-  query: this['properties.message']=="Add user" and this['properties.message']=="Add
-    member to role" and this['Status']=="Success"
+  query: this['properties.message']=='Add user' and this['properties.message']=='Add
+    member to role' and this['Status']=='Success'
   sigma_id: f7b5b004-dece-46e4-a4a5-f6fd0e1c6947
 - name: Azure Subscription Permission Elevation Via AuditLogs
-  query: this['Category']=="Administrative" and this['OperationName']=="Assigns the
-    caller to user access admin"
+  query: this['Category']=='Administrative' and this['OperationName']=='Assigns the
+    caller to user access admin'
   sigma_id: ca9bf243-465e-494a-9e54-bf9fc239057d
 - name: Temporary Access Pass Added To An Account
-  query: this['properties.message']=="Admin registered security info" and this['Status']=="Admin
-    registered temporary access pass method for user"
+  query: this['properties.message']=='Admin registered security info' and this['Status']=='Admin
+    registered temporary access pass method for user'
   sigma_id: fa84aaf5-8142-43cd-9ec2-78cfebf878ce
 - name: User Risk and MFA Registration Policy Updated
-  query: this['LoggedByService']=="AAD Management UX" and this['Category']=="Policy"
-    and this['OperationName']=="Update User Risk and MFA Registration Policy"
+  query: this['LoggedByService']=='AAD Management UX' and this['Category']=='Policy'
+    and this['OperationName']=='Update User Risk and MFA Registration Policy'
   sigma_id: d4c7758e-9417-4f2e-9109-6125d66dabef
 - name: Multi Factor Authentication Disabled For User Account
-  query: this['LoggedByService']=="Core Directory" and this['Category']=="UserManagement"
-    and this['OperationName']=="Update user" and this['TargetResources.ModifiedProperties.DisplayName']=="StrongAuthenticationRequirement"
-    and this['TargetResources.ModifiedProperties.NewValue']=="State\":0"
+  query: this['LoggedByService']=='Core Directory' and this['Category']=='UserManagement'
+    and this['OperationName']=='Update user' and this['TargetResources.ModifiedProperties.DisplayName']=='StrongAuthenticationRequirement'
+    and this['TargetResources.ModifiedProperties.NewValue']=='State":0'
   sigma_id: b18454c8-0be3-41f7-86bc-9c614611b839
 - name: Password Reset By User Account
-  query: this['Category']=="UserManagement" and this['Status']=="Success" and this['Initiatedby']=="UPN"
-    and this['Target']=="UPN" and this['ActivityType']=="Password reset"
+  query: this['Category']=='UserManagement' and this['Status']=='Success' and this['Initiatedby']=='UPN'
+    and this['Target']=='UPN' and this['ActivityType']=='Password reset'
   sigma_id: 340ee172-4b67-4fb4-832f-f961bdc1f3aa
 - name: Anomalous Token
-  query: this['riskEventType']=="anomalousToken"
+  query: this['riskEventType']=='anomalousToken'
   sigma_id: 6555754e-5e7f-4a67-ad1c-4041c413a007
 - name: Anomalous User Activity
-  query: this['riskEventType']=="anomalousUserActivity"
+  query: this['riskEventType']=='anomalousUserActivity'
   sigma_id: 258b6593-215d-4a26-a141-c8e31c1299a6
 - name: Activity From Anonymous IP Address
-  query: this['riskEventType']=="riskyIPAddress"
+  query: this['riskEventType']=='riskyIPAddress'
   sigma_id: be4d9c86-d702-4030-b52e-c7859110e5e8
 - name: Anonymous IP Address
-  query: this['riskEventType']=="anonymizedIPAddress"
+  query: this['riskEventType']=='anonymizedIPAddress'
   sigma_id: 53acd925-2003-440d-a1f3-71a5253fe237
 - name: Atypical Travel
-  query: this['riskEventType']=="unlikelyTravel"
+  query: this['riskEventType']=='unlikelyTravel'
   sigma_id: 1a41023f-1e70-4026-921a-4d9341a9038e
 - name: Impossible Travel
-  query: this['riskEventType']=="impossibleTravel"
+  query: this['riskEventType']=='impossibleTravel'
   sigma_id: b2572bf9-e20a-4594-b528-40bde666525a
 - name: Suspicious Inbox Forwarding Identity Protection
-  query: this['riskEventType']=="suspiciousInboxForwarding"
+  query: this['riskEventType']=='suspiciousInboxForwarding'
   sigma_id: 27e4f1d6-ae72-4ea0-8a67-77a73a289c3d
 - name: Suspicious Inbox Manipulation Rules
-  query: this['riskEventType']=="mcasSuspiciousInboxManipulationRules"
+  query: this['riskEventType']=='mcasSuspiciousInboxManipulationRules'
   sigma_id: ceb55fd0-726e-4656-bf4e-b585b7f7d572
 - name: Azure AD Account Credential Leaked
-  query: this['riskEventType']=="leakedCredentials"
+  query: this['riskEventType']=='leakedCredentials'
   sigma_id: 19128e5e-4743-48dc-bd97-52e5775af817
 - name: Malicious IP Address Sign-In Failure Rate
-  query: this['riskEventType']=="maliciousIPAddress"
+  query: this['riskEventType']=='maliciousIPAddress'
   sigma_id: a3f55ebd-0c01-4ed6-adc0-8fb76d8cd3cd
 - name: Malicious IP Address Sign-In Suspicious
-  query: this['riskEventType']=="suspiciousIPAddress"
+  query: this['riskEventType']=='suspiciousIPAddress'
   sigma_id: 36440e1c-5c22-467a-889b-593e66498472
 - name: Sign-In From Malware Infected IP
-  query: this['riskEventType']=="malwareInfectedIPAddress"
+  query: this['riskEventType']=='malwareInfectedIPAddress'
   sigma_id: 821b4dc3-1295-41e7-b157-39ab212dd6bd
 - name: New Country
-  query: this['riskEventType']=="newCountry"
+  query: this['riskEventType']=='newCountry'
   sigma_id: adf9f4d2-559e-4f5c-95be-c28dff0b1476
 - name: Password Spray Activity
-  query: this['riskEventType']=="passwordSpray"
+  query: this['riskEventType']=='passwordSpray'
   sigma_id: 28ecba0a-c743-4690-ad29-9a8f6f25a6f9
 - name: Primary Refresh Token Access Attempt
-  query: this['riskEventType']=="attemptedPrtAccess"
+  query: this['riskEventType']=='attemptedPrtAccess'
   sigma_id: a84fc3b1-c9ce-4125-8e74-bdcdb24021f1
 - name: Suspicious Browser Activity
-  query: this['riskEventType']=="suspiciousBrowser"
+  query: this['riskEventType']=='suspiciousBrowser'
   sigma_id: 944f6adb-7a99-4c69-80c1-b712579e93e6
 - name: Azure AD Threat Intelligence
-  query: this['riskEventType']=="investigationsThreatIntelligence"
+  query: this['riskEventType']=='investigationsThreatIntelligence'
   sigma_id: a2cb56ff-4f46-437a-a0fa-ffa4d1303cba
 - name: SAML Token Issuer Anomaly
-  query: this['riskEventType']=="tokenIssuerAnomaly"
+  query: this['riskEventType']=='tokenIssuerAnomaly'
   sigma_id: e3393cba-31f0-4207-831e-aef90ab17a8c
 - name: Unfamiliar Sign-In Properties
-  query: this['riskEventType']=="unfamiliarFeatures"
+  query: this['riskEventType']=='unfamiliarFeatures'
   sigma_id: 128faeef-79dd-44ca-b43c-a9e236a60f49
 - name: Stale Accounts In A Privileged Role
-  query: this['riskEventType']=="staleSignInAlertIncident"
+  query: this['riskEventType']=='staleSignInAlertIncident'
   sigma_id: e402c26a-267a-45bd-9615-bd9ceda6da85
 - name: Invalid PIM License
-  query: this['riskEventType']=="invalidLicenseAlertIncident"
+  query: this['riskEventType']=='invalidLicenseAlertIncident'
   sigma_id: 58af08eb-f9e1-43c8-9805-3ad9b0482bd8
 - name: Roles Assigned Outside PIM
-  query: this['riskEventType']=="rolesAssignedOutsidePrivilegedIdentityManagementAlertConfiguration"
+  query: this['riskEventType']=='rolesAssignedOutsidePrivilegedIdentityManagementAlertConfiguration'
   sigma_id: b1bc08d1-8224-4758-a0e6-fbcfc98c73bb
 - name: Roles Activated Too Frequently
-  query: this['riskEventType']=="sequentialActivationRenewalsAlertIncident"
+  query: this['riskEventType']=='sequentialActivationRenewalsAlertIncident'
   sigma_id: 645fd80d-6c07-435b-9e06-7bc1b5656cba
 - name: Roles Activation Doesn't Require MFA
-  query: this['riskEventType']=="noMfaOnRoleActivationAlertIncident"
+  query: this['riskEventType']=='noMfaOnRoleActivationAlertIncident'
   sigma_id: 94a66f46-5b64-46ce-80b2-75dcbe627cc0
 - name: Roles Are Not Being Used
-  query: this['riskEventType']=="redundantAssignmentAlertIncident"
+  query: this['riskEventType']=='redundantAssignmentAlertIncident'
   sigma_id: 8c6ec464-4ae4-43ac-936a-291da66ed13d
 - name: Too Many Global Admins
-  query: this['riskEventType']=="tooManyGlobalAdminsAssignedToTenantAlertIncident"
+  query: this['riskEventType']=='tooManyGlobalAdminsAssignedToTenantAlertIncident'
   sigma_id: 7bbc309f-e2b1-4eb1-8369-131a367d67d3
 - name: Account Lockout
-  query: this['ResultType']==50053
+  query: this['ResultType']=='50053'
   sigma_id: 2b7d6fc0-71ac-4cf7-8ed1-b5788ee5257a
 - name: Increased Failed Authentications Of Any Type
-  query: this['Status']=="failure" and this['Count']=="<10%"
+  query: this['Status']=='failure' and this['Count']=='<10%'
   sigma_id: e1d02b53-c03c-4948-b11d-4d00cca49d03
 - name: Authentications To Important Apps Using Single Factor Authentication
-  query: this['Status']=="Success" and this['AppId']=="Insert Application ID use OR
-    for multiple" and this['AuthenticationRequirement']=="singleFactorAuthentication"
+  query: this['Status']=='Success' and this['AppId']=='Insert Application ID use OR
+    for multiple' and this['AuthenticationRequirement']=='singleFactorAuthentication'
   sigma_id: f272fb46-25f2-422c-b667-45837994980f
 - name: Successful Authentications From Countries You Do Not Operate Out Of
-  query: this['Status']=="Success" and not this['Location']=="<Countries you DO operate
-    out of e,g GB, use OR for multiple>"
+  query: this['Status']=='Success' and not this['Location']=='<Countries you DO operate
+    out of e,g GB, use OR for multiple>'
   sigma_id: 8c944ecb-6970-4541-8496-be554b8e2846
 - name: Discovery Using AzureHound
-  query: this['userAgent']=="azurehound" and this['ResultType']==0
+  query: this['userAgent']=='azurehound' and this['ResultType']=='0'
   sigma_id: 35b781cc-1a08-4a5a-80af-42fd7c315c6b
 - name: Device Registration or Join Without MFA
-  query: this['ResourceDisplayName']=="Device Registration Service" and this['conditionalAccessStatus']=="success"
-    and not this['AuthenticationRequirement']=="multiFactorAuthentication"
+  query: this['ResourceDisplayName']=='Device Registration Service' and this['conditionalAccessStatus']=='success'
+    and not this['AuthenticationRequirement']=='multiFactorAuthentication'
   sigma_id: 5afa454e-030c-4ab4-9253-a90aa7fcc581
 - name: Suspicious SignIns From A Non Registered Device
-  query: this['Status']=="Success" and this['AuthenticationRequirement']=="singleFactorAuthentication"
-    and false and this['RiskState']=="atRisk"
+  query: this['Status']=='Success' and this['AuthenticationRequirement']=='singleFactorAuthentication'
+    and false and this['RiskState']=='atRisk'
   sigma_id: 572b12d4-9062-11ed-a1eb-0242ac120002
 - name: Sign-ins from Non-Compliant Devices
-  query: this['DeviceDetail.isCompliant']=="false"
+  query: this['DeviceDetail.isCompliant']=='false'
   sigma_id: 4f77e1d7-3982-4ee0-8489-abf2d6b75284
 - name: Potential MFA Bypass Using Legacy Client Authentication
-  query: this['Status']=="Success" and (this['userAgent']=="BAV2ROPC" or this['userAgent']=="CBAinPROD"
-    or this['userAgent']=="CBAinTAR")
+  query: this['Status']=='Success' and (this['userAgent']=='BAV2ROPC' or this['userAgent']=='CBAinPROD'
+    or this['userAgent']=='CBAinTAR')
   sigma_id: 53bb4f7f-48a8-4475-ac30-5a82ddfdf6fc
 - name: Application Using Device Code Authentication Flow
-  query: this['properties.message']=="Device Code"
+  query: this['properties.message']=='Device Code'
   sigma_id: 248649b7-d64f-46f0-9fb2-a52774166fb5
 - name: Applications That Are Using ROPC Authentication Flow
-  query: this['properties.message']=="ROPC"
+  query: this['properties.message']=='ROPC'
   sigma_id: 55695bc0-c8cf-461f-a379-2535f563c854
 - name: Account Disabled or Blocked for Sign in Attempts
-  query: this['ResultType']==50057 and this['ResultDescription']=="Failure"
+  query: this['ResultType']=='50057' and this['ResultDescription']=='Failure'
   sigma_id: 4afac85c-224a-4dd7-b1af-8da40e1c60bd
 - name: Sign-in Failure Due to Conditional Access Requirements Not Met
-  query: this['ResultType']==53003 and this['Resultdescription']=="Blocked by Conditional
-    Access"
+  query: this['ResultType']=='53003' and this['Resultdescription']=='Blocked by Conditional
+    Access'
   sigma_id: b4a6d707-9430-4f5f-af68-0337f52d5c42
 - name: Use of Legacy Authentication Protocols
-  query: this['ActivityDetails']=="Sign-ins" and (this['ClientApp'] in ["Other client",
-    "IMAP", "POP3", "MAPI", "SMTP", "Exchange ActiveSync", "Exchange Web Services"])
-    and this['Username']=="UPN"
+  query: this['ActivityDetails']=='Sign-ins' and (this['ClientApp'] in ['Other client',
+    'IMAP', 'POP3', 'MAPI', 'SMTP', 'Exchange ActiveSync', 'Exchange Web Services'])
+    and this['Username']=='UPN'
   sigma_id: 60f6535a-760f-42a9-be3f-c9a0a025906e
 - name: Login to Disabled Account
-  query: this['ResultType']==50057 and this['ResultDescription']=="User account is
-    disabled. The account has been disabled by an administrator."
+  query: this['ResultType']=='50057' and this['ResultDescription']=='User account
+    is disabled. The account has been disabled by an administrator.'
   sigma_id: 908655e0-25cf-4ae1-b775-1c8ce9cf43d8
 - name: Multifactor Authentication Denied
-  query: this['AuthenticationRequirement']=="multiFactorAuthentication" and this['Status']=="MFA
-    Denied"
+  query: this['AuthenticationRequirement']=='multiFactorAuthentication' and this['Status']=='MFA
+    Denied'
   sigma_id: e40f4962-b02b-4192-9bfe-245f7ece1f99
 - name: Multifactor Authentication Interrupted
-  query: this['ResultType']==50074 and this['ResultDescription']=="Strong Auth required"
-    or this['ResultType']==500121 and this['ResultDescription']=="Authentication failed
-    during strong authentication request"
+  query: this['ResultType']=='50074' and this['ResultDescription']=='Strong Auth required'
+    or this['ResultType']=='500121' and this['ResultDescription']=='Authentication
+    failed during strong authentication request'
   sigma_id: 5496ff55-42ec-4369-81cb-00f417029e25
 - name: Azure Unusual Authentication Interruption
-  query: this['ResultType']==50097 and this['ResultDescription']=="Device authentication
-    is required" or this['ResultType']==50155 and this['ResultDescription']=="DeviceAuthenticationFailed"
-    or this['ResultType']==50158 and this['ResultDescription']=="ExternalSecurityChallenge
-    - External security challenge was not satisfied"
+  query: this['ResultType']=='50097' and this['ResultDescription']=='Device authentication
+    is required' or this['ResultType']=='50155' and this['ResultDescription']=='DeviceAuthenticationFailed'
+    or this['ResultType']=='50158' and this['ResultDescription']=='ExternalSecurityChallenge
+    - External security challenge was not satisfied'
   sigma_id: 8366030e-7216-476b-9927-271d79f13cf3
 - name: User Access Blocked by Azure Conditional Access
-  query: this['ResultType']==53003
+  query: this['ResultType']=='53003'
   sigma_id: 9a60e676-26ac-44c3-814b-0c2a8b977adf
 - name: Users Authenticating To Other Azure AD Tenants
-  query: this['Status']=="Success" and this['HomeTenantId']=="HomeTenantID" and not
-    this['ResourceTenantId']=="HomeTenantID"
+  query: this['Status']=='Success' and this['HomeTenantId']=='HomeTenantID' and not
+    this['ResourceTenantId']=='HomeTenantID'
   sigma_id: 5f521e4b-0105-4b72-845b-2198a54487b9

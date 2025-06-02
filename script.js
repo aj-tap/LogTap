@@ -59,6 +59,7 @@ const dom = {
     focusModeBtn: document.getElementById('focusModeBtn'),
     rowDetailsModal: document.getElementById('rowDetailsModal'),
     rowDetailsModalBody: document.getElementById('rowDetailsModalBody'),
+    copyRowDetailsBtn: document.getElementById('copyRowDetailsBtn'),
     timelineContainer: document.getElementById('timelineContainer'),
     timelineFieldSelect: document.getElementById('timelineFieldSelect'),
     timelineIntervalInput: document.getElementById('timelineIntervalInput'),
@@ -76,6 +77,10 @@ const dom = {
     tourPrev: document.getElementById('tourPrev'),
     tourNext: document.getElementById('tourNext'),
     tourEnd: document.getElementById('tourEnd'),
+    cyberChefOperationsDropdownElement: document.getElementById('cyberChefOperationsDropdown'),
+    cyberChefCustomRecipeModalElement: document.getElementById('cyberChefCustomRecipeModal'),
+    customCyberChefRecipeInput: document.getElementById('customCyberChefRecipeInput'),
+    applyCustomCyberChefRecipeBtn: document.getElementById('applyCustomCyberChefRecipeBtn')
 };
 
 let superdbInstance = null;
@@ -91,6 +96,9 @@ let detailsModalInstance = null;
 let timelineChartInstance = null;
 let cy = null; 
 let currentTourStep = 0;
+let currentFieldValueForCyberChef = '';
+let cyberChefCustomRecipeModal = null;
+
 
 const tourSteps = [
     {
@@ -120,7 +128,7 @@ const tourSteps = [
     },
     {
         element: '#tableResultOutputContainer',
-        content: '<strong>Query Results:</strong> Your query results will be displayed here. You can switch between a table view and a raw text view. You can also pivot the results to a new tab for further analysis.'
+        content: '<strong>Query Results:</strong> Your query results will be displayed here. You can switch between a table view and a raw text view. You can also pivot the results to a new tab for further analysis. When viewing row details, click the <i class="fa-solid fa-wand-magic-sparkles"></i> icon to send field data to CyberChef.'
     }
 ];
 
@@ -596,42 +604,134 @@ function parseResultForTable(resultText, actualOutputFormat) {
 
 function showRowDetails(row, columns) {
     if (!detailsModalInstance || !dom.rowDetailsModalBody) return;
-    let content = '<dl class="row">';
+    
+    dom.rowDetailsModalBody.innerHTML = ''; 
+
     const startIndex = (columns[0] && columns[0].id === '_details_button') ? 1 : 0;
+
     for (let i = startIndex; i < columns.length; i++) {
-        const columnName = columns[i].name;
+        const columnName = String(columns[i].name); 
         const cellData = row.cells[i] ? row.cells[i].data : '';
+        
         const escapedDisplayData = String(cellData)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
-
-        const encodedCellData = encodeURIComponent(cellData);
+        
+        const encodedCellDataForFilter = encodeURIComponent(String(cellData)); 
         const dropdownValueText = escapedDisplayData.length > 20 ? escapedDisplayData.substring(0, 17) + '...' : escapedDisplayData;
 
-        content += `<dt class="col-sm-3 text-truncate" title="${columnName}">${columnName}</dt>`;
-        content += `<dd class="col-sm-9">
-                        <div class="d-flex w-100 justify-content-between align-items-start">
-                            <pre class="m-0 flex-grow-1" style="white-space: pre-wrap; word-break: break-all;"><code>${escapedDisplayData}</code></pre>
-                            <div class="dropdown">
-                                <button class="btn btn-sm btn-outline-secondary py-0 px-1 ms-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Create filter from this value">
-                                    <i class="fa-solid fa-filter"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-dark">
-                                    <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-value="${encodedCellData}" data-op="==">Filter == <span class="text-info">"${dropdownValueText}"</span></a></li>
-                                    <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-value="${encodedCellData}" data-op="!=">Filter != <span class="text-info">"${dropdownValueText}"</span></a></li>
-                                    <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-op="count_by_sort">Count by <span class="text-info">"${columnName}"</span></a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item filter-action" href="#" data-value="${encodedCellData}" data-op="search">New search for <span class="text-info">"${dropdownValueText}"</span></a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </dd>`;
+        const fieldEntryContainer = document.createElement('div');
+        fieldEntryContainer.className = 'row gx-2 py-2 border-bottom border-secondary-subtle align-items-start'; 
+
+        const dtCol = document.createElement('div');
+        dtCol.className = 'col-sm-3 text-truncate fw-semibold pt-1'; 
+        dtCol.title = columnName;
+        dtCol.textContent = columnName;
+
+        const ddCol = document.createElement('div');
+        ddCol.className = 'col-sm-9'; 
+
+        const valueAndActionsWrapper = document.createElement('div');
+        valueAndActionsWrapper.className = 'd-flex justify-content-between align-items-start';
+
+        const pre = document.createElement('pre');
+        pre.className = 'm-0 flex-grow-1 me-2 pt-1'; 
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.wordBreak = 'break-all';
+        const code = document.createElement('code');
+        code.innerHTML = escapedDisplayData; 
+        pre.appendChild(code);
+
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'btn-group flex-shrink-0';
+
+        const filterDropdownContainer = document.createElement('div');
+        filterDropdownContainer.className = 'dropdown'; 
+
+        const filterButton = document.createElement('button');
+        filterButton.className = 'btn btn-sm btn-outline-secondary py-0 px-1';
+        filterButton.type = 'button';
+        filterButton.title = 'Create filter from this value';
+        filterButton.setAttribute('data-bs-toggle', 'dropdown');
+        filterButton.setAttribute('aria-expanded', 'false');
+        filterButton.innerHTML = '<i class="fa-solid fa-filter"></i>';
+
+        const filterDropdownMenu = document.createElement('ul');
+        filterDropdownMenu.className = 'dropdown-menu dropdown-menu-dark';
+        filterDropdownMenu.innerHTML = `
+            <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-value="${encodedCellDataForFilter}" data-op="==">Filter == <span class="text-info">"${dropdownValueText}"</span></a></li>
+            <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-value="${encodedCellDataForFilter}" data-op="!=">Filter != <span class="text-info">"${dropdownValueText}"</span></a></li>
+            <li><a class="dropdown-item filter-action" href="#" data-column="${columnName}" data-op="count_by_sort">Count by <span class="text-info">"${columnName}"</span></a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item filter-action" href="#" data-value="${encodedCellDataForFilter}" data-op="search">New search for <span class="text-info">"${dropdownValueText}"</span></a></li>
+        `;
+        filterDropdownContainer.appendChild(filterButton);
+        filterDropdownContainer.appendChild(filterDropdownMenu);
+        
+        const cyberChefButton = document.createElement('button');
+        cyberChefButton.className = 'btn btn-sm btn-outline-success py-0 px-1 ms-1 cyberchef-action-btn'; 
+        cyberChefButton.type = 'button';
+        cyberChefButton.title = 'Analyze with CyberChef';
+        cyberChefButton.dataset.fieldValue = encodeURIComponent(String(cellData).trim()); 
+        cyberChefButton.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
+        
+        cyberChefButton.addEventListener('click', (event) => {
+            const encodedFieldValue = event.currentTarget.dataset.fieldValue;
+            console.log("[CyberChef Action] Encoded field value from dataset:", encodedFieldValue);
+            try {
+                currentFieldValueForCyberChef = decodeURIComponent(encodedFieldValue).trim();
+                console.log("[CyberChef Action] Decoded and trimmed field value for CyberChef:", currentFieldValueForCyberChef);
+            } catch (e) {
+                currentFieldValueForCyberChef = encodedFieldValue; 
+                console.error("[CyberChef Action] Error decoding URI component:", e, "Using raw encoded value:", currentFieldValueForCyberChef);
+                showAppMessage('Error URI-decoding field value. Sending raw encoded value.', 'warning');
+            }
+            showCyberChefOperationsMenu(event.currentTarget);
+        });
+        
+        btnGroup.appendChild(filterDropdownContainer); 
+        btnGroup.appendChild(cyberChefButton);
+
+        valueAndActionsWrapper.appendChild(pre);
+        valueAndActionsWrapper.appendChild(btnGroup);
+        ddCol.appendChild(valueAndActionsWrapper);
+
+        fieldEntryContainer.appendChild(dtCol);
+        fieldEntryContainer.appendChild(ddCol);
+
+        dom.rowDetailsModalBody.appendChild(fieldEntryContainer);
     }
-    content += '</dl>';
-    dom.rowDetailsModalBody.innerHTML = content;
     detailsModalInstance.show();
+}
+
+
+async function copyRowDetailsToClipboardHandler() {
+    if (!dom.rowDetailsModalBody) return;
+    let textToCopy = '';
+    const fieldEntries = dom.rowDetailsModalBody.querySelectorAll('.row.gx-2.py-2');
+
+    fieldEntries.forEach(entry => {
+        const dtElement = entry.querySelector('.col-sm-3.text-truncate.fw-semibold');
+        const codeElement = entry.querySelector('.col-sm-9 pre code');
+        if (dtElement && codeElement) {
+            const key = dtElement.textContent.trim();
+            const value = codeElement.textContent.trim();
+            textToCopy += `${key}: ${value}\n`;
+        }
+    });
+
+    if (textToCopy) {
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+            showAppMessage('Row details copied to clipboard!', 'success');
+        } catch (err) {
+            showAppMessage('Failed to copy details.', 'error', true);
+        }
+    } else {
+        showAppMessage('No details to copy.', 'warning');
+    }
 }
 
 function createQueryFromDetail(op, column, encodedValue) {
@@ -674,11 +774,10 @@ function createQueryFromDetail(op, column, encodedValue) {
     dom.queryInput.selectionStart = dom.queryInput.selectionEnd = dom.queryInput.value.length;
 }
 
-
 function displayTableWithGridJs(parsedData, containerElement, tab) {
     if (tab.gridInstance) {
         try { tab.gridInstance.destroy(); }
-        catch (e) { console.warn("Error destroying previous grid instance:", e); }
+        catch (e) { }
         finally { tab.gridInstance = null; }
     }
     if (!parsedData || !parsedData.headers || parsedData.headers.length === 0 || !parsedData.dataRows) {
@@ -1080,6 +1179,14 @@ function setupEventListeners() {
             }
         });
     }
+    if (dom.copyRowDetailsBtn) {
+        dom.copyRowDetailsBtn.addEventListener('click', copyRowDetailsToClipboardHandler);
+    }
+
+    if (dom.applyCustomCyberChefRecipeBtn) {
+        dom.applyCustomCyberChefRecipeBtn.addEventListener('click', handleApplyCustomCyberChefRecipe);
+    }
+
 
     dom.helpBtn.addEventListener('click', startTour);
     dom.tourNext.addEventListener('click', () => showTourStep(currentTourStep + 1));
@@ -1601,7 +1708,7 @@ async function generateTimelineChartHandler() {
                     labels.push(new Date(record.value[0]));
                     dataCounts.push(parseInt(record.value[1], 10));
                 }
-            } catch (e) { console.warn("Skipping unparseable line for timeline:", line, e); }
+            } catch (e) { }
         });
         if (labels.length === 0) {
              showAppMessage("No valid data points found for the timeline after parsing.", "warning");
@@ -1639,7 +1746,7 @@ function renderTimelineChart(tab, labels, datasets) {
     }
     timelineChartInstance = null;
     if (!dom.timelineChart) {
-        console.error("Timeline chart canvas element not found."); return;
+        return;
     }
     const ctx = dom.timelineChart.getContext('2d');
     timelineChartInstance = new Chart(ctx, {
@@ -1682,7 +1789,6 @@ function renderTimelineChart(tab, labels, datasets) {
                             const timestampField = activeTab ? activeTab.selectedTimelineField : null;
 
                             if (!activeTab || !timestampField) {
-                                console.warn("Timeline zoom: No active tab or timestamp field selected.");
                                 return;
                             }
                             const {min, max} = chart.scales.x;
@@ -1717,7 +1823,6 @@ function toggleGraphVisibilityHandler() {
     
     if (typeof window.cytoscape === 'undefined') { 
         showAppMessage("Visualization library (Cytoscape.js) is not loaded.", "error", true);
-        console.error("Cytoscape library not found on window object."); 
         return;
     }
 
@@ -1745,7 +1850,6 @@ function toggleGraphVisibilityHandler() {
             renderLateralMovementGraph(zjsonObjects);
         } catch (error) {
             showAppMessage(`Error rendering graph: ${error.message}`, "error", true);
-            console.error("Graph rendering error:", error);
             activeTab.graphVisible = false;
             dom.graphContainer.classList.add('d-none');
             updateGraphToggleButton(activeTab);
@@ -1756,177 +1860,224 @@ function toggleGraphVisibilityHandler() {
 function renderLateralMovementGraph(records) {
     if (typeof window.cytoscape === 'undefined') {
          showAppMessage("Visualization library (Cytoscape.js) not loaded. Cannot render graph.", "error", true);
-         console.error("Cytoscape is not defined when trying to render.");
          return;
     }
 
-    if (cy) {
-        cy.destroy();
-        cy = null; 
+    if (window.cy) {
+        if (typeof window.cy.destroy === 'function') {
+            try {
+                window.cy.destroy();
+            } catch (e) {
+            }
+        }
+        window.cy = null; 
     }
 
     const elements = [];
     const existingNodes = new Set();
+    const existingEdges = new Set();
 
     const addNode = (id, label, type, data = {}) => {
-        if (id && !existingNodes.has(id)) {
+        const nodeId = String(id);
+        if (id && !existingNodes.has(nodeId)) {
             elements.push({
                 group: 'nodes',
-                data: { id: String(id), label: String(label), type: String(type), ...data }
+                data: { id: nodeId, label: String(label), type: String(type), ...data }
             });
-            existingNodes.add(String(id));
+            existingNodes.add(nodeId);
         }
     };
-    
+
     records.forEach(rec => {
         const eventId = String(rec.EventID);
         const computer = rec.Computer || rec.EventHostname || 'Unknown Host';
         const user = rec.TargetUserName || rec.UserID || rec.User || rec.param3;
-        const ip = rec.IpAddress || rec.WorkstationName || rec.Workstation || rec.Address || rec.param1; 
+        const ip = rec.IpAddress || rec.WorkstationName || rec.Workstation || rec.Address || rec.param1;
         const service = rec.ServiceName;
         const logonType = rec.LogonType;
         let edgeLabel = `EID: ${eventId}`;
+        let edgeId;
 
         switch(eventId) {
-            case '4624': 
+            case '4624':
                 if (!ip || ip === '-' || !user || user === '-') return;
                 addNode(ip, ip, 'ip');
                 addNode(computer, computer, 'computer');
                 addNode(user, user, 'user');
-                let logonClass4624 = 'logon-success';
-                if (logonType === '10') {
-                    logonClass4624 = 'rdp-success';
+
+                edgeId = `edge-${ip}-${computer}-${user}-${eventId}`;
+                if (!existingEdges.has(edgeId)) {
+                    let logonClass4624 = 'logon-success';
+                    if (logonType === '10') {
+                        logonClass4624 = 'rdp-success';
+                    }
+                    elements.push({
+                        group: 'edges',
+                        data: {
+                            id: edgeId,
+                            source: String(ip),
+                            target: String(computer),
+                            label: edgeLabel,
+                            class: logonClass4624,
+                        }
+                    });
+                    existingEdges.add(edgeId);
                 }
-                elements.push({
-                    group: 'edges',
-                    data: {
-                        id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
-                        source: ip,
-                        target: computer,
-                        label: edgeLabel,
-                        class: logonClass4624,
-                    }
-                });
                 break;
 
-            case '4625': 
+            case '4625':
                 if (!ip || ip === '-' || !user || user === '-') return;
                 addNode(ip, ip, 'ip');
                 addNode(computer, computer, 'computer');
                 addNode(user, user, 'user');
-                elements.push({
-                    group: 'edges',
-                    data: {
-                        id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
-                        source: ip,
-                        target: computer,
-                        label: edgeLabel, 
-                        class: 'logon-fail', 
-                    }
-                });
+
+                edgeId = `edge-${ip}-${computer}-${user}-${eventId}`;
+                if (!existingEdges.has(edgeId)) {
+                    elements.push({
+                        group: 'edges',
+                        data: {
+                            id: edgeId,
+                            source: String(ip),
+                            target: String(computer),
+                            label: edgeLabel,
+                            class: 'logon-fail',
+                        }
+                    });
+                    existingEdges.add(edgeId);
+                }
                 break;
-            
-            case '21': 
-            case '22': 
-            case '1149': 
+
+            case '21':
+            case '22':
+            case '1149':
                 if (!ip || ip === '-' || !user || user === '-') return;
                 addNode(ip, ip, 'ip');
                 addNode(computer, computer, 'computer');
                 addNode(user, user, 'user');
-                elements.push({
-                    group: 'edges',
-                    data: {
-                        id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
-                        source: ip,
-                        target: computer,
-                        label: edgeLabel,
-                        class: 'rdp-success',
-                    }
-                });
+
+                edgeId = `edge-${ip}-${computer}-${user}-${eventId}`;
+                if (!existingEdges.has(edgeId)) {
+                    elements.push({
+                        group: 'edges',
+                        data: {
+                            id: edgeId,
+                            source: String(ip),
+                            target: String(computer),
+                            label: edgeLabel,
+                            class: (eventId === '1149' || logonType === '10') ? 'rdp-success' : 'connection-event', 
+                        }
+                    });
+                    existingEdges.add(edgeId);
+                }
                 break;
 
-            case '4768': 
-            case '4776': 
+            case '4768':
+            case '4776':
                  if (!ip || ip === '-' || !user || user === '-') return;
                  addNode(ip, ip, 'ip');
                  addNode(computer, computer, 'computer');
                  addNode(user, user, 'user');
-                 elements.push({
-                     group: 'edges',
-                     data: {
-                         id: `${ip}-${computer}-${eventId}-${user}-${rec.EventRecordID || Math.random()}`,
-                         source: ip,
-                         target: computer,
-                         label: edgeLabel,
-                         class: 'auth',
-                     }
-                 });
+
+                 edgeId = `edge-${ip}-${computer}-${user}-${eventId}`;
+                 if (!existingEdges.has(edgeId)) {
+                     elements.push({
+                         group: 'edges',
+                         data: {
+                             id: edgeId,
+                             source: String(ip),
+                             target: String(computer),
+                             label: edgeLabel,
+                             class: 'auth',
+                         }
+                     });
+                     existingEdges.add(edgeId);
+                 }
                 break;
 
-            case '4769': 
-                if (!user || !service || service === '-' || user === '-') return;
+            case '4769':
+                if (!user || user === '-' || !service || service === '-') return;
                 addNode(user, user, 'user');
                 addNode(service, service, 'service');
-                 elements.push({
-                     group: 'edges',
-                     data: {
-                         id: `${user}-${service}-${eventId}-${rec.EventRecordID || Math.random()}`,
-                         source: user,
-                         target: service,
-                         label: edgeLabel,
-                         class: 'ticket-request',
-                     }
-                 });
+
+                 edgeId = `edge-${user}-${service}-${eventId}`;
+                 if (!existingEdges.has(edgeId)) {
+                     elements.push({
+                         group: 'edges',
+                         data: {
+                             id: edgeId,
+                             source: String(user),
+                             target: String(service),
+                             label: edgeLabel,
+                             class: 'ticket-request',
+                         }
+                     });
+                     existingEdges.add(edgeId);
+                 }
                 break;
         }
     });
-    
-    if (elements.filter(el => el.group === 'nodes').length === 0) { 
-        showAppMessage("No recognizable events or entities found in the data for graph visualization. Supported events include common logon, auth, and RDP activities.", "info", true);
+
+    if (elements.filter(el => el.group === 'nodes').length === 0) {
+        showAppMessage("No recognizable events or entities found in the data for graph visualization.", "info", true);
         return;
     }
 
-    cy = window.cytoscape({ 
-        container: dom.cyContainer,
-        elements: elements,
-        style: [
-            {
-                selector: 'node',
-                style: { 'background-color': '#666', 'label': 'data(label)', 'color': '#fff', 'text-valign': 'bottom', 'text-halign': 'center', 'font-size': '10px', 'text-wrap': 'wrap', 'text-max-width': '80px', 'min-zoomed-font-size': '8px'}
-            },
-            { selector: 'node[type="computer"]', style: { 'background-color': '#4a90e2', 'shape': 'rectangle' } },
-            { selector: 'node[type="user"]', style: { 'background-color': '#f5a623' } },
-            { selector: 'node[type="ip"]', style: { 'background-color': '#50e3c2', 'shape': 'diamond' } },
-            { selector: 'node[type="service"]', style: { 'background-color': '#bd10e0', 'shape': 'hexagon' } },
-            {
-                selector: 'edge',
-                style: { 'width': 2, 'label': 'data(label)', 'line-color': '#ccc', 'target-arrow-color': '#ccc', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'font-size': '8px', 'color': '#ccc', 'text-rotation': 'autorotate', 'text-margin-y': -10, 'min-zoomed-font-size': '6px' }
-            },
-            { selector: '.logon-success', style: { 'line-color': '#28a745', 'target-arrow-color': '#28a745' } },
-            { selector: '.rdp-success', style: { 'line-color': '#0dcaf0', 'target-arrow-color': '#0dcaf0' } }, 
-            { selector: '.logon-fail', style: { 'line-color': '#dc3545', 'target-arrow-color': '#dc3545', 'line-style': 'dashed' } },
-            { selector: '.auth', style: { 'line-color': '#17a2b8', 'target-arrow-color': '#17a2b8' } },
-            { selector: '.ticket-request', style: { 'line-color': '#ffc107', 'target-arrow-color': '#ffc107' } }
-        ],
-        layout: {
-            name: 'cose',
-            idealEdgeLength: 120, 
-            nodeOverlap: 25, 
-            refresh: 20, 
-            fit: true, 
-            padding: 30, 
-            randomize: false, 
-            componentSpacing: 120, 
-            nodeRepulsion: 450000, 
-            edgeElasticity: 120, 
-            nestingFactor: 5, 
-            gravity: 80, 
-            numIter: 1000, 
-            initialTemp: 200, 
-            coolingFactor: 0.95, 
-            minTemp: 1.0
+    const cyContainer = document.getElementById('cy'); 
+    if (!cyContainer) {
+        showAppMessage("Graph container not found in DOM. Cannot render graph.", "error", true);
+        return;
+    }
+
+    try {
+        window.cy = window.cytoscape({
+            container: cyContainer,
+            elements: elements,
+            style: [
+                {
+                    selector: 'node',
+                    style: { 'background-color': '#666', 'label': 'data(label)', 'color': '#fff', 'text-valign': 'bottom', 'text-halign': 'center', 'font-size': '10px', 'text-wrap': 'wrap', 'text-max-width': '80px', 'min-zoomed-font-size': '8px'}
+                },
+                { selector: 'node[type="computer"]', style: { 'background-color': '#4a90e2', 'shape': 'rectangle' } },
+                { selector: 'node[type="user"]', style: { 'background-color': '#f5a623' } },
+                { selector: 'node[type="ip"]', style: { 'background-color': '#50e3c2', 'shape': 'diamond' } },
+                { selector: 'node[type="service"]', style: { 'background-color': '#bd10e0', 'shape': 'hexagon' } },
+                {
+                    selector: 'edge',
+                    style: { 'width': 2, 'label': 'data(label)', 'line-color': '#ccc', 'target-arrow-color': '#ccc', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'font-size': '8px', 'color': '#ccc', 'text-rotation': 'autorotate', 'text-margin-y': -10, 'min-zoomed-font-size': '6px' }
+                },
+                { selector: '.logon-success', style: { 'line-color': '#28a745', 'target-arrow-color': '#28a745' } },
+                { selector: '.rdp-success', style: { 'line-color': '#0dcaf0', 'target-arrow-color': '#0dcaf0' } },
+                { selector: '.logon-fail', style: { 'line-color': '#dc3545', 'target-arrow-color': '#dc3545', 'line-style': 'dashed' } },
+                { selector: '.auth', style: { 'line-color': '#17a2b8', 'target-arrow-color': '#17a2b8' } },
+                { selector: '.ticket-request', style: { 'line-color': '#ffc107', 'target-arrow-color': '#ffc107' } },
+                { selector: '.connection-event', style: { 'line-color': '#7854ff', 'target-arrow-color': '#7854ff' } } 
+            ],
+            layout: {
+                name: 'cose',
+                idealEdgeLength: 120,
+                nodeOverlap: 25,
+                refresh: 20,
+                fit: true,
+                padding: 30,
+                randomize: false,
+                componentSpacing: 120,
+                nodeRepulsion: 450000,
+                edgeElasticity: 120,
+                nestingFactor: 5,
+                gravity: 80,
+                numIter: 1000,
+                initialTemp: 200,
+                coolingFactor: 0.95,
+                minTemp: 1.0
+            }
+        });
+    } catch (e) {
+        showAppMessage("Failed to initialize the graph visualization: " + e.message, "error", true);
+        if (window.cy && typeof window.cy.destroy === 'function') {
+            window.cy.destroy();
         }
-    });
+        window.cy = null;
+    }
 }
 
 function updateGraphToggleButton(tab) {
@@ -1996,7 +2147,6 @@ async function initializePredefinedRulesSelect(selectedValue = "") {
 
 async function initializeEvtxWasm() {
     if (typeof Go === 'undefined') {
-        console.error("wasm_exec.js not loaded, EVTX conversion disabled.");
         showAppMessage("EVTX converter script not found.", "error", true);
         return;
     }
@@ -2005,9 +2155,7 @@ async function initializeEvtxWasm() {
         const result = await WebAssembly.instantiateStreaming(fetch('evtx-convert.wasm'), goEvtx.importObject);
         goEvtx.run(result.instance);
         evtxWasmReady = true;
-        console.log("evtx-convert.wasm module loaded and initialized.");
     } catch (error) {
-        console.error("Failed to load or instantiate evtx-convert.wasm:", error);
         showAppMessage("Critical Error: EVTX converter WASM failed to load.", "error", true);
     }
 }
@@ -2032,10 +2180,34 @@ function showTourStep(stepIndex) {
         const rect = element.getBoundingClientRect();
         dom.tourTooltip.style.display = 'block';
         dom.tourContent.innerHTML = step.content;
-        const top = rect.bottom + 10;
-        const left = rect.left;
-        dom.tourTooltip.style.top = `${top}px`;
-        dom.tourTooltip.style.left = `${left}px`;
+        let top = rect.bottom + 10 + window.scrollY;
+        let left = rect.left + window.scrollX;
+
+        const tooltipEl = dom.tourTooltip; 
+        tooltipEl.style.visibility = 'hidden'; 
+        tooltipEl.style.display = 'block';
+        const tooltipRect = tooltipEl.getBoundingClientRect();
+        tooltipEl.style.display = 'none'; 
+        tooltipEl.style.visibility = 'visible';
+
+
+        if (left + tooltipRect.width > window.innerWidth) {
+            left = window.innerWidth - tooltipRect.width - 10;
+        }
+        if (top + tooltipRect.height > window.innerHeight + window.scrollY && rect.top - tooltipRect.height -10 > window.scrollY) { 
+            top = rect.top - tooltipRect.height - 10 + window.scrollY;
+        } else if (top + tooltipRect.height > window.innerHeight + window.scrollY) { 
+             top = window.innerHeight - tooltipRect.height -10 + window.scrollY;
+        }
+
+
+        if (left < 0) left = 10;
+         if (top < window.scrollY) top = window.scrollY + 10; 
+
+
+        tooltipEl.style.top = `${top}px`;
+        tooltipEl.style.left = `${left}px`;
+        tooltipEl.style.display = 'block'; 
     }
     dom.tourPrev.disabled = stepIndex === 0;
     dom.tourNext.textContent = stepIndex === tourSteps.length - 1 ? 'Finish' : 'Next';
@@ -2048,26 +2220,252 @@ function startTour() {
 
 function endTour() {
     const step = tourSteps[currentTourStep];
-    const element = document.querySelector(step.element);
-    if (element) {
-        element.classList.remove('tour-highlight');
+    if (step && step.element) { 
+        const element = document.querySelector(step.element);
+        if (element) {
+            element.classList.remove('tour-highlight');
+        }
     }
     dom.tourOverlay.style.display = 'none';
     dom.tourTooltip.style.display = 'none';
 }
 
+
+function buildCyberChefUrl(inputValue, operationOrRecipe, isCustom = false) {
+    const baseUrl = 'https://gchq.github.io/CyberChef/';
+    // More robust cleaning: convert to string, replace ALL Unicode whitespace variants with a standard space, then trim.
+    let processedInputValue = String(inputValue).replace(/[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]/g, ' ').trim();
+    let encodedInput;
+
+    try {
+        // Using unescape(encodeURIComponent()) to get a "binary string" for btoa
+        // This is a common pattern for handling UTF-8 strings with btoa.
+        let binaryString = unescape(encodeURIComponent(processedInputValue));
+        encodedInput = btoa(binaryString);
+        // Convert to URL-safe Base64
+        encodedInput = encodedInput.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    } catch (e) {
+        showAppMessage("Error encoding input value for CyberChef: " + e.message, "error", true);
+        console.error("btoa encoding error for input:", processedInputValue, e);
+        return null;
+    }
+    
+    let recipe = '';
+    if (isCustom) {
+        recipe = operationOrRecipe; 
+    } else {
+        switch (operationOrRecipe) { 
+            case 'to_cyberchef_raw':
+                recipe = ""; 
+                break;
+            case 'magic':
+                recipe = "Magic(3,true,false,'')"; 
+                break;
+            case 'defang':
+                recipe = "Defang_IP_Addresses('Layer 3','[.]','[.]','[,]','[,]','hXXp','hXXps',false,false,false,false)\nDefang_URL(true,true,true,'Valid domains and full URLs')";
+                break;
+            case 'to_base64':
+                // This recipe itself uses the standard alphabet, but the input to CyberChef URL is URL-safe
+                recipe = "To_Base64('A-Za-z0-9+/=')";
+                break;
+            case 'from_base64':
+                 // This recipe itself uses the standard alphabet
+                recipe = "From_Base64('A-Za-z0-9+/=',true,false)";
+                break;
+            case 'to_hex':
+                recipe = "To_Hex('Space',0)";
+                break;
+            case 'from_hex':
+                recipe = "From_Hex('Auto')";
+                break;
+            case 'to_hexdump':
+                recipe = "To_Hexdump(16,false,false,'Space',false)";
+                break;
+            case 'url_decode':
+                recipe = "URL_Decode()";
+                break;
+            case 'url_encode':
+                recipe = "URL_Encode(true)"; 
+                break;
+            default:
+                showAppMessage(`Unknown CyberChef operation: ${operationOrRecipe}`, "warning");
+                return null; 
+        }
+    }
+
+    if (recipe) {
+        return `${baseUrl}#input=${encodedInput}&recipe=${encodeURIComponent(recipe)}`;
+    } else { 
+        return `${baseUrl}#input=${encodedInput}`;
+    }
+}
+
+
+function showCyberChefOperationsMenu(anchorElement) {
+    if (!dom.cyberChefOperationsDropdownElement) return;
+
+    dom.cyberChefOperationsDropdownElement.innerHTML = ''; 
+
+    const operations = [
+        { label: 'To CyberChef (Raw Input)', op: 'to_cyberchef_raw', icon: 'fa-solid fa-share-square' },
+        { label: 'Magic (Detect & Decode)', op: 'magic', icon: 'fa-solid fa-wand-magic-sparkles' },
+        { label: 'Defang (IP & URL)', op: 'defang', icon: 'fa-solid fa-shield-halved' },
+        { label: 'To Base64', op: 'to_base64', icon: 'fa-solid fa-b' },
+        { label: 'From Base64', op: 'from_base64', icon: 'fa-solid fa-b' },
+        { label: 'To Hex', op: 'to_hex', icon: 'fa-solid fa-h' },
+        { label: 'From Hex', op: 'from_hex', icon: 'fa-solid fa-h' },
+        { label: 'To Hexdump', op: 'to_hexdump', icon: 'fa-solid fa-table-list' },
+        { label: 'URL Decode', op: 'url_decode', icon: 'fa-solid fa-link-slash' },
+        { label: 'URL Encode (All Chars)', op: 'url_encode', icon: 'fa-solid fa-link' },
+    ];
+
+    operations.forEach(item => {
+        const menuItemLink = document.createElement('a');
+        menuItemLink.href = '#';
+        menuItemLink.classList.add('dropdown-item', 'd-flex', 'align-items-center');
+        
+        const iconEl = document.createElement('i');
+        iconEl.className = `${item.icon} me-2 fa-fw`; 
+        menuItemLink.appendChild(iconEl);
+
+        const textSpan = document.createElement('span');
+        textSpan.textContent = item.label;
+        menuItemLink.appendChild(textSpan);
+        
+        menuItemLink.title = item.label;
+        menuItemLink.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation(); 
+            console.log(`[CyberChef Menu Click] Operation: ${item.op}, Value to process: "${currentFieldValueForCyberChef}"`);
+            const url = buildCyberChefUrl(currentFieldValueForCyberChef, item.op, false);
+            if (url) {
+                console.log("[CyberChef Menu Click] Opening URL:", url);
+                window.open(url, '_blank');
+            } else {
+                console.error("[CyberChef Menu Click] URL generation failed for op:", item.op);
+            }
+            hideCyberChefOperationsMenu();
+        };
+        dom.cyberChefOperationsDropdownElement.appendChild(menuItemLink);
+    });
+
+    const divider = document.createElement('hr');
+    divider.classList.add('dropdown-divider');
+    dom.cyberChefOperationsDropdownElement.appendChild(divider);
+
+    const customRecipeItem = document.createElement('a');
+    customRecipeItem.href = '#';
+    customRecipeItem.classList.add('dropdown-item', 'd-flex', 'align-items-center');
+    
+    const customIconEl = document.createElement('i');
+    customIconEl.className = 'fa-solid fa-square-plus me-2 fa-fw'; 
+    customRecipeItem.appendChild(customIconEl);
+
+    const customTextSpan = document.createElement('span');
+    customTextSpan.textContent = 'Enter Custom Recipe...';
+    customRecipeItem.appendChild(customTextSpan);
+
+    customRecipeItem.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        hideCyberChefOperationsMenu();
+        if (cyberChefCustomRecipeModal) {
+            dom.customCyberChefRecipeInput.value = ''; 
+            cyberChefCustomRecipeModal.show();
+        }
+    };
+    dom.cyberChefOperationsDropdownElement.appendChild(customRecipeItem);
+    
+    const rect = anchorElement.getBoundingClientRect();
+    const dropdown = dom.cyberChefOperationsDropdownElement;
+    
+    dropdown.style.visibility = 'hidden';
+    dropdown.style.display = 'block';
+    const dropdownHeight = dropdown.offsetHeight;
+    const dropdownWidth = dropdown.offsetWidth;
+    dropdown.style.display = 'none';
+    dropdown.style.visibility = 'visible';
+
+    let top = rect.bottom + window.scrollY;
+    let left = rect.left + window.scrollX;
+
+    if (left + dropdownWidth > window.innerWidth) {
+        left = window.innerWidth - dropdownWidth - 10; 
+    }
+    if (top + dropdownHeight > (window.innerHeight + window.scrollY) && (rect.top - dropdownHeight) > window.scrollY) {
+        top = rect.top - dropdownHeight + window.scrollY; 
+    } else if (top + dropdownHeight > (window.innerHeight + window.scrollY)) {
+        top = window.innerHeight + window.scrollY - dropdownHeight - 10;
+    }
+
+    if (left < 0) left = 10; 
+    if (top < window.scrollY) top = window.scrollY + 10;
+
+
+    dropdown.style.top = `${top}px`;
+    dropdown.style.left = `${left}px`;
+    dropdown.style.display = 'block';
+
+    setTimeout(() => {
+        document.addEventListener('click', handleClickOutsideCyberChefMenu, true);
+    }, 0);
+}
+
+function handleApplyCustomCyberChefRecipe() {
+    const customRecipe = dom.customCyberChefRecipeInput.value.trim();
+    if (!customRecipe) {
+        showAppMessage("Custom recipe cannot be empty.", "warning");
+        return;
+    }
+    if (currentFieldValueForCyberChef === undefined || currentFieldValueForCyberChef === null) {
+        showAppMessage("No field value to apply recipe to. Please select a field first.", "error");
+        if (cyberChefCustomRecipeModal) cyberChefCustomRecipeModal.hide();
+        return;
+    }
+    console.log(`[Custom CyberChef Recipe] Applying recipe: "${customRecipe}" to value: "${currentFieldValueForCyberChef}"`);
+    const url = buildCyberChefUrl(currentFieldValueForCyberChef, customRecipe, true);
+    if (url) {
+        console.log("[Custom CyberChef Recipe] Opening URL:", url);
+        window.open(url, '_blank');
+    } else {
+         console.error("[Custom CyberChef Recipe] URL generation failed for custom recipe.");
+    }
+    if (cyberChefCustomRecipeModal) cyberChefCustomRecipeModal.hide();
+}
+
+
+function hideCyberChefOperationsMenu() {
+    if (dom.cyberChefOperationsDropdownElement) {
+        dom.cyberChefOperationsDropdownElement.style.display = 'none';
+    }
+    document.removeEventListener('click', handleClickOutsideCyberChefMenu, true);
+}
+
+function handleClickOutsideCyberChefMenu(event) {
+    if (dom.cyberChefOperationsDropdownElement && 
+        dom.cyberChefOperationsDropdownElement.style.display === 'block' && 
+        !dom.cyberChefOperationsDropdownElement.contains(event.target) &&
+        !event.target.closest('.cyberchef-action-btn')) { 
+        hideCyberChefOperationsMenu();
+    }
+}
+
+
 async function initializeApp() {
     if (!SuperDB) {
-        console.error("SuperDB module not available. Application cannot initialize.");
         return;
     }
     try {
         if (typeof Chart !== 'undefined' && typeof ChartZoom !== 'undefined') {
             Chart.register(ChartZoom);
         } else {
-            console.error("Chart or ChartZoom plugin not loaded. Zoom functionality will be unavailable.");
             showAppMessage("Timeline zoom plugin failed to load.", "warning", true);
         }
+        if (dom.cyberChefCustomRecipeModalElement && typeof bootstrap !== 'undefined') {
+            cyberChefCustomRecipeModal = new bootstrap.Modal(dom.cyberChefCustomRecipeModalElement);
+        }
+
         [dom.runQueryBtn, dom.exportBtn, dom.runScannerBtn, dom.addTabBtn, dom.loadTestDataBtn, dom.loadPredefinedRuleBtn, dom.applyShaperBtn].forEach(btn => { if(btn) btn.disabled = true; });
         dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Initializing...';
         showAppMessage('Igniting Wasm engines... Stand by.', 'info', true);
