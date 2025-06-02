@@ -1135,7 +1135,7 @@ function setupEventListeners() {
     });
     dom.clearHistoryBtn.addEventListener('click', clearQueryHistory);
     dom.addTabBtn.addEventListener('click', addTab);
-    dom.runQueryBtn.addEventListener('click', runQueryHandler);
+    dom.runQueryBtn.addEventListener('click', () => runQueryHandler());
     dom.exportBtn.addEventListener('click', exportResultsHandler);
     dom.runScannerBtn.addEventListener('click', runScannerHandler);
     dom.toggleViewBtn.addEventListener('click', toggleResultsViewHandler);
@@ -1194,7 +1194,7 @@ function setupEventListeners() {
     dom.tourEnd.addEventListener('click', endTour);
 }
 
-async function runQueryHandler() {
+async function runQueryHandler(isRetryAttempt = false) {
     const activeTab = getActiveTabState();
     if (!activeTab || !superdbInstance) {
         showAppMessage(superdbInstance ? "No active tab." : "SuperDB not ready.", 'error', true); return;
@@ -1202,23 +1202,48 @@ async function runQueryHandler() {
     let query = activeTab.query.trim();
     let inputForWasm = null;
     let dataLoadError = null;
+    
+    const inputFormatForThisAttempt = activeTab.inputFormat; 
+
     if (activeTab.dataLocation?.type === 'indexeddb' && activeTab.dataLocation.key) {
         showAppMessage("Preparing large data stream for query...", 'info', true);
-        try { inputForWasm = await getDataAsStream(activeTab.dataLocation.key); hideAppMessage(); }
+        try { 
+            inputForWasm = await getDataAsStream(activeTab.dataLocation.key); 
+            hideAppMessage(); 
+        }
         catch (dbError) { dataLoadError = `Failed to stream data from DB: ${dbError.message}`; }
     } else if (activeTab.dataLocation?.type === 'memory') {
         inputForWasm = activeTab.rawData;
+    } else if (activeTab.dataLocation?.type === 'empty') {
+         inputForWasm = '';
     }
-    if (dataLoadError) { showAppMessage(dataLoadError, 'error', true); return; }
+
+    if (dataLoadError) { 
+        showAppMessage(dataLoadError, 'error', true); 
+        dom.runQueryBtn.disabled = false;
+        dom.runQueryBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Run Query';
+        const hasDataForScanner = activeTab?.dataLocation?.type === 'memory' || activeTab?.dataLocation?.type === 'indexeddb';
+        dom.runScannerBtn.disabled = !(activeTab?.scannerRules && activeTab?.scannerRules.length > 0 && superdbInstance && hasDataForScanner);
+        return; 
+    }
+
     if (!inputForWasm && activeTab.dataLocation?.type === 'empty') {
         if (query.toLowerCase() !== 'pass' && query !== '') { 
-            showAppMessage("No data available to run the query.", "warning"); return;
+            showAppMessage("No data available to run the query.", "warning"); 
+            dom.runQueryBtn.disabled = false;
+            dom.runQueryBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Run Query';
+            const hasDataForScanner = activeTab?.dataLocation?.type === 'memory' || activeTab?.dataLocation?.type === 'indexeddb';
+            dom.runScannerBtn.disabled = !(activeTab?.scannerRules && activeTab?.scannerRules.length > 0 && superdbInstance && hasDataForScanner);
+            return;
         }
-        inputForWasm = ''; 
     }
-    saveQueryToHistory(query);
-    if (!query && inputForWasm) { query = "pass"; activeTab.query = "pass"; dom.queryInput.value = "pass"; }
-    if (!query && !inputForWasm && activeTab.dataLocation?.type === 'empty') { query = "pass"; activeTab.query = "pass"; dom.queryInput.value = "pass"; inputForWasm = "";}
+    
+    if (!isRetryAttempt) { 
+        saveQueryToHistory(query);
+    }
+    if (!query && inputForWasm) { query = "pass"; activeTab.query = "pass"; if(dom.queryInput) dom.queryInput.value = "pass"; }
+    if (!query && !inputForWasm && activeTab.dataLocation?.type === 'empty') { query = "pass"; activeTab.query = "pass"; if(dom.queryInput) dom.queryInput.value = "pass"; inputForWasm = "";}
+    
     activeTab.currentRawOutput = null;
     if (activeTab.gridInstance) { try {activeTab.gridInstance.destroy();} catch(e){} activeTab.gridInstance = null; }
     if (timelineChartInstance && activeTabId === activeTab.id) {
@@ -1231,15 +1256,17 @@ async function runQueryHandler() {
     }
     activeTab.timelineChartDataCache = null;
     updateResultDisplay(activeTab);
+    
     dom.runQueryBtn.disabled = true;
     dom.runScannerBtn.disabled = true;
     dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Running...';
-    hideAppMessage();
+    if(!isRetryAttempt) hideAppMessage();
+
     try {
         const result = await superdbInstance.run({
             query: query,
             input: inputForWasm,
-            inputFormat: activeTab.inputFormat,
+            inputFormat: inputFormatForThisAttempt, 
             outputFormat: activeTab.outputFormat
         });
         activeTab.currentRawOutput = result;
@@ -1250,15 +1277,29 @@ async function runQueryHandler() {
             if (activeTab.gridInstance) { try {activeTab.gridInstance.destroy();} catch(e){} activeTab.gridInstance = null; }
         }
         updateResultDisplay(activeTab);
+        if (isRetryAttempt) {
+            showAppMessage("Successfully processed with 'Line' format after auto-detect failure.", 'success');
+        }
+
     } catch (error) {
-        activeTab.currentRawOutput = `Error: ${error.message || String(error)}`;
-        if (activeTab.gridInstance) { try {activeTab.gridInstance.destroy();} catch(e){} activeTab.gridInstance = null; }
-        updateResultDisplay(activeTab);
-        showAppMessage(`Query failed: ${error.message || String(error)}`, 'error', true);
+        const isFormatDetectionError = error.message && error.message.includes("format detection error");
+        
+        if (inputFormatForThisAttempt === 'auto' && isFormatDetectionError && !isRetryAttempt) {
+            showAppMessage("Auto-detection failed. Retrying with 'Line' format...", 'warning', true);
+            activeTab.inputFormat = 'line'; 
+            if (dom.inputFormatSelect) dom.inputFormatSelect.value = 'line';
+            
+            return runQueryHandler(true); 
+
+        } else {
+            activeTab.currentRawOutput = `Error: ${error.message || String(error)}`;
+            updateResultDisplay(activeTab);
+            showAppMessage(`Query failed: ${error.message || String(error)}`, 'error', true);
+        }
     } finally {
         dom.runQueryBtn.disabled = false;
-        const hasData = activeTab.dataLocation?.type === 'memory' || activeTab.dataLocation?.type === 'indexeddb';
-        dom.runScannerBtn.disabled = !(activeTab.scannerRules && activeTab.scannerRules.length > 0 && superdbInstance && hasData);
+        const hasData = activeTab?.dataLocation?.type === 'memory' || activeTab?.dataLocation?.type === 'indexeddb';
+        dom.runScannerBtn.disabled = !(activeTab?.scannerRules && activeTab?.scannerRules.length > 0 && superdbInstance && hasData);
         dom.runQueryBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Run Query';
     }
 }
@@ -2233,16 +2274,12 @@ function endTour() {
 
 function buildCyberChefUrl(inputValue, operationOrRecipe, isCustom = false) {
     const baseUrl = 'https://gchq.github.io/CyberChef/';
-    // More robust cleaning: convert to string, replace ALL Unicode whitespace variants with a standard space, then trim.
-    let processedInputValue = String(inputValue).replace(/[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]/g, ' ').trim();
+    let processedInputValue = String(inputValue).replace(/[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]/g, ' ').trim(); 
     let encodedInput;
 
     try {
-        // Using unescape(encodeURIComponent()) to get a "binary string" for btoa
-        // This is a common pattern for handling UTF-8 strings with btoa.
         let binaryString = unescape(encodeURIComponent(processedInputValue));
         encodedInput = btoa(binaryString);
-        // Convert to URL-safe Base64
         encodedInput = encodedInput.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
     } catch (e) {
@@ -2266,11 +2303,9 @@ function buildCyberChefUrl(inputValue, operationOrRecipe, isCustom = false) {
                 recipe = "Defang_IP_Addresses('Layer 3','[.]','[.]','[,]','[,]','hXXp','hXXps',false,false,false,false)\nDefang_URL(true,true,true,'Valid domains and full URLs')";
                 break;
             case 'to_base64':
-                // This recipe itself uses the standard alphabet, but the input to CyberChef URL is URL-safe
                 recipe = "To_Base64('A-Za-z0-9+/=')";
                 break;
             case 'from_base64':
-                 // This recipe itself uses the standard alphabet
                 recipe = "From_Base64('A-Za-z0-9+/=',true,false)";
                 break;
             case 'to_hex':
