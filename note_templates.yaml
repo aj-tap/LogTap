@@ -1,0 +1,197 @@
+- name: "General Investigation"
+  template: |
+    # Investigation Notes: General
+
+    ## Case Information
+    - Case ID: YOUR_CASE_ID_HERE
+    - Analyst: YOUR_NAME_HERE
+    - Date: {{CURRENT_DATE}}
+
+    ## Summary of Findings
+    - Brief overview of the incident and key findings.
+
+    ## Timeline of Events
+    - YYYY-MM-DD HH:MM:SS - Event 1
+    - YYYY-MM-DD HH:MM:SS - Event 2
+
+    ## Indicators of Compromise (IOCs)
+    - IP Addresses:
+      - x.x.x.x
+    - Domains:
+      - example.com
+    - Hashes (MD5, SHA1, SHA256):
+      - sample.exe: <hash_value>
+    - URLs:
+      - http://malicious.example.com/payload
+
+    ## Affected Systems/Users
+    - Hostname/IP:
+    - User Account:
+
+    ## Evidence Collected
+    - Log files (e.g., syslog, event logs, firewall logs)
+    - Memory dumps
+    - Disk images
+    - Network traffic (PCAP)
+
+    ## Analysis Performed
+    - Log analysis details
+    - Malware analysis (if any, link to malware analysis notes)
+    - Network traffic analysis
+
+    ## Mitigation Steps Taken
+    - System isolated
+    - Account disabled
+    - Malicious file removed
+
+    ## Further Actions/Recommendations
+    - Patch vulnerable systems
+    - Implement stronger password policies
+    - User awareness training
+- name: "Malware Analysis"
+  template: |
+    # Investigation Notes: Malware Analysis
+
+    ## Sample Information
+    - Filename:
+    - MD5:
+    - SHA1:
+    - SHA256:
+    - File Size:
+    - File Type:
+    - Submission Date: {{CURRENT_DATE}}
+    - Analyst: YOUR_NAME_HERE
+
+    ## Static Analysis
+    - Packer/Protector Identified:
+    - Strings of Interest:
+      -
+    - Imports/Exports:
+      -
+    - PE Information (Sections, Compilation Timestamp):
+      -
+
+    ## Dynamic Analysis (Sandbox/VM)
+    - Environment: (e.g., Windows 10, Any.Run, Cuckoo)
+    - Observed Behaviors:
+      - Network Connections (IPs, Domains, Ports, Protocols):
+        -
+      - Files Created/Modified/Deleted (Paths, Hashes):
+        -
+      - Registry Keys Accessed/Modified:
+        -
+      - Processes Created/Injected:
+        -
+      - Mutexes/Events Created:
+        -
+    - IOCs from Dynamic Analysis:
+      -
+
+    ## Code Analysis (if performed, e.g., IDA Pro, Ghidra)
+    - Key Functions/Algorithms:
+      -
+    - Obfuscation Techniques:
+      -
+    - Vulnerabilities Exploited (if known):
+      -
+
+    ## Conclusion
+    - Malware Family (if known, e.g., Emotet, AgentTesla):
+    - Threat Actor/Group (if attributable):
+    - Capabilities (e.g., RAT, Stealer, Ransomware):
+    - Overall Risk Assessment:
+
+    ## Recommendations
+    - Block identified IOCs
+    - Signature development
+    - Further investigation points
+- name: "Phishing Incident"
+  template: |
+    # Investigation Notes: Phishing Incident
+
+    ## Incident Details
+    - Reported By:
+    - Date Reported: {{CURRENT_DATE}}
+    - Date of Phishing Email Receipt:
+    - Analyst: YOUR_NAME_HERE
+
+    ## Email Analysis
+    - Sender Display Name:
+    - Sender Address (Original):
+    - Return-Path:
+    - Sender IP Address (from headers):
+    - Subject Line:
+    - Recipient(s):
+    - Attachments (Name, Type, Hash):
+      -
+    - Links (URL, Visible Text, Actual Destination):
+      -
+    - Email Headers Analysis (Key findings, e.g., SPF/DKIM/DMARC, hops):
+      -
+
+    ## Payload Analysis (if any attachment or link)
+    - Attachment Type & Analysis (link to Malware Analysis if applicable):
+      -
+    - Link Destination Analysis (Website content, redirects, downloads):
+      -
+    - Malware Involved (if any):
+
+    ## User Impact
+    - Credentials Compromised (Y/N/Suspected):
+    - Systems Accessed (Y/N/Suspected):
+    - Data Exfiltrated (Y/N/Suspected):
+    - Number of users affected:
+
+    ## Containment & Eradication
+    - Emails Blocked/Deleted from mail server:
+    - Malicious URLs/IPs blocked at firewall/proxy:
+    - Affected user accounts reset:
+    - Affected systems isolated/scanned:
+
+    ## Lessons Learned
+    - How did the phishing email bypass defenses?
+    - What could have prevented it?
+
+    ## Recommendations
+    - User awareness training on identifying phishing.
+    - Review email filtering rules.
+    - Block identified malicious indicators.
+- name: "Basic Log Review"
+  template: |
+    # Investigation Notes: Basic Log Review
+
+    ## Log Source Information
+    - Log Type (e.g., Sysmon, Windows Event Log, Apache Access):
+    - Hostname/Source IP:
+    - Timeframe of Logs Reviewed: {{CURRENT_DATE_START}} to {{CURRENT_DATE_END}}
+    - Analyst: YOUR_NAME_HERE
+
+    ## Objective of Review
+    - (e.g., Investigate suspicious login, check for malware execution, analyze web traffic)
+
+    ## Key Search Queries/Filters Used
+    -
+    -
+
+    ## Relevant Log Entries & Observations
+    ```
+    <Paste relevant log snippets here>
+    ```
+    - Observation 1:
+    - Observation 2:
+
+    ## Correlated Events (if any)
+    -
+
+    ## Indicators Found (if any)
+    - IPs:
+    - Domains:
+    - Usernames:
+    - Process Names:
+    - Event IDs:
+
+    ## Summary of Findings
+    -
+
+    ## Next Steps/Recommendations
+    -

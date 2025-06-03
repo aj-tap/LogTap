@@ -7,6 +7,7 @@
     <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="vendor/gridjs/css/mermaid.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" xintegrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="vendor/quilljs/css/quill.snow.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -44,6 +45,82 @@
         #cyberChefOperationsDropdown .dropdown-divider {
             border-top: 1px solid #495057;
         }
+
+        #notepadOffcanvas .ql-toolbar {
+            background-color: #343a40; 
+            border-bottom: 1px solid #495057; 
+        }
+        #notepadOffcanvas .ql-toolbar .ql-stroke {
+            stroke: #adb5bd; 
+        }
+         #notepadOffcanvas .ql-toolbar .ql-stroke-mitter { 
+            stroke: #adb5bd;
+        }
+        #notepadOffcanvas .ql-toolbar .ql-fill {
+            fill: #adb5bd; 
+        }
+        #notepadOffcanvas .ql-toolbar .ql-picker-label {
+            color: #adb5bd; 
+        }
+        #notepadOffcanvas .ql-toolbar .ql-picker-options {
+            background-color: #2b3035; 
+            color: #f8f9fa;
+        }
+        #notepadOffcanvas .ql-container {
+            border: 1px solid #495057;
+        }
+        #notepadOffcanvas .ql-editor {
+            background-color: #2b3035; 
+            color: #f8f9fa; 
+            height: 100%; 
+            font-family: 'Menlo', 'Monaco', 'Consolas', "Courier New", monospace; 
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        #notepadOffcanvas .ql-editor.ql-blank::before {
+            color: rgba(255,255,255,0.4); 
+            font-style: normal;
+        }
+        #notepadOffcanvas .offcanvas-body {
+            display: flex;
+            flex-direction: column;
+        }
+        #quill-editor-container { 
+            flex-grow: 1; 
+            min-height: 250px; 
+            margin-bottom: 1rem; 
+        }
+        #notepadTemplateContainer {
+            margin-bottom: 1rem; 
+        }
+        
+        #notepadOffcanvas .ql-toolbar button .fa,
+        #notepadOffcanvas .ql-toolbar button .fas,
+        #notepadOffcanvas .ql-toolbar button .far {
+            font-size: 1em; 
+            color: #adb5bd; 
+            vertical-align: middle;
+        }
+        #notepadOffcanvas .ql-toolbar button:hover .fa,
+        #notepadOffcanvas .ql-toolbar button:hover .fas,
+        #notepadOffcanvas .ql-toolbar button:hover .far {
+            color: #f8f9fa; 
+        }
+        #notepadOffcanvas .ql-toolbar button { 
+            height: 24px;
+            width: 24px;
+            padding: 3px 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #notepadOffcanvas .ql-toolbar .ql-copy-success .fas.fa-check {
+            color: #28a745 !important; 
+        }
+        #notepadOffcanvas .ql-toolbar .ql-copy-error .fas.fa-times {
+            color: #dc3545 !important; 
+        }
+
     </style>
 </head>
 <body>
@@ -175,6 +252,9 @@
                         <button id="cancelScanBtn" class="btn btn-secondary btn-sm d-none">Cancel Scan</button>
                         <button id="exportBtn" class="btn btn-success btn-sm" disabled>
                             <i class="fa-solid fa-download me-2"></i>Export Results
+                        </button>
+                        <button id="toggleNotepadBtn" class="btn btn-info btn-sm" type="button" data-bs-toggle="offcanvas" data-bs-target="#notepadOffcanvas" aria-controls="notepadOffcanvas">
+                            <i class="fa-solid fa-clipboard me-2"></i>Investigation Notes
                         </button>
                         <div id="scanProgress" class="alert alert-info d-none ms-2 p-2 mb-0 text-sm" role="status"></div>
                         <div id="statusMessage" class="alert alert-info d-none flex-grow-1 ms-auto p-2 mb-0 text-sm" role="alert"></div>
@@ -426,8 +506,29 @@
     <div id="cyberChefOperationsDropdown" class="dropdown-menu" style="display: none; position: fixed;">
     </div>
 
+    <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="notepadOffcanvas" aria-labelledby="notepadOffcanvasLabel" style="width: 45vw; min-width: 350px;"> 
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="notepadOffcanvasLabel"><i class="fa-solid fa-clipboard-list me-2"></i>Investigation Notes</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div id="notepadTemplateContainer">
+                <label for="notepadTemplateSelect" class="form-label form-label-sm">Select Template:</label>
+                <select id="notepadTemplateSelect" class="form-select form-select-sm bg-dark text-light border-secondary">
+                </select>
+            </div>
+
+            <div id="quill-editor-container"> 
+                <div id="quill-editor"></div> 
+            </div>
+            </div>
+    </div>
+
+
     <script src="wasm_exec.js"></script>
     <script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="vendor/quilljs/js/quill.min.js"></script>
     <script type="module" src="script.js"></script>
+    <script type="module" src="notepad.js"></script>
 </body>
 </html>
