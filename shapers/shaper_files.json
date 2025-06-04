@@ -1,5 +1,7 @@
 [
     "windows_evtx_json.yaml",
     "Linux_syslog_parser.yaml",
-    "microsoftxdr_parser.yaml"
+    "Linux_apache_parser.yaml",
+    "microsoft_xdr_parser.yaml",
+    "microsoft_azure_parser.yaml"
 ]

@@ -1633,7 +1633,7 @@ function populateTimelineFieldSelect(tab) {
         });
         if (!selectedFound && dom.timelineFieldSelect.options.length > 0) {
             let defaultSelection = Array.from(dom.timelineFieldSelect.options).find(opt =>
-                ['ts', 'timestamp', 'time', '_ts', 'eventtime', 'date', 'creationtime', 'eventcreationtime','systemtime'].includes(opt.value.toLowerCase())
+                ['ts', 'timestamp', 'time', '_ts', 'eventtime', 'date', 'creationtime', 'eventcreationtime','systemtime', 'TimeGenerated [UTC]'].includes(opt.value.toLowerCase())
             );
             if (defaultSelection) {
                 defaultSelection.selected = true;
@@ -1720,7 +1720,7 @@ async function generateTimelineChartHandler() {
     if (!inputForWasm && activeTab.dataLocation?.type === 'empty') {
         inputForWasm = '';
     }
-    const timelineQuery = `ts:=time(this['${timestampField}'])| count() by every(${interval})| sort ts`;
+    const timelineQuery = `switch (case grep("sentinel", this["_ResourceId"]) => grok("%{MONTHNUM:month}/%{MONTHDAY:day}/%{YEAR:year}, %{HOUR:hour}:%{MINUTE:minute}:%{SECOND:second} %{AMPM:ampm}",this['${timestampField}'],"AMPM (?:AM|PM)") | ts := cast(year, <string>) + "-" + (length(cast(month, <string>)) == 1 ? "0" + cast(month, <string>) : cast(month, <string>)) + "-" + (length(cast(day, <string>)) == 1 ? "0" + cast(day, <string>) : cast(day, <string>)) + " " +   (length(cast(hour, <string>)) == 1 ? "0" + cast(hour, <string>) : cast(hour, <string>)) + ":" + (length(cast(minute, <string>)) == 1 ? "0" + cast(minute, <string>) : cast(minute, <string>)) + ":" + cast(second, <string>) + " " + cast(ampm, <string>) | drop month, day, year, hour, minute, second, ampm | ts:=time(ts) default => ts:=time(this['${timestampField}']))| count() by every(${interval}) | sort ts`;
     const inputFormatForTimeline = activeTab.inputFormat;
     dom.generateTimelineBtn.disabled = true;
     dom.generateTimelineBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';

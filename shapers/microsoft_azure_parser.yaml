@@ -1,0 +1,5 @@
+name: "Microsoft Azure"
+query: |
+  EventID:=cast(EventID, <string>), LogonType:=cast(LogonType, <string>), SystemProcessId:=cast(SystemProcessId, <string>),SystemThreadId:=cast(SystemThreadId, <string>),ProcessId:=cast(ProcessId, <string>),CallerProcessId:=cast(CallerProcessId, <string>),Task:=cast(Task, <string>),Level:=cast(Level, <string>) | grok("%{MONTHNUM:month}/%{MONTHDAY:day}/%{YEAR:year}, %{HOUR:hour}:%{MINUTE:minute}:%{SECOND:second} %{AMPM:ampm}",this["TimeGenerated [UTC]"],"AMPM (?:AM|PM)") | ts := cast(year, <string>) + "-" + (length(cast(month, <string>)) == 1 ? "0" + cast(month, <string>) : cast(month, <string>)) + "-" + (length(cast(day, <string>)) == 1 ? "0" + cast(day, <string>) : cast(day, <string>)) + " " +   (length(cast(hour, <string>)) == 1 ? "0" + cast(hour, <string>) : cast(hour, <string>)) + ":" + (length(cast(minute, <string>)) == 1 ? "0" + cast(minute, <string>) : cast(minute, <string>)) + ":" + cast(second, <string>) + " " + cast(ampm, <string>) | fuse
+inputFormat: "csv"
+outputFormat: "zjson"
