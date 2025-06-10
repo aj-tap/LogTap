@@ -1,4 +1,4 @@
 name: "Linux Apache logs"
-query: "yield grok('%{MONTH:month}\\s+%{MONTHDAY:day}\\s+%{TIME:time}\\s+%{WORD:hostname}\\s+%{WORD:service}\\(%{WORD:process_name}\\)\\[%{INT:pid}\\]:\\s+%{GREEDYDATA:message}', this)"
+query: "yield grok('\\[%{DATA:date}\\]\\s+\\[%{LOGLEVEL:log_level}\\]\\s+%{GREEDYDATA:message}', this)"
 inputFormat: "line"
 outputFormat: "zjson"
