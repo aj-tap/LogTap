@@ -120,7 +120,7 @@ body.focus-mode main {
 }
 
 .gridjs-dark-theme .gridjs-td {
-    color: #000000; 
+    color: #e0e0e0;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -130,7 +130,7 @@ body.focus-mode main {
 }
 
 .gridjs-dark-theme .gridjs-tr:nth-child(even) .gridjs-td {
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 .gridjs-dark-theme .gridjs-tr:last-child .gridjs-td {
