@@ -284,6 +284,11 @@ body.focus-mode main {
     color: #000 !important;
 }
 
+/* Force Grid.js pagination buttons to use black font for readability */
+.gridjs-pages button {
+    color: #000 !important;
+}
+
 .tour-tooltip {
     position: absolute;
     z-index: 1052;
