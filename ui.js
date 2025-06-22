@@ -132,10 +132,9 @@ export function displayTableWithGridJs(parsedData, containerElement, tab) {
             data: dataWithDetailsPlaceholder,
             search: { debounceTimeout: 250 },
             sort: true,
-            pagination: { enabled: true, limit: 100, summary: true },
+            pagination: { enabled: true, limit: 50, summary: true },
             resizable: true,
             fixedHeader: true,
-            height: '60vh',
         }).render(containerElement);
     } catch (gridError) {
         showAppMessage(`Error displaying results table: ${gridError.message}`, 'error', true);

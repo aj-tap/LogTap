@@ -123,6 +123,7 @@ function handleWorkerMessage(event) {
 }
 
 function updateScannerUIWithResults(data, tab) {
+    dom.scannerResultsPanel.removeAttribute('style');
     (data.hits || []).forEach(hit => {
         if (hit.result && hit.result.trim()) {
             const hitDiv = document.createElement('div');
@@ -133,9 +134,8 @@ function updateScannerUIWithResults(data, tab) {
                     <div>
                         <button class="btn btn-outline-primary btn-sm py-0 px-1 investigate-button" data-rule-query="${encodeURIComponent(hit.query)}">Investigate</button>
                     </div>
-                </div>
-                <p class="mb-1 small text-body-secondary" title="Query: ${hit.query}">Query: <code class="text-light small">${hit.query}</code></p>
-                <div class="scanner-hit-result"><pre class="small m-0"><code>${hit.result.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre></div>`;
+                </div>                
+                <div class="scanner-hit-result"><pre class="small m-0"><code>${hit.result.replace(/</g, "<").replace(/>/g, ">")}</code></pre></div>`;
             dom.scannerHitsOutput.appendChild(hitDiv);
         }
     });

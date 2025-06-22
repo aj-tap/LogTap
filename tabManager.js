@@ -31,7 +31,7 @@ export function createNewTabState(nameSuffix) {
         cyInstance: null,
         timelineChartInstance: null,
         scannerRules: [],
-        scannerRuleFileName: "No scanner rules loaded.",
+        scannerRuleFileName: "No scanner rules loaded. Please choose a predefined rule set or upload a custom rule set (in YAML format).",
         predefinedRulesSelectValue: "",
         scannerHitsHTML: "",
         timelineVisible: false,

@@ -108,27 +108,53 @@ async function deleteData(key) {
 }
 
 async function getDataAsStream(key) {
-    const fullData = await getData(key); // Assumes getData(key) returns the full string
-    if (typeof fullData === 'undefined') {
-      throw new Error(`Data not found in IndexedDB for key: ${key}`);
-    }
-  
-    let position = 0;
-    const chunkSize = 16 * 1024; // 16KB chunks
-  
-    return new ReadableStream({
-      pull(controller) {
-        if (position >= fullData.length) {
-          controller.close();
+  const db = await openDB();
+
+  return new ReadableStream({
+    start(controller) {
+      let position = 0;
+      const chunkSize = 16 * 1024; // 16KB chunks
+
+      const transaction = db.transaction([STORE_NAME], 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(key);
+
+      request.onsuccess = (event) => {
+        const fullData = event.target.result;
+        if (typeof fullData === 'undefined') {
+          controller.error(`Data not found in IndexedDB for key: ${key}`);
           return;
         }
-  
-        const chunk = fullData.substring(position, position + chunkSize);
-        controller.enqueue(new TextEncoder().encode(chunk));
-        position += chunkSize;
-      }
-    });
-  }
+
+        function enqueueChunk() {
+          if (position >= fullData.length) {
+            controller.close();
+            return;
+          }
+
+          const chunk = fullData.substring(position, position + chunkSize);
+          controller.enqueue(new TextEncoder().encode(chunk));
+          position += chunkSize;
+          setTimeout(enqueueChunk, 0); // Schedule the next chunk asynchronously
+        }
+
+        enqueueChunk(); // Start the process
+      };
+
+      request.onerror = (event) => {
+        console.error("Error getting data from IndexedDB:", event.target.error);
+        controller.error(`Failed to get data: ${event.target.error?.message || event.target.error}`);
+      };
+
+      transaction.onerror = (event) => {
+        console.error("Transaction error getting data:", event.target.error);
+        controller.error(`Transaction failed: ${event.target.error?.message || event.target.error}`);
+      };
+    },
+    cancel() {
+      // Optional: Handle cancellation if needed
+    }
+  });
+}
 
 export { saveData, getData, deleteData, openDB, getDataAsStream };
-

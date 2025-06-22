@@ -116,7 +116,7 @@ async function runScan(dataPayload) {
                     hits.push({ 
                         ruleName: rule.name, 
                         query: query, 
-                        result: `${dataResult.trim().substring(0, 100)}.... Use 'Investigate' or 'Pivot' to see fully results.`
+                        result: `${dataResult.trim().substring(0, 500)}.... Use 'Investigate' to see fully results.`
                     });
                 } else if (!success) {
                     console.log(`  -> Entered FAILURE branch for rule "${rule.name}".`);

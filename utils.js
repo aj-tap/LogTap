@@ -61,8 +61,10 @@ export async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
 }
 
 export function parseResultForTable(resultText, actualOutputFormat) {
+    if (!resultText) return null;
+
     const lines = resultText.trim().split('\n').filter(Boolean);
-    if (lines.length === 0) return null;
+    if (lines.length === 0) return { headers: [], dataRows: [] };
 
     let headers = [], dataRows = [];
 
@@ -70,18 +72,12 @@ export function parseResultForTable(resultText, actualOutputFormat) {
         if (actualOutputFormat === 'csv') {
             headers = parseCsvLine(lines[0]);
             dataRows = lines.slice(1).map(line => parseCsvLine(line).map(String));
-            return { headers, dataRows };
-        }
-
-        if (actualOutputFormat === 'line') {
+        } else if (actualOutputFormat === 'line') {
             headers = ["line"];
             dataRows = lines.map(line => [line]);
-            return { headers, dataRows };
-        }
-
-        if (actualOutputFormat === 'zjson' || actualOutputFormat === 'json') {
+        } else if (actualOutputFormat === 'zjson' || actualOutputFormat === 'json') {
             const jsonDataObjects = lines.map(line => JSON.parse(line));
-            if (jsonDataObjects.length === 0) return null;
+            if (jsonDataObjects.length === 0) return { headers: [], dataRows: [] };
 
             const firstRecord = jsonDataObjects[0];
 
@@ -121,12 +117,15 @@ export function parseResultForTable(resultText, actualOutputFormat) {
                     });
                 });
             }
-            return { headers, dataRows };
+        } else {
+            return { headers: [], dataRows: [] };
         }
-        return null;
     } catch (e) {
-        return null;
+        console.error("Error parsing results for table:", e);
+        return { headers: [], dataRows: [] };
     }
+
+    return { headers, dataRows };
 }
 
 export function parseCsvLine(text) {

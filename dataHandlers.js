@@ -57,9 +57,8 @@ export async function handleNewData(tab, data, sourceName) {
     } else {
         tab.originalDataSource = data;
         tab.dataLocation = { type: 'memory' };
-        dom.dataInput.value = data;
-        dom.dataInput.placeholder = "Paste log data here...";
-        dom.dataInput.disabled = false;
+        dom.dataInput.placeholder = "Pasting data is disabled for large datasets. Use upload instead.";
+        dom.dataInput.disabled = true;
         showAppMessage(`Data "${sourceName}" loaded into memory.`, 'info');
     }
     
@@ -94,8 +93,8 @@ export async function applyShaperScriptHandler() {
         let inputForWasm = null;
         if (activeTab.dataLocation?.type === 'indexeddb') {
             inputForWasm = await getDataAsStream(activeTab.dataLocation.key);
-        } else if (activeTab.dataLocation?.type === 'memory') {
-            inputForWasm = activeTab.originalDataSource;
+        } else {
+            inputForWasm = tab.originalDataSource;
         }
         const result = await superdbInstance.run({
             query: selectedShaper.query,
@@ -104,7 +103,8 @@ export async function applyShaperScriptHandler() {
             outputFormat: selectedShaper.outputFormat
         });
         const originalFileName = activeTab.name.split(' (')[0].replace(/\..+$/, '');
-        await handleNewData(activeTab, result, `${originalFileName} (Shaped)`);
+        const shapedResult = result;
+        await handleNewData(activeTab, shapedResult, `${originalFileName} (Shaped)`);
         updateActiveTab({
             inputFormat: selectedShaper.outputFormat,
         });
@@ -127,7 +127,12 @@ export async function runQueryHandler(isRetryAttempt = false) {
     if (activeTab.dataLocation?.type === 'indexeddb') {
         inputForWasm = await getDataAsStream(activeTab.dataLocation.key);
     } else if (activeTab.dataLocation?.type === 'memory') {
-        inputForWasm = activeTab.originalDataSource;
+        inputForWasm = new ReadableStream({
+            start(controller) {
+                controller.enqueue(new TextEncoder().encode(tab.originalDataSource));
+                controller.close();
+            }
+        });
     } else if (activeTab.dataLocation?.type === 'empty') {
         inputForWasm = '';
     }
@@ -135,16 +140,19 @@ export async function runQueryHandler(isRetryAttempt = false) {
         showAppMessage("No data available to run the query.", "warning");
         return;
     }
+
     if (!isRetryAttempt) saveQueryToHistory(query);
     if (!query) {
         query = "pass";
         updateActiveTab({ query: "pass" });
         dom.queryInput.value = "pass";
     }
+
     if (activeTab.gridInstance) { try { activeTab.gridInstance.destroy(); } catch (e) {} }
     updateActiveTab({ currentRawOutput: null, gridInstance: null });
     dom.runQueryBtn.disabled = true;
     dom.runQueryBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+
     try {
         const result = await superdbInstance.run({
             query: query,

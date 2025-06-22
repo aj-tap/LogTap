@@ -15,6 +15,59 @@ main {
 .control-panel {
     flex-shrink: 0;
     background-color: #111827;
+    transition: height 0.3s ease;
+    overflow: hidden;
+}
+
+.control-panel-header {
+    background-color: #1a2433;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+}
+
+.control-panel.collapsed {
+    height: 3rem;
+}
+
+.control-panel.collapsed #collapsibleControlPanelContent {
+    display: none;
+}
+
+.control-panel.collapsed {
+    height: auto; /* Adjust height to fit the remaining content */
+}
+
+.control-panel .row.align-items-center {
+    margin-bottom: 1rem; /* Add some spacing below the search query and buttons */
+}
+
+.control-panel .control-panel-header #collapseControlPanelBtn i {
+    transition: transform 0.3s ease;
+}
+
+.control-panel:not(.collapsed) .control-panel-header #collapseControlPanelBtn .fa-chevron-up {
+    display: none;
+}
+
+.control-panel.collapsed .control-panel-header #collapseControlPanelBtn .fa-chevron-down {
+    display: inline-block;
+}
+
+.control-panel .control-panel-header #collapseControlPanelBtn i {
+    color: white;
+    font-size: 1.2em;
+}
+
+.control-panel.collapsed .control-panel-header #collapseControlPanelBtn .fa-angles-up {
+    display: none;
+}
+
+.control-panel:not(.collapsed) .control-panel-header #collapseControlPanelBtn .fa-chevron-down {
+    display: none;
+}
+
+.control-panel.collapsed .control-panel-header #collapseControlPanelBtn .fa-chevron-down {
+    display: inline-block;
 }
 
 .results-area {
@@ -298,4 +351,44 @@ body.focus-mode main {
     border-radius: 5px;
     max-width: 350px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.control-panel .control-panel-header #collapseControlPanelBtn i {
+    color: white;
+    font-size: 1.2em;
+}
+
+.control-panel.collapsed .control-panel-header #collapseControlPanelBtn .collapse-icon {
+    display: none;
+}
+
+.control-panel:not(.collapsed) .control-panel-header #collapseControlPanelBtn .expand-icon {
+    display: none;
+}
+
+.control-panel.collapsed .control-panel-header #collapseControlPanelBtn .expand-icon {
+    display: inline-block;
+}
+
+.control-panel .control-panel-header #collapseControlPanelBtn .collapse-icon {
+    display: inline-block !important;
+}
+
+.control-panel:not(.collapsed) .control-panel-header #collapseControlPanelBtn .expand-icon {
+    display: none !important;
+}
+
+.control-panel.collapsed .control-panel-header #collapseControlPanelBtn .collapse-icon {
+    display: none !important;
+}
+
+.control-panel.collapsed .control-panel-header #collapseControlPanelBtn .expand-icon {
+    display: inline-block !important;
+    color: white !important;
+    border-color: white !important;
+}
+
+.control-panel .control-panel-header #collapseControlPanelBtn .expand-icon {
+    color: white;
+    font-size: 1.2em;
 }
