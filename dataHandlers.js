@@ -5,7 +5,7 @@ import { getSuperDB } from './app.js';
 import { showAppMessage, hideAppMessage, lockUI, updateResultDisplay, displayTableWithGridJs } from './ui.js';
 import { saveData, deleteData, getDataAsStream } from './db.js';
 import { saveQueryToHistory } from './components.js';
-import { parseResultForTable, applyEvtxCleaner } from './utils.js';
+import { parseResultForTable, applyEvtxCleaner, formatBytes } from './utils.js';
 
 export async function handleNewData(tab, data, sourceName) {
     if (tab.gridInstance) { try { tab.gridInstance.destroy(); } catch(e) {} }
@@ -36,7 +36,7 @@ export async function handleNewData(tab, data, sourceName) {
 
     const dataSize = (typeof data === 'string') ? data.length : 0;
     const isLarge = dataSize > config.LARGE_DATA_THRESHOLD;
-    const displaySize = (dataSize / (1024 * 1024)).toFixed(2) + ' MB';
+    const displaySize = formatBytes(dataSize);
     const summary = `${sourceName} (${displaySize})`;
 
     tab.dataSummary = summary;
@@ -57,8 +57,7 @@ export async function handleNewData(tab, data, sourceName) {
     } else {
         tab.originalDataSource = data;
         tab.dataLocation = { type: 'memory' };
-        dom.dataInput.placeholder = "Pasting data is disabled for large datasets. Use upload instead.";
-        dom.dataInput.disabled = true;
+        dom.dataInput.placeholder = "Paste raw logs, JSON, CSV, or other text-based data here...";
         showAppMessage(`Data "${sourceName}" loaded into memory.`, 'info');
     }
     
@@ -94,7 +93,7 @@ export async function applyShaperScriptHandler() {
         if (activeTab.dataLocation?.type === 'indexeddb') {
             inputForWasm = await getDataAsStream(activeTab.dataLocation.key);
         } else {
-            inputForWasm = tab.originalDataSource;
+            inputForWasm = activeTab.originalDataSource;
         }
         const result = await superdbInstance.run({
             query: selectedShaper.query,
@@ -129,7 +128,7 @@ export async function runQueryHandler(isRetryAttempt = false) {
     } else if (activeTab.dataLocation?.type === 'memory') {
         inputForWasm = new ReadableStream({
             start(controller) {
-                controller.enqueue(new TextEncoder().encode(tab.originalDataSource));
+                controller.enqueue(new TextEncoder().encode(activeTab.originalDataSource));
                 controller.close();
             }
         });

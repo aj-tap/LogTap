@@ -71,7 +71,7 @@ export const config = {
         { value: "tsv", text: "TSV" }, { value: "zson", text: "ZSON" }
     ],
     MAX_HISTORY_ITEMS: 25,
-    LARGE_DATA_THRESHOLD: 1 * 1024 * 1024
+    LARGE_DATA_THRESHOLD: 10 * 1024 * 1024 
 };
 
 export const tourSteps = [

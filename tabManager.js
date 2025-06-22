@@ -92,6 +92,7 @@ export async function loadTabData(tabId) {
     if (!tab) return;
     dom.queryInput.value = tab.query;
     dom.dataInput.value = (tab.dataLocation?.type === 'memory') ? tab.originalDataSource : '';
+    showAppMessage(`tab.dataLocation?.type (tabManager): ${tab.dataLocation?.type}`, 'info');
     dom.dataInput.placeholder = (tab.dataLocation?.type === 'indexeddb') ?
         `Large data stored in database (${tab.dataSummary}).` : "Paste log data here...";
     dom.dataInput.disabled = (tab.dataLocation?.type === 'indexeddb');

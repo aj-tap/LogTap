@@ -13,6 +13,15 @@ function prettifyRuleName(filename) {
         .join(' ');
 }
 
+export function formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
 export async function initializeShaperScriptsSelect() {
     const placeholder = [{ name: "Select a shaper...", path: "" }];
     try {
@@ -62,12 +71,9 @@ export async function loadScannerRulesFromFile(filePath, ruleSetName, tab) {
 
 export function parseResultForTable(resultText, actualOutputFormat) {
     if (!resultText) return null;
-
     const lines = resultText.trim().split('\n').filter(Boolean);
     if (lines.length === 0) return { headers: [], dataRows: [] };
-
     let headers = [], dataRows = [];
-
     try {
         if (actualOutputFormat === 'csv') {
             headers = parseCsvLine(lines[0]);
@@ -78,9 +84,7 @@ export function parseResultForTable(resultText, actualOutputFormat) {
         } else if (actualOutputFormat === 'zjson' || actualOutputFormat === 'json') {
             const jsonDataObjects = lines.map(line => JSON.parse(line));
             if (jsonDataObjects.length === 0) return { headers: [], dataRows: [] };
-
             const firstRecord = jsonDataObjects[0];
-
             if (firstRecord && firstRecord.type?.kind === 'record' && Array.isArray(firstRecord.type.fields) && Array.isArray(firstRecord.value)) {
                 headers = firstRecord.type.fields.map(field => field.name);
                 dataRows = jsonDataObjects.map(record => {
@@ -124,7 +128,6 @@ export function parseResultForTable(resultText, actualOutputFormat) {
         console.error("Error parsing results for table:", e);
         return { headers: [], dataRows: [] };
     }
-
     return { headers, dataRows };
 }
 
